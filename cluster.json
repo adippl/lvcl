@@ -1,0 +1,55 @@
+{
+	"UUID": "testuuid",
+	"DomainDefinitionDir": "domains/",
+	"Nodes": [
+		{
+			"Hostname": "r210II-1",
+			"TransportAddress": "10.0.6.11",
+			"NodeState": 1,
+			"Weight": 100,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		},
+		{
+			"Hostname": "r210II-2",
+			"TransportAddress": "10.0.6.12",
+			"NodeState": 1,
+			"Weight": 100,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		},
+		{
+			"Hostname": "r210II-3",
+			"TransportAddress": "10.0.6.13",
+			"NodeState": 1,
+			"Weight": 100,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		}
+	],
+	"VMs": [
+		{
+			"Name": "gh-test",
+			"DomainDefinition": "tests struct embedded in main cluster.conf",
+			"VCpus": 1,
+			"HwCpus": 0,
+			"VMem": 512,
+			"HwMem": 512,
+			"StorageClass": 0,
+			"MigrationTimeout": 180,
+			"MigrateLive": true
+		}
+	],
+	"test": 0,
+	"BalanceMode": 1,
+	"ResStickiness": 50,
+	"GlobMigrationTimeout": 120,
+	"GlobLiveMigrationBlock": false,
+	"Maintenance": true
+}

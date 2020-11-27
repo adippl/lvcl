@@ -1,0 +1,11 @@
+{
+	"Name": "gh-test2",
+	"DomainDefinition": "/mnt/cephvm/libvirt/domains/gh-test2.xml",
+	"VCpus": 3,
+	"HwCpus": 1,
+	"VMem": 1024,
+	"HwMem": 512,
+	"StorageClass": 0,
+	"MigrationTimeout": 180,
+	"MigrateLive": true
+}
