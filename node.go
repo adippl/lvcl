@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 const(
 	NodeOffline=iota
 	NodePreparing
@@ -8,8 +10,8 @@ const(
 	)
 
 type Node struct{
-	Hostname	string
-	TransportAddress	string
+	Nodename	string
+	LibvirtAddress	string
 	NodeState int //{ NodeOffline, NodePreparing, NodeOnline, NodeEvacuate }
 	Weight	int
 	
@@ -22,3 +24,5 @@ type Node struct{
 
 
 
+func (p *Node)dump(){
+	fmt.Printf("\n dumping Node %+v \nEND\n", *p)}

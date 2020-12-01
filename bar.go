@@ -9,18 +9,18 @@ func bar(){
 		DomainDefinitionDir: "domains/",
 		Nodes: []Node{
 			Node{
-				Hostname: "r210II-1",
-				TransportAddress: "10.0.6.11",
+				Nodename: "r210II-1",
+				LibvirtAddress: "10.0.6.11",
 				NodeState: NodePreparing,
 				Weight: 100},
 			Node{
-				Hostname: "r210II-2",
-				TransportAddress: "10.0.6.12",
+				Nodename: "r210II-2",
+				LibvirtAddress: "10.0.6.12",
 				NodeState: NodePreparing,
 				Weight: 100},
 			Node{
-				Hostname: "r210II-3",
-				TransportAddress: "10.0.6.13",
+				Nodename: "r210II-3",
+				LibvirtAddress: "10.0.6.13",
 				NodeState: NodePreparing,
 				Weight: 100}},
 		VMs: []VM{
@@ -38,7 +38,12 @@ func bar(){
 		ResStickiness:50,
 		GlobMigrationTimeout:120,
 		GlobLiveMigrationBlock:false,
-		Maintenance: true}
+		Maintenance: true,
+		VCpuMax: 8,
+		HwCpuMax: 8,
+		VMemMax: 8192,
+		HwMemMax: 8192,
+		}
 	
 	fmt.Printf("%+v\n", test)
 	//var x int = 5
@@ -54,3 +59,5 @@ func bar(){
 		
 
 	}
+
+	/* */
