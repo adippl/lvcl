@@ -3,8 +3,8 @@
 	"DomainDefinitionDir": "domains/",
 	"Nodes": [
 		{
-			"Hostname": "r210II-1",
-			"TransportAddress": "10.0.6.11",
+			"Nodename": "r210II-1",
+			"LibvirtAddress": "10.0.6.11",
 			"NodeState": 1,
 			"Weight": 100,
 			"VCores": 0,
@@ -13,8 +13,8 @@
 			"HwMem": 0
 		},
 		{
-			"Hostname": "r210II-2",
-			"TransportAddress": "10.0.6.12",
+			"Nodename": "r210II-2",
+			"LibvirtAddress": "10.0.6.12",
 			"NodeState": 1,
 			"Weight": 100,
 			"VCores": 0,
@@ -23,8 +23,8 @@
 			"HwMem": 0
 		},
 		{
-			"Hostname": "r210II-3",
-			"TransportAddress": "10.0.6.13",
+			"Nodename": "r210II-3",
+			"LibvirtAddress": "10.0.6.13",
 			"NodeState": 1,
 			"Weight": 100,
 			"VCores": 0,
@@ -51,5 +51,9 @@
 	"ResStickiness": 50,
 	"GlobMigrationTimeout": 120,
 	"GlobLiveMigrationBlock": false,
-	"Maintenance": true
+	"Maintenance": true,
+	"VCpuMax": 8,
+	"HwCpuMax": 8,
+	"VMemMax": 8192,
+	"HwMemMax": 8192
 }
