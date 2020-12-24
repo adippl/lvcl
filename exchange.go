@@ -25,23 +25,41 @@ import "fmt"
 type Exchange struct{
 	myHostname	string
 	nodeList	*[]Node
-	dialers		map[string]net.Conn
+	dialers		map[string]*net.Conn
+	listenTCP	net.Listener
+	listenUnix	net.Listener
+
 	brainIN		chan<- message
 	brainOUT	<-chan message
 	loggerIN	chan<- message
 	loggerOUT	<-chan message 
-
-
 	}
 
+func (e Exchange)initListen(){
+	var err error
+	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport) 
+	if err != nil {
+		fmt.Printf("ERR, %s\n",err)}
+	
+	e.listenUnix, err = net.Listen("unix", config.UnixSocket) 
+	if err != nil {
+		fmt.Printf("ERR, %s\n",err)}
+	}
 
-func (e Exchange)initConnections(){
-	for _,n:= range *e.nodeList{
+func (e Exchange)startConn(n *Node){
+		if(n.Hostname == e.myHostname){
+			return}
 		c,err:=net.Dial("tcp",n.NodeAddress)
 		if(err!=nil){
-			fmt.Printf("err %s\n",err)
-			continue}
-		e.dialers[n.Hostname]=c}}
+			fmt.Printf("ERR %s\n",err)
+			return}
+		e.dialers[n.Hostname]=&c}
+
+	/* TODO replace with functions independently establishing connections */
+func (e Exchange)initConnections(){
+	for _,n:= range *e.nodeList{
+		go e.startConn(&n)
+		}}
 
 //func (e Exchange)New(){
 

@@ -96,5 +96,15 @@ func (v *VM)validate()(passed bool){
 	
 	if(v.VCpus>=256){
 		fmt.Println("WARN, High number of cores in vm")}
+	
+	if(v.VCpus<v.HwCpus){
+		fmt.Println("WARN, VCpus lower than HwCpus")
+		v.VCpus=v.HwCpus}
+	
+	if(v.HwCpus<v.HwCpus){
+		fmt.Println("WARN, HwCpus lower than HwCpus")
+		v.HwCpus=v.HwCpus}
+	
+	
 	return true
 	}

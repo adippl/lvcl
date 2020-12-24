@@ -48,9 +48,14 @@ type Conf struct {
 	
 	HeartbeatInterval uint
 	ClusterTickInterval uint
+	TCPport string
+	UnixSocket string
 	ConfFileHash string `json:"-"`
 	ConfFileHashRaw []byte `json:"-"`
 	MyHostname string `json:"-"`
+
+	LogLocal string
+	LogCombined string
 	}
 
 
