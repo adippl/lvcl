@@ -68,6 +68,10 @@ func bar(){
 		HwMemMax: 8192,
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
+		TCPport: "6666",
+		UnixSocket: "lvcl.sock",
+		LogLocal: "loc.log",
+		LogCombined: "cmb.log",
 		}
 	
 	fmt.Printf("%+v\n", test)

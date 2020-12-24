@@ -18,9 +18,29 @@
  */
 package main
 
-//import "time"
-//import "fmt"
+import "os"
 
-func main(){
-	setup()
+var lg Logger
+
+type Logger struct{
+	logLocal *os.File
+	logCombined *os.File
+	
+	loggerIN	chan<- message
+	loggerOUT	<-chan message
 	}
+
+func (l Logger)setup(){
+	f,err := os.OpenFile(config.LogLocal, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)}
+	l.logLocal=f
+	defer l.logLocal.Close()
+	
+
+	f,err = os.OpenFile(config.LogCombined, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)}
+	l.logCombined=f
+	defer l.logCombined.Close() }
+	

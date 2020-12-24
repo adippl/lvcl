@@ -18,9 +18,22 @@
  */
 package main
 
-//import "time"
-//import "fmt"
 
-func main(){
-	setup()
+func setup(){
+	bar()
+	confLoad()
+	brainIN:=make(chan message,10)
+	brainOUT:=make(chan message,10)
+	loggerIN:=make(chan message,10)
+	loggerOUT:=make(chan message,10)
+	
+	e := Exchange{
+		myHostname: config.MyHostname,
+		nodeList: &config.Nodes,
+		brainIN: brainIN,
+		brainOUT: brainOUT,
+		loggerIN: loggerIN,
+		loggerOUT: loggerOUT,}
+	e.initListen()
+	e.initConnections()
 	}

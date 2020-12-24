@@ -22,10 +22,11 @@ import "fmt"
 //import "json"
 
 const(
-	mgsModUnd=iota
-	mgsModLog
-	msgModExc
-	msgModBrn
+	msgModCore=iota
+	msgModLoggr
+	msgModExchn
+	msgModBrain
+	//mgsModUndef
 	)
 
 type message struct{
@@ -34,11 +35,44 @@ type message struct{
 	SrcMod		uint
 	DestMod		uint
 	RpcFunc		uint
-	arg1		string
+	Argc		uint
+	Argv		[]string
 	}
 
 
 
-func (p *message)dump(){
-	fmt.Printf("%+v \n", *p)
+func (pm *message)dump(){
+	fmt.Printf("%+v \n", *pm)
 	}
+
+	/* TODO replace with something faster */
+	/* TODO ADD LOGGER LOGGING */
+func (pm *message)validate() bool {
+	var err error
+	_,err = config.getNodebyHostname(& pm.SrcHost)
+	if err != nil {
+		return true}
+	
+	_,err = config.getNodebyHostname(& pm.DestHost)
+	if err != nil {
+		return true}
+
+	if ((pm.SrcMod != msgModCore)   &&
+		(pm.SrcMod != msgModLoggr)  &&
+		(pm.SrcMod != msgModExchn)  &&
+		(pm.SrcMod != msgModBrain)) ||
+	   ((pm.DestMod != msgModCore)  &&
+		(pm.DestMod != msgModLoggr) &&
+		(pm.DestMod != msgModExchn) &&
+		(pm.DestMod != msgModBrain)) {
+		return true}
+	/* TODO module specific validation functions */
+	return false}
+		
+	
+	
+	
+	
+	
+	
+
