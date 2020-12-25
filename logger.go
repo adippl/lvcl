@@ -19,10 +19,13 @@
 package main
 
 import "os"
+import "fmt"
+import "time"
 
-var lg Logger
+var lg *Logger
 
 type Logger struct{
+	setupDone bool
 	logLocal *os.File
 	logCombined *os.File
 	
@@ -30,17 +33,68 @@ type Logger struct{
 	loggerOUT	<-chan message
 	}
 
-func (l Logger)setup(){
+func newLoger(in chan<- message, out <-chan message) *Logger{
+	var l Logger
+	l.setupDone=true
+	l.loggerIN=in
+	l.loggerOUT=out
+	
 	f,err := os.OpenFile(config.LogLocal, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)}
 	l.logLocal=f
-	defer l.logLocal.Close()
-	
 
 	f,err = os.OpenFile(config.LogCombined, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)}
 	l.logCombined=f
-	defer l.logCombined.Close() }
+	fmt.Println("logger setup end")
+	return &l}
+
+
+func (l *Logger)delLogger(){
+	l.logLocal.Close()
+	l.logCombined.Close()
+	l=nil}
 	
+func (l *Logger)handlesMessages(){
+	for m := range l.loggerOUT{
+		if m.loggerMessageValidate(){
+			_,err := l.logLocal.WriteString(m.Argv[0])
+			if err != nil {
+				panic(err)}
+		}else{
+			l.msg("message: \"" + m.Argv[0] + "\"\n")}}}
+		
+
+func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
+	return true}
+	
+func (l Logger)msg(s string){
+	if l.setupDone == false {
+		fmt.Printf("WARNING Logging before log setup %s\n", s)
+		return}
+	time := time.Now() //TODO MOVE IT SOMEWHERE
+	newS := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, time.String(), s)
+	fmt.Println(newS)
+
+
+	_,err := l.logLocal.WriteString(newS)
+	if err != nil{
+		fmt.Println(err)
+		panic(err)}
+	
+	l.loggerIN <- msgFormat(&newS)
+	}
+
+func msgFormat(s *string) message{
+	var m message
+	
+	m.SrcMod=msgModLoggr
+	m.DestMod=msgModLoggr
+	m.RpcFunc=1
+	m.Argc=1
+	m.Argv=append(m.Argv,*s)
+	
+	return m
+	}
