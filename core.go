@@ -18,6 +18,7 @@
  */
 package main
 
+import "fmt"
 
 func setup(){
 	bar()
@@ -26,6 +27,8 @@ func setup(){
 	brainOUT:=make(chan message,10)
 	loggerIN:=make(chan message,10)
 	loggerOUT:=make(chan message,10)
+
+	lg = newLoger(loggerIN, loggerOUT)
 	
 	e := Exchange{
 		myHostname: config.MyHostname,
@@ -36,4 +39,14 @@ func setup(){
 		loggerOUT: loggerOUT,}
 	e.initListen()
 	e.initConnections()
+	
+	fmt.Println(lg)
+	lg.msg("TEST")
+	fmt.Printf("%+v \n", lg)
+	lg.delLogger()
+	fmt.Println(lg)
+	}
+
+func mainLoop(){
+
 	}
