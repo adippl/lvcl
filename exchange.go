@@ -26,7 +26,8 @@ import "bufio"
 type Exchange struct{
 	myHostname	string
 	nodeList	*[]Node
-	dialers		map[string]*net.Conn
+	dialed		map[string]*net.Conn
+	dialers		map[string]*eclient
 	listenTCP	net.Listener
 	listenUnix	net.Listener
 
@@ -36,7 +37,7 @@ type Exchange struct{
 	loggerOUT	<-chan message 
 	}
 
-func (e Exchange)tpcHandle(c net.Conn) *eclient{
+func (e *Exchange)tcpHandle(c net.Conn) *eclient{
 	writer := bufio.NewWriter(c)
 	reader := bufio.NewReader(c)
 	eclient := &eclient{
@@ -48,32 +49,40 @@ func (e Exchange)tpcHandle(c net.Conn) *eclient{
 	//client.Listen()
 	return eclient }
 
-func (e Exchange)initListen(){
+func (e *Exchange)initListen(){
 	var err error
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport) 
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen , %s\n",err))}
-	
+	for {
+		conn,err := e.listenTCP.Accept()
+		if err != nil {
+			lg.msg(fmt.Sprintf("ERR, net.Listener.Accept() , %s\n",err))}
+		raddr := conn.RemoteAddr().String()
+		laddr := conn.LocalAddr().String()
+		lg.msg(fmt.Sprintf("info, %s connected to node %s \n", raddr, laddr))
+		ec := e.tcpHandle(conn)
+		e.dialers[raddr]=ec
+		}
 	}
 
-func (e Exchange)initListenUnix(){
+func (e *Exchange)initListenUnix(){
 	var err error
 	e.listenUnix, err = net.Listen("unix", config.UnixSocket) 
 	if err != nil {
-		lg.msg(fmt.Sprintf("ERR, %s\n",err))}
-	lg.msg(fmt.Sprintf("ERR, %s\n",err))
+		lg.msg(fmt.Sprintf("ERR, net.Listen %s\n",err))}
 	}
 
-func (e Exchange)startConn(n *Node){
+func (e *Exchange)startConn(n *Node){
 		if(n.Hostname == e.myHostname){
 			return}
 		c,err:=net.Dial("tcp",n.NodeAddress)
 		if(err!=nil){
 			lg.msg(fmt.Sprintf("ERR, %s\n",err))
 			return}
-		e.dialers[n.Hostname]=&c}
+		e.dialed[n.Hostname]=&c}
 
-func (e Exchange)initConnections(){
+func (e *Exchange)initConnections(){
 	for _,n:= range *e.nodeList{
 		go e.startConn(&n)
 		}}

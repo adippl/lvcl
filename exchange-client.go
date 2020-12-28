@@ -21,6 +21,7 @@ import "net"
 import "bufio"
 
 type eclient struct{
+	originLocal	bool
 	incoming	chan message
 	outgoing	chan message
 	reader		*bufio.Reader
@@ -28,3 +29,27 @@ type eclient struct{
 	conn		net.Conn
 	connection	*eclient
 	}
+
+//func  (ec *eclient) listen(){
+	
+func (ec *eclient) Read() {
+	for {
+		line, err := ec.reader.ReadString('\n')
+		if err == nil {
+			if ec.connection != nil {
+				ec.connection.outgoing <- line
+			}
+			fmt.Println(line)
+		} else {
+			break } }
+
+	ec.conn.Close()
+	delete(alleecs, ec)
+	if ec.connection != nil {
+		ec.connection.connection = nil }
+	ec = nil }
+
+func (ec *eclient) Write() {
+	for data := range ec.outgoing {
+		ec.writer.WriteString(data)
+		ec.writer.Flush() } }
