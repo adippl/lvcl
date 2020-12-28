@@ -39,7 +39,7 @@ func setup(){
 		brainOUT: brainOUT,
 		loggerIN: loggerIN,
 		loggerOUT: loggerOUT,}
-	e.initListen()
+	go e.initListen()
 	e.initConnections()
 	
 	fmt.Println(lg)
