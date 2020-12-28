@@ -57,15 +57,15 @@ func (l *Logger)delLogger(){
 	l.logCombined.Close()
 	l=nil}
 	
-func (l *Logger)handlesMessages(){
-	for m := range l.loggerOUT{
-		if m.loggerMessageValidate(){
-			_,err := l.logLocal.WriteString(m.Argv[0])
-			if err != nil {
-				panic(err)}
-		}else{
-			l.msg("message: \"" + m.Argv[0] + "\"\n")}}}
-		
+func (l *Logger)messageHandler(){
+	for {
+		for m := range l.loggerOUT{
+			if m.loggerMessageValidate(){
+				_,err := l.logLocal.WriteString(m.Argv[0])
+				if err != nil {
+					panic(err)}
+			}else{
+				l.msg("message: \"" + m.Argv[0] + "\"\n")}}}}
 
 func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
@@ -76,7 +76,7 @@ func (l Logger)msg(s string){
 		return}
 	time := time.Now() //TODO MOVE IT SOMEWHERE
 	newS := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, time.String(), s)
-	fmt.Println(newS)
+	//fmt.Println(newS)
 
 
 	_,err := l.logLocal.WriteString(newS)

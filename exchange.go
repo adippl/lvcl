@@ -20,6 +20,7 @@ package main
 
 import "net"
 import "fmt"
+import "bufio"
 
 
 type Exchange struct{
@@ -35,15 +36,32 @@ type Exchange struct{
 	loggerOUT	<-chan message 
 	}
 
+func (e Exchange)tpcHandle(c net.Conn) *eclient{
+	writer := bufio.NewWriter(c)
+	reader := bufio.NewReader(c)
+	eclient := &eclient{
+		incoming:	make(chan message),
+		outgoing:	make(chan message),
+		conn:		c,
+		reader:		reader,
+		writer:		writer,}
+	//client.Listen()
+	return eclient }
+
 func (e Exchange)initListen(){
 	var err error
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport) 
 	if err != nil {
-		fmt.Printf("ERR, %s\n",err)}
+		lg.msg(fmt.Sprintf("ERR, net.Listen , %s\n",err))}
 	
+	}
+
+func (e Exchange)initListenUnix(){
+	var err error
 	e.listenUnix, err = net.Listen("unix", config.UnixSocket) 
 	if err != nil {
-		fmt.Printf("ERR, %s\n",err)}
+		lg.msg(fmt.Sprintf("ERR, %s\n",err))}
+	lg.msg(fmt.Sprintf("ERR, %s\n",err))
 	}
 
 func (e Exchange)startConn(n *Node){
@@ -51,15 +69,22 @@ func (e Exchange)startConn(n *Node){
 			return}
 		c,err:=net.Dial("tcp",n.NodeAddress)
 		if(err!=nil){
-			fmt.Printf("ERR %s\n",err)
+			lg.msg(fmt.Sprintf("ERR, %s\n",err))
 			return}
 		e.dialers[n.Hostname]=&c}
 
-	/* TODO replace with functions independently establishing connections */
 func (e Exchange)initConnections(){
 	for _,n:= range *e.nodeList{
 		go e.startConn(&n)
 		}}
 
-//func (e Exchange)New(){
 
+//func (l *Logger)handlesMessages(){
+//	for m := range l.loggerOUT{
+//		if m.loggerMessageValidate(){
+//			_,err := l.logLocal.WriteString(m.Argv[0])
+//			if err != nil {
+//				panic(err)}
+//		}else{
+//			l.msg("message: \"" + m.Argv[0] + "\"\n")}}}
+//		
