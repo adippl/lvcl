@@ -30,19 +30,19 @@ func bar(){
 		Nodes: []Node{
 			Node{
 				Hostname: "r210II-1",
-				NodeAddress: "10.0.6.11:6666",
+				NodeAddress: "10.0.6.11:6798",
 				LibvirtAddress: "10.0.6.11",
 				NodeState: NodePreparing,
 				Weight: 100},
 			Node{
 				Hostname: "r210II-2",
-				NodeAddress: "10.0.6.12:6666",
+				NodeAddress: "10.0.6.12:6798",
 				LibvirtAddress: "10.0.6.12",
 				NodeState: NodePreparing,
 				Weight: 100},
 			Node{
 				Hostname: "r210II-3",
-				NodeAddress: "10.0.6.13:6666",
+				NodeAddress: "10.0.6.13:6798",
 				LibvirtAddress: "10.0.6.13",
 				NodeState: NodePreparing,
 				Weight: 100}},
@@ -68,7 +68,7 @@ func bar(){
 		HwMemMax: 8192,
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
-		TCPport: "6666",
+		TCPport: "6798",
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",

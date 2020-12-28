@@ -19,6 +19,7 @@
 package main
 
 import "fmt"
+import "time"
 
 func setup(){
 	bar()
@@ -29,6 +30,7 @@ func setup(){
 	loggerOUT:=make(chan message,10)
 
 	lg = newLoger(loggerIN, loggerOUT)
+	go lg.messageHandler()
 	
 	e := Exchange{
 		myHostname: config.MyHostname,
@@ -43,10 +45,15 @@ func setup(){
 	fmt.Println(lg)
 	lg.msg("TEST")
 	fmt.Printf("%+v \n", lg)
-	lg.delLogger()
 	fmt.Println(lg)
+	fmt.Printf("%+v \n", e)
+	//lg.delLogger()
 	}
 
 func mainLoop(){
-
+	//time.Sleep(time.Duration(config.ClusterTickInterval))
+	for i:=0;i<10;i++ {
+		fmt.Println(i)
+		time.Sleep(time.Duration(1000*1000*1000*i))}
+		
 	}

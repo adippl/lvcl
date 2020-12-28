@@ -1,5 +1,4 @@
-/*
- *  lvcl is a simple program clustering libvirt servers
+/*  lvcl is a simple program clustering libvirt servers
  *  Copyright (C) 2020 Adam Prycki (email: adam.prycki@gmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -18,10 +17,14 @@
  */
 package main
 
-//import "time"
-//import "fmt"
+import "net"
+import "bufio"
 
-func main(){
-	setup()
-	mainLoop()
+type eclient struct{
+	incoming	chan message
+	outgoing	chan message
+	reader		*bufio.Reader
+	writer		*bufio.Writer
+	conn		net.Conn
+	connection	*eclient
 	}
