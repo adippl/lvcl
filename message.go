@@ -69,7 +69,10 @@ func (pm message)validate() bool {
 	/* TODO module specific validation functions */
 	return false}
 	
-	
+func Newmessage() *message {
+	var m message
+	m.SrcHost=config.MyHostname
+	return &m}
 	
 	
 	

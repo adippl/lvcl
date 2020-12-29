@@ -1,5 +1,4 @@
-/*
- *  lvcl is a simple program clustering libvirt servers
+/*  lvcl is a simple program clustering libvirt servers
  *  Copyright (C) 2020 Adam Prycki (email: adam.prycki@gmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,6 +22,7 @@ import "fmt"
 import "time"
 
 
+
 type Exchange struct{
 	myHostname	string
 	nodeList	*[]Node
@@ -30,15 +30,30 @@ type Exchange struct{
 	dialers		map[string]*eclient
 	listenTCP	net.Listener
 	listenUnix	net.Listener
-
-
-	recQueue chan message
-
+	
+	
+	recQueue	chan message
 	brainIN		chan<- message
-	brainOUT	<-chan message
 	loggerIN	chan<- message
-	loggerOUT	<-chan message
+	exIN		<-chan message
 	}
+
+
+
+func NewExchange(exIN <-chan message, bIN chan<- message, lIN chan<- message) *Exchange {
+	e := Exchange{
+		myHostname:	config.MyHostname,
+		nodeList:	&config.Nodes,
+		dialed:		make(map[string]*net.Conn),
+		dialers:	make(map[string]*eclient),
+		recQueue:	make(chan message, 33),
+		brainIN:	bIN,
+		loggerIN:	lIN,
+		exIN:		exIN,
+		}
+	go e.initListen()
+	go e.initConnections()
+	return &e}
 
 func (e *Exchange)tcpHandle(c net.Conn) *eclient{
 	eclient := &eclient{
@@ -90,20 +105,18 @@ func (e *Exchange)reconnectLoop(){
 			if e.dialed[n.Hostname] == nil{
 				go e.startConn(n)}
 				}
-			time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}
-			}
+			time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
 func (e *Exchange)initConnections(){
 	go e.reconnectLoop()
 	for _,n:= range *e.nodeList{
 		go e.startConn(n)}}
 	
-//func (l *Logger)handlesMessages(){
-//	for m := range l.loggerOUT{
-//		if m.loggerMessageValidate(){
-//			_,err := l.logLocal.WriteString(m.Argv[0])
-//			if err != nil {
-//				panic(err)}
-//		}else{
-//			l.msg("message: \"" + m.Argv[0] + "\"\n")}}}
-//		
+
+func (e *Exchange)forwarder(){
+	for{
+		for m := range e.exIN{
+			m.dump()}
+		}}
+
+//func dateToTime() time.Time{

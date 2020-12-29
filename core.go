@@ -20,32 +20,21 @@ package main
 
 import "fmt"
 import "time"
-import "net"
 
 func setup(){
-	bar()
+	writeExampleConfig()
 	confLoad()
 	brainIN:=make(chan message,10)
-	brainOUT:=make(chan message,10)
 	loggerIN:=make(chan message,10)
-	loggerOUT:=make(chan message,10)
+	exchangeIN:=make(chan message,10)
 
-	lg = newLoger(loggerIN, loggerOUT)
+	lg = NewLoger(loggerIN, exchangeIN)
 	go lg.messageHandler()
 	
-	e := Exchange{
-		myHostname:	config.MyHostname,
-		nodeList:	&config.Nodes,
-		dialed:		make(map[string]*net.Conn),
-		dialers:	make(map[string]*eclient),
-		recQueue:	make(chan message, 33),
-		brainIN:	brainIN,
-		brainOUT:	brainOUT,
-		loggerIN:	loggerIN,
-		loggerOUT:	loggerOUT,
-		}
-	go e.initListen()
-	go e.initConnections()
+	e := NewExchange(exchangeIN, brainIN, loggerIN)
+	go e.forwarder()
+	m := Newmessage()
+	exchangeIN <- *m
 	
 	fmt.Println(lg)
 	lg.msg("Starting lvcl")
