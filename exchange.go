@@ -20,7 +20,7 @@ package main
 
 import "net"
 import "fmt"
-import "bufio"
+import "time"
 
 
 type Exchange struct{
@@ -31,27 +31,28 @@ type Exchange struct{
 	listenTCP	net.Listener
 	listenUnix	net.Listener
 
+
+	recQueue chan message
+	connTimeout chan string
+
 	brainIN		chan<- message
 	brainOUT	<-chan message
 	loggerIN	chan<- message
-	loggerOUT	<-chan message 
+	loggerOUT	<-chan message
 	}
 
 func (e *Exchange)tcpHandle(c net.Conn) *eclient{
-	writer := bufio.NewWriter(c)
-	reader := bufio.NewReader(c)
 	eclient := &eclient{
 		incoming:	make(chan message),
 		outgoing:	make(chan message),
-		conn:		c,
-		reader:		reader,
-		writer:		writer,}
-	//client.Listen()
+		exchange:	e.recQueue,
+		conn:		c,}
+	eclient.listen()
 	return eclient }
 
 func (e *Exchange)initListen(){
 	var err error
-	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport) 
+	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport)
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen , %s\n",err))}
 	for {
@@ -68,26 +69,38 @@ func (e *Exchange)initListen(){
 
 func (e *Exchange)initListenUnix(){
 	var err error
-	e.listenUnix, err = net.Listen("unix", config.UnixSocket) 
+	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen %s\n",err))}
 	}
 
-func (e *Exchange)startConn(n *Node){
+func (e *Exchange)startConn(n Node){
 		if(n.Hostname == e.myHostname){
 			return}
 		c,err:=net.Dial("tcp",n.NodeAddress)
+		lg.msg(fmt.Sprintf("ERR, dialing %s \"%s\"\n", n.Hostname, err))
 		if(err!=nil){
-			lg.msg(fmt.Sprintf("ERR, %s\n",err))
+			e.connTimeout <- n.Hostname
 			return}
 		e.dialed[n.Hostname]=&c}
 
+func (e *Exchange)reconnectLoop(){
+	for{
+		for x := range e.connTimeout{
+			lg.msg(fmt.Sprintf("info trying to reconnect to %s", x))
+			n,err := config.getNodebyHostname(&x)
+			if err != nil {
+				lg.msgE("ERR",err)}
+			go e.startConn(*n)}
+		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}
+		}
+	
+
 func (e *Exchange)initConnections(){
+	go e.reconnectLoop()
 	for _,n:= range *e.nodeList{
-		go e.startConn(&n)
-		}}
-
-
+		go e.startConn(n)}}
+	
 //func (l *Logger)handlesMessages(){
 //	for m := range l.loggerOUT{
 //		if m.loggerMessageValidate(){

@@ -38,15 +38,19 @@ func setup(){
 		brainIN: brainIN,
 		brainOUT: brainOUT,
 		loggerIN: loggerIN,
-		loggerOUT: loggerOUT,}
+		loggerOUT: loggerOUT,
+		connTimeout: make(chan string, 33),
+		recQueue:	make(chan message, 33)}
 	go e.initListen()
-	e.initConnections()
+	go e.initConnections()
 	
 	fmt.Println(lg)
-	lg.msg("TEST")
-	fmt.Printf("%+v \n", lg)
-	fmt.Println(lg)
-	fmt.Printf("%+v \n", e)
+	lg.msg("Starting lvcl")
+	//fmt.Printf("%+v \n", config.Nodes)
+	//fmt.Printf("%+v \n\n\n", *e.nodeList)
+	//fmt.Printf("%+v \n", lg)
+	//fmt.Println(lg)
+	//fmt.Printf("%+v \n", e)
 	//lg.delLogger()
 	}
 
@@ -54,6 +58,7 @@ func mainLoop(){
 	//time.Sleep(time.Duration(config.ClusterTickInterval))
 	for i:=0;i<10;i++ {
 		fmt.Println(i)
-		time.Sleep(time.Duration(1000*1000*1000*i))}
+		time.Sleep(time.Second)}
+		//time.Sleep(time.Duration(1000*1000*100*i))}
 		
 	}

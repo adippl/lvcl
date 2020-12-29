@@ -76,8 +76,6 @@ func (l Logger)msg(s string){
 		return}
 	time := time.Now() //TODO MOVE IT SOMEWHERE
 	newS := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, time.String(), s)
-	//fmt.Println(newS)
-
 
 	_,err := l.logLocal.WriteString(newS)
 	if err != nil{
@@ -86,6 +84,9 @@ func (l Logger)msg(s string){
 	
 	l.loggerIN <- msgFormat(&newS)
 	}
+
+func (l Logger)msgE(s string, e error){
+	l.msg(fmt.Sprintf("ERR %s - %s", s, e))}
 
 func msgFormat(s *string) message{
 	var m message
