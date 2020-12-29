@@ -80,10 +80,10 @@ func VMReadFile(path string)(err error){
 	//	return fmt.Errorf("err VM failed .validate")}
 	
 	config.VMs = append(config.VMs,vm)
-	fmt.Println("\n\n\n\nTESTESTSETSETSET\n\n\n")
-	fmt.Println(config.VMs)
+	//fmt.Println("\n\n\n\nTESTESTSETSETSET\n\n\n")
+	//fmt.Println(config.VMs)
 	
-	confPrint(&config)
+	//confPrint(&config)
 	
 	return nil}
 

@@ -25,7 +25,7 @@ import "io/ioutil"
 
 func bar(){
 	fmt.Println("bar")
-	test := Conf{ UUID:"testuuid", 
+	testConfig := Conf{ UUID:"testuuid",
 		DomainDefinitionDir: "domains/",
 		Nodes: []Node{
 			Node{
@@ -74,15 +74,12 @@ func bar(){
 		LogCombined: "cmb.log",
 		}
 	
-	fmt.Printf("%+v\n", test)
-	//var x int = 5
-	//confser, err := json.MarshalIndent(x,"","	")
-	confser, err := json.MarshalIndent(test,"","	")
-	//confser, err := json.Marshal(test)
+	//fmt.Printf("%+v\n", testConfig)
+	confser, err := json.MarshalIndent(testConfig,"","	")
 	if err != nil {
-		fmt.Println("Can't serislize", test)
+		fmt.Println("Can't serislize", testConfig)
 		}
-	fmt.Println(confser);
+	//fmt.Println(confser);
 	
 	ioutil.WriteFile("./cluster.json",confser,0644)
 		
