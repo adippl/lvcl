@@ -49,7 +49,7 @@
 			"MigrateLive": true
 		}
 	],
-	"test": 0,
+	"Quorum": 0,
 	"BalanceMode": 1,
 	"ResStickiness": 50,
 	"GlobMigrationTimeout": 120,
@@ -61,8 +61,10 @@
 	"HwMemMax": 8192,
 	"HeartbeatInterval": 1000,
 	"ClusterTickInterval": 100,
+	"ReconnectLoopDelay": 1000,
 	"TCPport": "6798",
 	"UnixSocket": "lvcl.sock",
 	"LogLocal": "loc.log",
-	"LogCombined": "cmb.log"
+	"LogCombined": "cmb.log",
+	"DebugLogAllAtExchange": true
 }

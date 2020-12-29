@@ -29,15 +29,15 @@ type Logger struct{
 	logLocal *os.File
 	logCombined *os.File
 	
-	loggerIN	chan<- message
-	loggerOUT	<-chan message
+	loggerIN	<-chan message
+	exchangeIN	chan<- message
 	}
 
-func newLoger(in chan<- message, out <-chan message) *Logger{
+func NewLoger(lIN <-chan message, exIN chan<- message) *Logger{
 	var l Logger
 	l.setupDone=true
-	l.loggerIN=in
-	l.loggerOUT=out
+	l.exchangeIN=exIN
+	l.loggerIN=lIN
 	
 	f,err := os.OpenFile(config.LogLocal, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -59,7 +59,7 @@ func (l *Logger)delLogger(){
 	
 func (l *Logger)messageHandler(){
 	for {
-		for m := range l.loggerOUT{
+		for m := range l.loggerIN{
 			if m.loggerMessageValidate(){
 				_,err := l.logLocal.WriteString(m.Argv[0])
 				if err != nil {
@@ -82,7 +82,7 @@ func (l Logger)msg(s string){
 		fmt.Println(err)
 		panic(err)}
 	
-	l.loggerIN <- msgFormat(&newS)
+	l.exchangeIN <- msgFormat(&newS)
 	}
 
 func (l Logger)msgE(s string, e error){
