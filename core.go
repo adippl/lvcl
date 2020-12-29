@@ -20,6 +20,7 @@ package main
 
 import "fmt"
 import "time"
+import "net"
 
 func setup(){
 	bar()
@@ -33,14 +34,16 @@ func setup(){
 	go lg.messageHandler()
 	
 	e := Exchange{
-		myHostname: config.MyHostname,
-		nodeList: &config.Nodes,
-		brainIN: brainIN,
-		brainOUT: brainOUT,
-		loggerIN: loggerIN,
-		loggerOUT: loggerOUT,
-		connTimeout: make(chan string, 33),
-		recQueue:	make(chan message, 33)}
+		myHostname:	config.MyHostname,
+		nodeList:	&config.Nodes,
+		dialed:		make(map[string]*net.Conn),
+		dialers:	make(map[string]*eclient),
+		recQueue:	make(chan message, 33),
+		brainIN:	brainIN,
+		brainOUT:	brainOUT,
+		loggerIN:	loggerIN,
+		loggerOUT:	loggerOUT,
+		}
 	go e.initListen()
 	go e.initConnections()
 	

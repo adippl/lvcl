@@ -33,7 +33,6 @@ type Exchange struct{
 
 
 	recQueue chan message
-	connTimeout chan string
 
 	brainIN		chan<- message
 	brainOUT	<-chan message
@@ -80,21 +79,19 @@ func (e *Exchange)startConn(n Node){
 		c,err:=net.Dial("tcp",n.NodeAddress)
 		lg.msg(fmt.Sprintf("ERR, dialing %s \"%s\"\n", n.Hostname, err))
 		if(err!=nil){
-			e.connTimeout <- n.Hostname
+			e.dialed[n.Hostname]=nil
 			return}
 		e.dialed[n.Hostname]=&c}
 
 func (e *Exchange)reconnectLoop(){
 	for{
-		for x := range e.connTimeout{
-			lg.msg(fmt.Sprintf("info trying to reconnect to %s", x))
-			n,err := config.getNodebyHostname(&x)
-			if err != nil {
-				lg.msgE("ERR",err)}
-			go e.startConn(*n)}
-		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}
-		}
-	
+		for _,n := range *e.nodeList{
+			//fmt.Printf("[ %s ]\n",n)
+			if e.dialed[n.Hostname] == nil{
+				go e.startConn(n)}
+				}
+			time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}
+			}
 
 func (e *Exchange)initConnections(){
 	go e.reconnectLoop()
