@@ -29,11 +29,11 @@ type Logger struct{
 	logLocal *os.File
 	logCombined *os.File
 	
-	loggerIN	<-chan message
+	loggerIN	chan message
 	exchangeIN	chan<- message
 	}
 
-func NewLoger(lIN <-chan message, exIN chan<- message) *Logger{
+func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	var l Logger
 	l.setupDone=true
 	l.exchangeIN=exIN
@@ -48,6 +48,7 @@ func NewLoger(lIN <-chan message, exIN chan<- message) *Logger{
 	if err != nil {
 		panic(err)}
 	l.logCombined=f
+	go l.messageHandler()
 	fmt.Println("logger setup end")
 	return &l}
 
@@ -64,13 +65,14 @@ func (l *Logger)messageHandler(){
 				_,err := l.logLocal.WriteString(m.Argv[0])
 				if err != nil {
 					panic(err)}
+				l.exchangeIN <- m
 			}else{
-				l.msg("message: \"" + m.Argv[0] + "\"\n")}}}}
+				l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}}}}
 
 func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
 	
-func (l Logger)msg(s string){
+func (l *Logger)msg(s string){
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", s)
 		return}
@@ -81,21 +83,31 @@ func (l Logger)msg(s string){
 	if err != nil{
 		fmt.Println(err)
 		panic(err)}
-	
-	l.exchangeIN <- msgFormat(&newS)
+	fmt.Println(newS)
+	msg := msgFormat(&newS)
+	l.exchangeIN <- *msg
 	}
 
-func (l Logger)msgE(s string, e error){
+func (l *Logger)msgE(s string, e error){
 	l.msg(fmt.Sprintf("ERR %s - %s", s, e))}
 
-func msgFormat(s *string) message{
+func msgFormat(s *string) *message{
 	var m message
 	
+	m.SrcHost=config.MyHostname
+	m.DestHost="__everyone__"
 	m.SrcMod=msgModLoggr
 	m.DestMod=msgModLoggr
 	m.RpcFunc=1
 	m.Argc=1
 	m.Argv=append(m.Argv,*s)
 	
-	return m
+	return &m}
+
+func (l *Logger)DEBUGmessage(m *message){
+	
+	str := fmt.Sprintf("DEBUG logged message: %+v \n", *m)
+	nmsg := msgFormat(&str)
+	l.loggerIN <- *nmsg
 	}
+
