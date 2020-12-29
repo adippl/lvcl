@@ -18,38 +18,50 @@
 package main
 
 import "net"
-import "bufio"
+import "encoding/json"
 
 type eclient struct{
 	originLocal	bool
 	incoming	chan message
 	outgoing	chan message
-	reader		*bufio.Reader
-	writer		*bufio.Writer
+	exchange	chan message
 	conn		net.Conn
-	connection	*eclient
 	}
 
-//func  (ec *eclient) listen(){
-	
-func (ec *eclient) Read() {
-	for {
-		line, err := ec.reader.ReadString('\n')
-		if err == nil {
-			if ec.connection != nil {
-				ec.connection.outgoing <- line
-			}
-			fmt.Println(line)
-		} else {
-			break } }
+func  (ec *eclient)listen(){
+	go ec.read()
+	}
 
+func  (ec *eclient)forward(){
+	go ec.write()
+	}
+
+func (ec *eclient)read(){
+	d := json.NewDecoder(ec.conn)
+	var m message
+	var err error
+	for{
+		err = d.Decode(&m)
+		if err == nil{
+			if ec.conn != nil{
+				ec.exchange <- m}
+		}else{
+			lg.msgE("Decoder", err)
+			break}}
 	ec.conn.Close()
-	delete(alleecs, ec)
-	if ec.connection != nil {
-		ec.connection.connection = nil }
-	ec = nil }
+	if ec.conn != nil{
+		ec.conn = nil}
+	ec = nil}
 
-func (ec *eclient) Write() {
-	for data := range ec.outgoing {
-		ec.writer.WriteString(data)
-		ec.writer.Flush() } }
+func (ec *eclient)write(){
+	e := json.NewEncoder(ec.conn)
+	for{
+		for data := range ec.outgoing{
+			err := e.Encode(data)
+			if err != nil{
+				lg.msgE("eclient deser", err)
+				break}}}
+	ec.conn.Close()
+	if ec.conn != nil{
+		ec.conn = nil}
+	ec = nil}
