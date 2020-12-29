@@ -29,20 +29,15 @@ func setup(){
 	exchangeIN:=make(chan message,10)
 
 	lg = NewLoger(loggerIN, exchangeIN)
-	go lg.messageHandler()
 	
 	e := NewExchange(exchangeIN, brainIN, loggerIN)
-	go e.forwarder()
+	e.placeholderStupidVariableNotUsedError()
 	m := Newmessage()
+	str := "TESTTESTTEST"
+	m.setStr(&str)
 	exchangeIN <- *m
 	
-	fmt.Println(lg)
 	lg.msg("Starting lvcl")
-	//fmt.Printf("%+v \n", config.Nodes)
-	//fmt.Printf("%+v \n\n\n", *e.nodeList)
-	//fmt.Printf("%+v \n", lg)
-	//fmt.Println(lg)
-	//fmt.Printf("%+v \n", e)
 	//lg.delLogger()
 	}
 

@@ -26,7 +26,6 @@ const(
 	msgModLoggr
 	msgModExchn
 	msgModBrain
-	//mgsModUndef
 	)
 
 type message struct{
@@ -73,7 +72,10 @@ func Newmessage() *message {
 	var m message
 	m.SrcHost=config.MyHostname
 	return &m}
-	
+
+func (m *message)setStr(s *string){
+	m.Argv=append(m.Argv,*s)
+	m.Argc++}
 	
 	
 	

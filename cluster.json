@@ -66,5 +66,5 @@
 	"UnixSocket": "lvcl.sock",
 	"LogLocal": "loc.log",
 	"LogCombined": "cmb.log",
-	"DebugLogAllAtExchange": true
+	"DEbugLogAllAtExchange": true
 }
