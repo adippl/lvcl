@@ -89,10 +89,10 @@ func (e *Exchange)initListenUnix(){
 		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}
 	}
 
-func (e *Exchange)startConn(n Node){
+func (e *Exchange)startConn(n Node){	//TODO convert to eclient
 		if(n.Hostname == e.myHostname){
 			return}
-		c,err:=net.Dial("tcp",n.NodeAddress)
+		c,err := net.Dial("tcp",n.NodeAddress)
 		if(err!=nil){
 			lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
 			e.dialed[n.Hostname]=nil
@@ -116,15 +116,29 @@ func (e *Exchange)initConnections(){
 //func (e *Exchange)
 
 func (e *Exchange)forwarder(){
-	debug := false
+	var debug bool = false
 	if config.DEbugLogAllAtExchange {
 		debug=true}
 		
 	for{
 		for m := range e.exIN{
-			if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
+			if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr &&
+				m.SrcHost == config.MyHostname {
+				
 				lg.DEBUGmessage(&m)}
-			}}}
+			if m.SrcMod == msgModLoggr && m.DestMod == msgModLoggr &&
+				m.SrcHost == config.MyHostname && m.DestHost == "__everyone__"{
+				
+				for _,n := range config.Nodes{
+					if n.Hostname != config.MyHostname {
+						//probably unnesesary
+						m.DestHost=n.Hostname
+						//TODO send to dialed eclient
+						fmt.Println(n)
+						fmt.Println(m)
+						}}
+
+			}}}}
 
 	
 
