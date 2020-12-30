@@ -49,6 +49,7 @@ type Conf struct {
 	HeartbeatInterval uint
 	ClusterTickInterval uint
 	ReconnectLoopDelay uint
+	HeartbeatTimeFormat string
 
 	TCPport string
 	UnixSocket string
@@ -195,6 +196,7 @@ func writeExampleConfig(){
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
 		ReconnectLoopDelay: 1000,
+		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",

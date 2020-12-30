@@ -28,7 +28,7 @@ func setup(){
 	brainIN:=make(chan message,10)
 	loggerIN:=make(chan message,10)
 	exchangeIN:=make(chan message,10)
-
+	
 	lg = NewLoger(loggerIN, exchangeIN)
 	
 	e := NewExchange(exchangeIN, brainIN, loggerIN)
@@ -39,6 +39,12 @@ func setup(){
 	exchangeIN <- *m
 	
 	lg.msg("Starting lvcl")
+	
+	m = messageHeartbeat()
+	fmt.Println(m)
+	s := m.heartbeatGetTime()
+	fmt.Printf("LOLOL %s LOLOL\n", s)
+
 	//lg.delLogger()
 	}
 

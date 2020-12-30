@@ -19,6 +19,7 @@
 package main
 
 import "fmt"
+import "time"
 //import "json"
 
 const(
@@ -26,6 +27,7 @@ const(
 	msgModLoggr
 	msgModExchn
 	msgModBrain
+	msgModExchnHeartbeat
 	)
 
 type message struct{
@@ -76,6 +78,21 @@ func Newmessage() *message {
 func (m *message)setStr(s *string){
 	m.Argv=append(m.Argv,*s)
 	m.Argc++}
+	
+
+func messageHeartbeat() *message {
+	var m message
+	m.SrcHost=config.MyHostname
+	t := time.Now()
+	s := t.Format(config.HeartbeatTimeFormat)
+	m.setStr(&s)
+	return &m}
+	
+func (m *message)heartbeatGetTime() *time.Time {
+	t,err := time.Parse(config.HeartbeatTimeFormat, m.Argv[0])
+	if err != nil {
+		lg.msgE("heartbeatGetTime time.Parse error", err)}
+	return &t}
 	
 	
 	
