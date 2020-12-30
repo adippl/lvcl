@@ -26,17 +26,10 @@ type eclient struct{
 	outgoing	chan message
 	exchange	chan message
 	conn		net.Conn
+	//exch		*Exchange
 	}
 
-func  (ec *eclient)listen(){
-	go ec.read()
-	}
-
-func  (ec *eclient)forward(){
-	go ec.write()
-	}
-
-func (ec *eclient)read(){
+func (ec *eclient)listen(){
 	d := json.NewDecoder(ec.conn)
 	var m message
 	var err error
@@ -53,7 +46,7 @@ func (ec *eclient)read(){
 		ec.conn = nil}
 	ec = nil}
 
-func (ec *eclient)write(){
+func (ec *eclient)forward(){
 	e := json.NewEncoder(ec.conn)
 	for{
 		for data := range ec.outgoing{

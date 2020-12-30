@@ -26,7 +26,7 @@ import "time"
 type Exchange struct{
 	myHostname	string
 	nodeList	*[]Node
-	dialed		map[string]*net.Conn
+	dialed		map[string]*eclient
 	dialers		map[string]*eclient
 	listenTCP	net.Listener
 	listenUnix	net.Listener
@@ -44,7 +44,7 @@ func NewExchange(exIN <-chan message, bIN chan<- message, lIN chan<- message) *E
 	e := Exchange{
 		myHostname:	config.MyHostname,
 		nodeList:	&config.Nodes,
-		dialed:		make(map[string]*net.Conn),
+		dialed:		make(map[string]*eclient),
 		dialers:	make(map[string]*eclient),
 		recQueue:	make(chan message, 33),
 		brainIN:	bIN,
@@ -52,18 +52,30 @@ func NewExchange(exIN <-chan message, bIN chan<- message, lIN chan<- message) *E
 		exIN:		exIN,
 		}
 	go e.initListen()
-	go e.initConnections()
+	//go e.initConnections()
+	go e.reconnectLoop()
 	go e.forwarder()
 	return &e}
 
-func (e *Exchange)tcpHandle(c net.Conn) *eclient{
+func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
 	eclient := &eclient{
-		incoming:	make(chan message),
-		outgoing:	make(chan message),
 		exchange:	e.recQueue,
-		conn:		c,}
-	eclient.listen()
+		conn:		c,
+		//exch:		e,
+		}
+	go eclient.listen()
 	return eclient }
+
+//func (e *Exchange)tcpHandleConnOutgoing(c net.Conn) *eclient{
+//	eclient := &eclient{
+//		originLocal:	true,
+//		incoming:	make(chan message),
+//		conn:		c,
+//		//exch:		e,
+//		}
+//	go eclient.forward()
+//	return eclient }
+
 
 func (e *Exchange)initListen(){
 	var err error
@@ -77,10 +89,26 @@ func (e *Exchange)initListen(){
 		raddr := conn.RemoteAddr().String()
 		laddr := conn.LocalAddr().String()
 		lg.msg(fmt.Sprintf("info, %s connected to node %s ", raddr, laddr))
-		ec := e.tcpHandle(conn)
+		ec := e.tcpHandleListen(conn)
 		e.dialers[raddr]=ec
 		}
 	}
+
+func (e *Exchange)startConn(n Node){	//TODO convert to eclient
+	if(n.Hostname == e.myHostname){
+		return}
+	c,err := net.Dial("tcp",n.NodeAddress)
+	if(err!=nil){
+		lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
+		e.dialed[n.Hostname]=nil //just to be sure
+		return}
+	ec := eclient{
+		originLocal:	true,
+		incoming:		make(chan message),
+		conn:			c,
+		//exch:			e,
+		}
+	e.dialed[n.Hostname]=&ec}
 
 func (e *Exchange)initListenUnix(){
 	var err error
@@ -88,16 +116,6 @@ func (e *Exchange)initListenUnix(){
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}
 	}
-
-func (e *Exchange)startConn(n Node){	//TODO convert to eclient
-		if(n.Hostname == e.myHostname){
-			return}
-		c,err := net.Dial("tcp",n.NodeAddress)
-		if(err!=nil){
-			lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
-			e.dialed[n.Hostname]=nil
-			return}
-		e.dialed[n.Hostname]=&c}
 
 func (e *Exchange)reconnectLoop(){
 	for{
@@ -108,11 +126,11 @@ func (e *Exchange)reconnectLoop(){
 				}
 			time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
-func (e *Exchange)initConnections(){
-	go e.reconnectLoop()
-	for _,n:= range *e.nodeList{
-		go e.startConn(n)}}
-	
+//func (e *Exchange)initConnections(){
+//	go e.reconnectLoop()
+//	for _,n:= range *e.nodeList{
+//		go e.startConn(n)}}
+
 //func (e *Exchange)
 
 func (e *Exchange)forwarder(){
@@ -137,7 +155,6 @@ func (e *Exchange)forwarder(){
 						fmt.Println(n)
 						fmt.Println(m)
 						}}
-
 			}}}}
 
 	
