@@ -24,6 +24,7 @@ import "time"
 func setup(){
 	writeExampleConfig()
 	confLoad()
+	config.MyHostname="r210II-1" // faking hostname for testing
 	brainIN:=make(chan message,10)
 	loggerIN:=make(chan message,10)
 	exchangeIN:=make(chan message,10)
