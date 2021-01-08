@@ -126,13 +126,6 @@ func (e *Exchange)reconnectLoop(){
 				}
 			time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
-//func (e *Exchange)initConnections(){
-//	go e.reconnectLoop()
-//	for _,n:= range *e.nodeList{
-//		go e.startConn(n)}}
-
-//func (e *Exchange)
-
 func (e *Exchange)forwarder(){
 	var debug bool = false
 	if config.DEbugLogAllAtExchange {
@@ -161,5 +154,13 @@ func (e *Exchange)forwarder(){
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("debug Exchange placeholderStupidVariableNotUsedError executed")}
+
+func (e *Exchange)dumpAllConnectedHosts(){
+	//for v,k := range e.dialed{
+	fmt.Println("outgoing connections")
+	fmt.Println(e.dialed)
+	fmt.Println("incoming connenctions")
+	fmt.Println(e.dialers)}
+
 
 //func dateToTime() time.Time{

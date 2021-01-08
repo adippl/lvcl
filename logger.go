@@ -54,6 +54,7 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 
 
 func (l *Logger)delLogger(){
+	fmt.Println("CLOSEING LOGGER")
 	l.logLocal.Close()
 	l.logCombined.Close()
 	l=nil}
