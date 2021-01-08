@@ -23,5 +23,5 @@ package main
 
 func main(){
 	setup()
-	mainLoop()
+	//mainLoop()
 	}

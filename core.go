@@ -24,7 +24,7 @@ import "time"
 func setup(){
 	writeExampleConfig()
 	confLoad()
-	config.MyHostname="r210II-1" // faking hostname for testing
+	//config.MyHostname="r210II-1" // faking hostname for testing
 	brainIN:=make(chan message,10)
 	loggerIN:=make(chan message,10)
 	exchangeIN:=make(chan message,10)
@@ -44,15 +44,16 @@ func setup(){
 	fmt.Println(m)
 	s := m.heartbeatGetTime()
 	fmt.Printf("LOLOL %s LOLOL\n", s)
-
-	//lg.delLogger()
+	
+	mainLoop()
+	e.dumpAllConnectedHosts()
+	lg.delLogger()
+	fmt.Println("program should've closed all files and connections by now")
+	time.Sleep(time.Second*10)
 	}
 
 func mainLoop(){
-	//time.Sleep(time.Duration(config.ClusterTickInterval))
-	for i:=0;i<10;i++ {
+	for i:=0;i<30;i++ {
 		fmt.Println(i)
 		time.Sleep(time.Second)}
-		//time.Sleep(time.Duration(1000*1000*100*i))}
-		
 	}
