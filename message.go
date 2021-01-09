@@ -28,13 +28,17 @@ const(
 	msgModExchn
 	msgModBrain
 	msgModExchnHeartbeat
+
+	rpcHeartbeat
 	)
+
 
 type message struct{
 	SrcHost		string
 	DestHost	string
 	SrcMod		uint
 	DestMod		uint
+	Time		time.Time
 	RpcFunc		uint
 	Argc		uint
 	Argv		[]string
@@ -80,14 +84,6 @@ func (m *message)setStr(s *string){
 	m.Argc++}
 	
 
-func messageHeartbeat() *message {
-	var m message
-	m.SrcHost=config.MyHostname
-	t := time.Now()
-	s := t.Format(config.HeartbeatTimeFormat)
-	m.setStr(&s)
-	return &m}
-	
 func (m *message)heartbeatGetTime() *time.Time {
 	t,err := time.Parse(config.HeartbeatTimeFormat, m.Argv[0])
 	if err != nil {
