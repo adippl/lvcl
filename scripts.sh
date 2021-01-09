@@ -34,12 +34,11 @@ superWatcher(){
 	while true ;do
 		inotifywait *.go
 		rm -rf lvcl.sock loc.log lvcl
-		sshForAll rm /root/lvcl/
+		sshForAll "rm /root/lvcl /root/loc.log /root/cmb.log"
 		clear;
 		go build || continue
 		push
 		tmuxSetup
-		sleep 1
 		tmux -L lvclTEST attach
 		ssh root@10.0.6.11 cat /root/loc.log
 		done

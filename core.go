@@ -40,10 +40,10 @@ func setup(){
 	
 	lg.msg("Starting lvcl")
 	
-	m = messageHeartbeat()
-	fmt.Println(m)
-	s := m.heartbeatGetTime()
-	fmt.Printf("LOLOL %s LOLOL\n", s)
+	//m = messageHeartbeat()
+	//fmt.Println(m)
+	//s := m.heartbeatGetTime()
+	//fmt.Printf("LOLOL %s LOLOL\n", s)
 	
 	mainLoop()
 	e.dumpAllConnectedHosts()

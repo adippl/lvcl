@@ -31,30 +31,33 @@ type Exchange struct{
 	listenTCP	net.Listener
 	listenUnix	net.Listener
 	
+	lastHeartbeat		map[string]*time.Time
+	heartbeatHandler chan message
 	
 	recQueue	chan message
 	brainIN		chan<- message
 	loggerIN	chan<- message
-	exIN		<-chan message
+	exIN		chan message
 	}
 
 
 
-func NewExchange(exIN <-chan message, bIN chan<- message, lIN chan<- message) *Exchange {
+func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exchange {
 	e := Exchange{
 		myHostname:	config.MyHostname,
 		nodeList:	&config.Nodes,
 		dialed:		make(map[string]*eclient),
 		dialers:	make(map[string]*eclient),
+		heartbeatHandler:	make(chan message),
 		recQueue:	make(chan message, 33),
 		brainIN:	bIN,
 		loggerIN:	lIN,
 		exIN:		exIN,
 		}
 	go e.initListen()
-	//go e.initConnections()
 	go e.reconnectLoop()
 	go e.forwarder()
+	go e.heartbeatSender()
 	return &e}
 
 func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
@@ -133,34 +136,45 @@ func (e *Exchange)forwarder(){
 		
 	for{
 		for m := range e.exIN{
-			if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr &&
-				m.SrcHost == config.MyHostname {
-				
+			if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
 				lg.DEBUGmessage(&m)}
-			if m.SrcMod == msgModLoggr && m.DestMod == msgModLoggr &&
-				m.SrcHost == config.MyHostname && m.DestHost == "__everyone__"{
+			if m.SrcMod == msgModLoggr && m.DestMod == msgModLoggr && m.SrcHost == config.MyHostname && m.DestHost == "__everyone__"{
 				
 				for _,n := range config.Nodes{
-					if n.Hostname != config.MyHostname {
+					if e.dialed[n.Hostname] != nil && n.Hostname != config.MyHostname {
 						//probably unnesesary
 						m.DestHost=n.Hostname
 						//TODO send to dialed eclient
-						fmt.Println(n)
-						fmt.Println(m)
+						if debug {
+							fmt.Println("DEBUG forwarder")
+							fmt.Println(n)
+							fmt.Println(m)}
+						e.dialed[n.Hostname].outgoing <- m
 						}}
 			}}}}
 
-	
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("debug Exchange placeholderStupidVariableNotUsedError executed")}
 
 func (e *Exchange)dumpAllConnectedHosts(){
-	//for v,k := range e.dialed{
 	fmt.Println("outgoing connections")
 	fmt.Println(e.dialed)
 	fmt.Println("incoming connenctions")
 	fmt.Println(e.dialers)}
 
+func (e *Exchange)heartbeatSender(){
+	var m *message
+	var t time.Time
+	for{
+		t = time.Now()
+		m = &message{ SrcHost: config.MyHostname,
+			DestHost: "__everyone__",
+			SrcMod: msgModExchnHeartbeat,
+			DestMod: msgModExchnHeartbeat,
+			RpcFunc: rpcHeartbeat,
+			Time: t,}
+		e.exIN <- *m
+		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
-//func dateToTime() time.Time{
+//func (e *Exchange)heartbeatHandler(){

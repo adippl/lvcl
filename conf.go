@@ -152,7 +152,7 @@ func (c *Conf)getNodebyHostname(argHostname *string)(v *Node, err error){
 
 func writeExampleConfig(){
 	fmt.Println("Creatimg example config for lvcl")
-	testConfig := Conf{ UUID:"testuuid",
+	testConfig := Conf{ UUID: "testuuid",
 		DomainDefinitionDir: "domains/",
 		Nodes: []Node{
 			Node{
