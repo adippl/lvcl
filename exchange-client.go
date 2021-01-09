@@ -19,6 +19,7 @@ package main
 
 import "net"
 import "encoding/json"
+import "fmt"
 
 type eclient struct{
 	originLocal	bool
@@ -30,6 +31,7 @@ type eclient struct{
 	}
 
 func (ec *eclient)listen(){
+	fmt.Println("conn listener started")
 	d := json.NewDecoder(ec.conn)
 	var m message
 	var err error
@@ -47,13 +49,16 @@ func (ec *eclient)listen(){
 	ec = nil}
 
 func (ec *eclient)forward(){
+	fmt.Println("conn Forwarder started")
+	var data message
 	e := json.NewEncoder(ec.conn)
 	for{
-		for data := range ec.outgoing{
+		data = <-ec.outgoing
+		fmt.Println(data)
 			err := e.Encode(data)
 			if err != nil{
-				lg.msgE("eclient deser", err)
-				break}}}
+				lg.msgE("eclient ser", err)
+				break}}
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}

@@ -35,6 +35,8 @@ superWatcher(){
 		inotifywait *.go
 		rm -rf lvcl.sock loc.log lvcl
 		sshForAll "rm /root/lvcl /root/loc.log /root/cmb.log"
+		sshForAll "killall lvcl"
+		sleep 1
 		clear;
 		go build || continue
 		push

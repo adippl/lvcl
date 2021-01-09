@@ -28,6 +28,7 @@ func setup(){
 	brainIN:=make(chan message,10)
 	loggerIN:=make(chan message,10)
 	exchangeIN:=make(chan message,10)
+	//exchangeIN:=make(chan message)
 	
 	lg = NewLoger(loggerIN, exchangeIN)
 	

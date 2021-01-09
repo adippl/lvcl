@@ -60,13 +60,14 @@ func (l *Logger)delLogger(){
 	l=nil}
 	
 func (l *Logger)messageHandler(){
+	var newS string
 	for {
 		for m := range l.loggerIN{
 			if m.loggerMessageValidate(){
-				_,err := l.logLocal.WriteString(m.Argv[0])
+				newS = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time.String(), m.Argv[0])
+				_,err := l.logLocal.WriteString(newS)
 				if err != nil {
 					panic(err)}
-				l.exchangeIN <- m
 			}else{
 				l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}}}}
 
@@ -77,8 +78,7 @@ func (l *Logger)msg(s string){
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", s)
 		return}
-	time := time.Now() //TODO MOVE IT SOMEWHERE
-	newS := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, time.String(), s)
+	newS := fmt.Sprintf("[src: %s] %s \n", config.MyHostname, s)
 
 	_,err := l.logLocal.WriteString(newS)
 	if err != nil{
@@ -100,6 +100,7 @@ func msgFormat(s *string) *message{
 	m.SrcMod=msgModLoggr
 	m.DestMod=msgModLoggr
 	m.RpcFunc=1
+	m.Time=time.Now()
 	m.Argc=1
 	m.Argv=append(m.Argv,*s)
 	
