@@ -78,9 +78,10 @@ func (l *Logger)msg(s string){
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", s)
 		return}
-	newS := fmt.Sprintf("[src: %s] %s \n", config.MyHostname, s)
+	newS := fmt.Sprintf("[src: %s] %s", config.MyHostname, s)
+	fileString := fmt.Sprintf("[src: %s] %s\n", config.MyHostname, s)
 
-	_,err := l.logLocal.WriteString(newS)
+	_,err := l.logLocal.WriteString(fileString)
 	if err != nil{
 		fmt.Println(err)
 		panic(err)}

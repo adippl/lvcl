@@ -17,11 +17,12 @@ push(){
 
 sshHosts="root@10.0.6.11  root@10.0.6.12 root@10.0.6.13"
 tmuxSetup(){
-	tmux -L lvclTEST new-session -d ssh root@10.0.6.11 /root/lvcl 
+	tmux -L lvclTEST new-session -d ssh root@10.0.6.11 '/root/lvcl |tee lol' 
 #	tmux -L lvclTEST new-window -d ssh root@10.0.6.12 /root/lvcl
 #	tmux -L lvclTEST new-window -d ssh root@10.0.6.13 /root/lvcl
 	tmux -L lvclTEST split-window -d ssh root@10.0.6.12 /root/lvcl
 	tmux -L lvclTEST split-window -d ssh root@10.0.6.13 /root/lvcl
+	#tmux -L lvclTEST select-layout even-horizontal
 	tmux -L lvclTEST select-layout even-vertical
 	}
 sshForAll(){
@@ -34,7 +35,7 @@ superWatcher(){
 	while true ;do
 		inotifywait *.go
 		rm -rf lvcl.sock loc.log lvcl
-		sshForAll "rm /root/lvcl /root/loc.log /root/cmb.log"
+		sshForAll "rm /root/lvcl /root/loc.log /root/cmb.log /root/stdout "
 		sshForAll "killall lvcl"
 		sleep 1
 		clear;
@@ -43,6 +44,7 @@ superWatcher(){
 		tmuxSetup
 		tmux -L lvclTEST attach
 		ssh root@10.0.6.11 cat /root/loc.log
+		ssh root@10.0.6.11 cat /root/lol
 		done
 		}
 
