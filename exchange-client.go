@@ -23,25 +23,26 @@ import "fmt"
 
 type eclient struct{
 	originLocal	bool
-	incoming	chan message
+	hostname	string
 	outgoing	chan message
-	exchange	chan message
+	incoming	chan message
 	conn		net.Conn
-	//exch		*Exchange
+	exch		*Exchange
 	}
 
 func (ec *eclient)listen(){
-	fmt.Println("conn listener started")
+	fmt.Printf("conn listener started for %+v\n", ec.conn)
 	d := json.NewDecoder(ec.conn)
 	var m message
 	var err error
 	for{
-		err = d.Decode(&m)
+		err = d.Decode(m)
+		fmt.Printf("conn Forwarder received %+v\n", m)
 		if err == nil{
 			if ec.conn != nil{
-				ec.exchange <- m}
+				ec.incoming <- m}
 		}else{
-			lg.msgE("Decoder", err)
+			lg.msgE("eclient Decoder ", err)
 			break}}
 	ec.conn.Close()
 	if ec.conn != nil{
@@ -49,17 +50,18 @@ func (ec *eclient)listen(){
 	ec = nil}
 
 func (ec *eclient)forward(){
-	fmt.Println("conn Forwarder started")
 	var data message
-	e := json.NewEncoder(ec.conn)
+	enc := json.NewEncoder(ec.conn)
+	fmt.Printf("conn Forwarder started for %s\n", ec.hostname)
 	for{
 		data = <-ec.outgoing
-		fmt.Println(data)
-			err := e.Encode(data)
+		fmt.Printf("conn Forwarder to %s received %+v", ec.hostname,  data)
+			err := enc.Encode(data)
 			if err != nil{
-				lg.msgE("eclient ser", err)
+				lg.msgE("eclient forwarder ser ", err)
 				break}}
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
+	ec.exch.dialed[ec.hostname]=nil
 	ec = nil}

@@ -24,20 +24,20 @@ import "time"
 func setup(){
 	writeExampleConfig()
 	confLoad()
+	n,err := config.getNodebyHostname(&config.MyHostname)
+	if n == nil && err != nil {
+		fmt.Printf("CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", config.MyHostname)
+		panic("WRONG HOSTNAME")}
 	//config.MyHostname="r210II-1" // faking hostname for testing
-	brainIN:=make(chan message,10)
-	loggerIN:=make(chan message,10)
-	exchangeIN:=make(chan message,10)
+	brainIN:=make(chan message)
+	loggerIN:=make(chan message)
+	exchangeIN:=make(chan message)
 	//exchangeIN:=make(chan message)
 	
 	lg = NewLoger(loggerIN, exchangeIN)
 	
 	e := NewExchange(exchangeIN, brainIN, loggerIN)
 	e.placeholderStupidVariableNotUsedError()
-	m := Newmessage()
-	str := "TESTTESTTEST"
-	m.setStr(&str)
-	exchangeIN <- *m
 	
 	lg.msg("Starting lvcl")
 	
