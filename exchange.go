@@ -71,17 +71,6 @@ func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initLis
 	go eclient.listen()
 	return eclient }
 
-//func (e *Exchange)tcpHandleConnOutgoing(c net.Conn) *eclient{
-//	eclient := &eclient{
-//		originLocal:	true,
-//		incoming:	make(chan message),
-//		conn:		c,
-//		//exch:		e,
-//		}
-//	go eclient.forward()
-//	return eclient }
-
-
 func (e *Exchange)initListen(){
 	var err error
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport)
@@ -91,13 +80,13 @@ func (e *Exchange)initListen(){
 		conn,err := e.listenTCP.Accept()
 		if err != nil {
 			lg.msg(fmt.Sprintf("ERR, net.Listener.Accept() , %s",err))}
-
+		
 		raddr := conn.RemoteAddr().String()
 		laddr := conn.LocalAddr().String()
 		lg.msg(fmt.Sprintf("info, %s connected to node %s ", raddr, laddr))
 		
 		ec := &eclient{
-			outgoing:	make(chan message),
+			hostname:	conn.RemoteAddr().String(),
 			incoming:	e.recQueue,
 			conn:		conn,}
 		go ec.listen()
@@ -116,6 +105,7 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 	ec := eclient{
 		hostname:		n.Hostname,
 		originLocal:	true,
+		outgoing:		make(chan message),
 		conn:			c,
 		exch:			e,
 		}
@@ -168,7 +158,6 @@ func (e *Exchange)forwarder(){
 					}}
 
 func (e *Exchange)sorter(){
-	fmt.Printf("DEBUG SORTER\n")
 	var m message
 	for{
 		m = <-e.recQueue
@@ -196,7 +185,7 @@ func (e *Exchange)heartbeatSender(){
 			RpcFunc: rpcHeartbeat,
 			Time: t,
 			Argc: 1,
-			Argv: []string{"heartbear"},
+			Argv: []string{"heartbeat"},
 			}
 		e.exIN <- m
 		fmt.Println("sending heartbeat")

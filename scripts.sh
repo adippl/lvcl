@@ -27,7 +27,7 @@ tmuxSetup(){
 	}
 sshForAll(){
 	for x in $sshHosts; do
-		ssh $x "$@"
+		ssh $x "$1"
 		done
 		}
 
