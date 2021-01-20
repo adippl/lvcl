@@ -37,7 +37,7 @@ func (ec *eclient)listen(){
 	var err error
 	for{
 		err = d.Decode(m)
-		fmt.Printf("conn Forwarder received %+v\n", m)
+		fmt.Printf("conn Listener received %+v\n", m)
 		if err == nil{
 			if ec.conn != nil{
 				ec.incoming <- m}
@@ -47,6 +47,7 @@ func (ec *eclient)listen(){
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
+	ec.exch.dialers[ec.hostname]=nil
 	ec = nil}
 
 func (ec *eclient)forward(){
