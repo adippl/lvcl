@@ -87,7 +87,8 @@ func (l *Logger)msg(s string){
 		panic(err)}
 	fmt.Println(newS)
 	msg := msgFormat(&newS)
-	l.exchangeIN <- *msg
+	if config.disableRemoteLogging != false {
+		l.exchangeIN <- *msg}
 	}
 
 func (l *Logger)msgE(s string, e error){
@@ -108,7 +109,7 @@ func msgFormat(s *string) *message{
 	return &m}
 
 func (l *Logger)DEBUGmessage(m *message){
-	str := fmt.Sprintf("DEBUG logged message: %+v \n", *m)
+	str := fmt.Sprintf("\nDEBUG logged message: %+v \n", *m)
 	nmsg := msgFormat(&str)
 	l.loggerIN <- *nmsg
 	}

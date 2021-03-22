@@ -62,6 +62,7 @@ type Conf struct {
 
 
 	DEbugLogAllAtExchange bool
+	disableRemoteLogging bool
 	}
 
 
@@ -202,6 +203,7 @@ func writeExampleConfig(){
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DEbugLogAllAtExchange: true,
+		disableRemoteLogging: true,
 		}
 	
 	confser, err := json.MarshalIndent(testConfig,"","	")

@@ -27,7 +27,6 @@ type Exchange struct{
 	//myHostname	string
 	nodeList	*[]Node
 	dialed		map[string]*eclient
-	dialers		map[string]*eclient
 	listenTCP	net.Listener
 	listenUnix	net.Listener
 	
@@ -47,14 +46,13 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 		//myHostname:	config.MyHostname,
 		nodeList:	&config.Nodes,
 		dialed:		make(map[string]*eclient),
-		dialers:	make(map[string]*eclient),
 		lastHeartbeat:	make(map[string]*time.Time),
 		heartbeatHandler:	make(chan message),
 		recQueue:	make(chan message),
 		brainIN:	bIN,
 		loggerIN:	lIN,
-		exIN:		exIN,
-		}
+		exIN:		exIN, }
+	
 	go e.initListen()
 	go e.reconnectLoop()
 	go e.forwarder()
@@ -90,9 +88,18 @@ func (e *Exchange)initListen(){
 			incoming:	e.recQueue,
 			conn:		conn,}
 		go ec.listen()
-		e.dialers[raddr]=ec
+		//e.dialers[raddr]=ec
 		}
 	}
+
+func (e *Exchange)reconnectLoop(){
+	for{
+		for _,n := range *e.nodeList{
+			//fmt.Printf("[ %s ]\n",n)
+			if e.dialed[n.Hostname] == nil{
+				go e.startConn(n)}}
+		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
+
 
 func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 	if(n.Hostname == config.MyHostname){
@@ -119,14 +126,9 @@ func (e *Exchange)initListenUnix(){
 		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}
 	}
 
-func (e *Exchange)reconnectLoop(){
-	for{
-		for _,n := range *e.nodeList{
-			//fmt.Printf("[ %s ]\n",n)
-			if e.dialed[n.Hostname] == nil{
-				go e.startConn(n)}
-				}
-			time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
+//func (e *Exchange)checkConnected() int {
+//	for _,n := range config.Nodes{
+//	}
 
 func (e *Exchange)forwarder(){
 	var debug bool = false
@@ -141,19 +143,18 @@ func (e *Exchange)forwarder(){
 		fmt.Printf("exchange forwarder received %+v\n",m)
 		// DEBUG outgoing messages
 		if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
-			lg.DEBUGmessage(&m)}
-		// outgoing send to all
-//		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" &&
-//			m.SrcMod == msgModLoggr && m.DestMod == msgModLoggr &&
-//			m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat {
+		//	lg.DEBUGmessage(&m)
+			}
 		
 		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
-				if e.dialed[n.Hostname] != nil && n.Hostname != config.MyHostname {
-					fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
-					e.dialed[n.Hostname].outgoing <- m
+				if n.Hostname != config.MyHostname && e.dialed[n.Hostname] != nil {
+					//fmt.Printf("\nDEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
+					if e.dialed[n.Hostname] != nil {
+						e.dialed[n.Hostname].outgoing <- m 
+						}
 					}}}
 					}}
 
@@ -168,10 +169,7 @@ func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
 
 func (e *Exchange)dumpAllConnectedHosts(){
-	fmt.Println("outgoing connections")
-	fmt.Println(e.dialed)
-	fmt.Println("incoming connenctions")
-	fmt.Println(e.dialers)}
+	}
 
 func (e *Exchange)heartbeatSender(){
 	var m message
