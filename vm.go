@@ -32,7 +32,7 @@ type VM struct{
 	VMem uint
 	HwMem uint
 	
-	StorageClass int
+	StorageClass uint
 	MigrationTimeout int
 	MigrateLive bool
 	}

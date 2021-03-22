@@ -168,9 +168,9 @@ func writeExampleConfig(){
 				NodeState: NodePreparing,
 				Weight: 100},
 			Node{
-				Hostname: "r210II-3",
-				NodeAddress: "10.0.6.13:6798",
-				LibvirtAddress: "10.0.6.13",
+				Hostname: "r320-1",
+				NodeAddress: "10.0.6.14:6798",
+				LibvirtAddress: "10.0.6.14",
 				NodeState: NodePreparing,
 				Weight: 100}},
 		VMs: []VM{

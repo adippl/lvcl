@@ -52,7 +52,7 @@ func (pm *message)dump(){
 
 	/* TODO replace with something faster */
 	/* TODO ADD LOGGER LOGGING */
-func (pm message)validate() bool {
+func (pm *message)validate() bool {
 	var err error
 	_,err = config.getNodebyHostname(& pm.SrcHost)
 	if err != nil {

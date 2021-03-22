@@ -47,7 +47,7 @@ func (ec *eclient)listen(){
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
-	ec.exch.dialers[ec.hostname]=nil
+	//ec.exch.dialers[ec.hostname]=nil
 	ec = nil}
 
 func (ec *eclient)forward(){

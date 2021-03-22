@@ -108,7 +108,6 @@ func msgFormat(s *string) *message{
 	return &m}
 
 func (l *Logger)DEBUGmessage(m *message){
-	
 	str := fmt.Sprintf("DEBUG logged message: %+v \n", *m)
 	nmsg := msgFormat(&str)
 	l.loggerIN <- *nmsg
