@@ -209,7 +209,7 @@ func writeExampleConfig(){
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DEbugLogAllAtExchange: true,
-		DebugNetwork: true,
+		DebugNetwork: false,
 		disableRemoteLogging: true,
 		}
 	

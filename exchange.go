@@ -146,7 +146,8 @@ func (e *Exchange)forwarder(){
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
-					lg.msg(fmt.Sprintf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m))
+					if config.DebugNetwork {
+						lg.msg(fmt.Sprintf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m))}
 					if e.outgoing[n.Hostname] != nil {
 						e.outgoing[n.Hostname].outgoing <- m }}}}}}
 
@@ -164,8 +165,7 @@ func (e *Exchange)sorter(){
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
 			if config.checkIfNodeExists(&m.SrcHost){
 				dt = time.Now().Sub(m.Time)
-				//NOT //ADDING FALT 100ms to time delta to avoid negative values with small time differences (-10ms or -550µs)
-				////dt.Add(time.Millisecond * 100)
+				//uncomment to add 100ms to delta
 				//dt = dt + (time.Millisecond * 100)
 				e.heartbeatLastMsg[m.SrcHost]=&m.Time
 				e.heartbeatDelta[m.SrcHost]=&dt
