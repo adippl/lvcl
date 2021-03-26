@@ -37,7 +37,8 @@ func (ec *eclient)listen(){
 	var err error
 	for{
 		err = d.Decode(&m)
-		fmt.Printf("conn Listener received %+v\n", m)
+		if config.DebugNetwork {
+			fmt.Printf("conn Listener received %+v\n", m)}
 		if err == nil{
 			if ec.conn != nil{
 				ec.incoming <- m}
@@ -55,7 +56,8 @@ func (ec *eclient)forward(){
 	fmt.Printf("conn Forwarder started for %s\n", ec.hostname)
 	for{
 		data = <-ec.outgoing
-		fmt.Printf("conn Forwarder to %s received %+v", ec.hostname,  data)
+		if config.DebugNetwork {
+			fmt.Printf("conn Forwarder to %s received %+v", ec.hostname,  data)}
 			err := enc.Encode(data)
 			if err != nil{
 				lg.msgE("eclient forwarder ser ", err)

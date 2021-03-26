@@ -62,6 +62,7 @@ type Conf struct {
 
 
 	DEbugLogAllAtExchange bool
+	DebugNetwork bool
 	disableRemoteLogging bool
 	}
 
@@ -150,6 +151,11 @@ func (c *Conf)getNodebyHostname(argHostname *string)(v *Node, err error){
 			return &t, nil}}
 	return nil,errors.New("conf Node not found")}
 
+func (c *Conf)checkIfNodeExists(argHostname *string)(ret bool){
+	for _,t:= range c.Nodes{
+		if t.Hostname == *argHostname{
+			return true}}
+	return false}
 
 func writeExampleConfig(){
 	fmt.Println("Creatimg example config for lvcl")
@@ -203,6 +209,7 @@ func writeExampleConfig(){
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DEbugLogAllAtExchange: true,
+		DebugNetwork: true,
 		disableRemoteLogging: true,
 		}
 	

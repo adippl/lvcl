@@ -47,7 +47,9 @@ func setup(){
 	//fmt.Printf("LOLOL %s LOLOL\n", s)
 	
 	mainLoop()
+		e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
+	e.killExchange=true
 	lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")
 	time.Sleep(time.Second*10)
