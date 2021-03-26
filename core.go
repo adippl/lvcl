@@ -28,7 +28,6 @@ func setup(){
 	if n == nil && err != nil {
 		fmt.Printf("CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", config.MyHostname)
 		panic("WRONG HOSTNAME")}
-	//config.MyHostname="r210II-1" // faking hostname for testing
 	brainIN:=make(chan message)
 	loggerIN:=make(chan message)
 	exchangeIN:=make(chan message)
@@ -40,15 +39,10 @@ func setup(){
 	
 	lg.msg("Starting lvcl")
 	
-	//m = messageHeartbeat()
-	//fmt.Println(m)
-	//s := m.heartbeatGetTime()
-	//fmt.Printf("LOLOL %s LOLOL\n", s)
-	
 	mainLoop()
 		e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
-	e.killExchange=true
+	e.KillExchange()
 	lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")
 	time.Sleep(time.Second*10)
@@ -57,5 +51,6 @@ func setup(){
 func mainLoop(){
 	for i:=0;i<10;i++ {
 		fmt.Println(i)
+		lg.msg(fmt.Sprintf("%d",i))
 		time.Sleep(time.Second)}
 	}

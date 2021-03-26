@@ -61,9 +61,8 @@ type Conf struct {
 	LogCombined string
 
 
-	DEbugLogAllAtExchange bool
 	DebugNetwork bool
-	disableRemoteLogging bool
+	DebugNoRemoteLogging bool
 	}
 
 
@@ -208,9 +207,8 @@ func writeExampleConfig(){
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
-		DEbugLogAllAtExchange: true,
-		DebugNetwork: false,
-		disableRemoteLogging: true,
+		DebugNetwork: true,
+		DebugNoRemoteLogging: false,
 		}
 	
 	confser, err := json.MarshalIndent(testConfig,"","	")

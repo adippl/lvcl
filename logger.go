@@ -67,9 +67,10 @@ func (l *Logger)messageHandler(){
 	var m message
 	for {
 		m = <-l.loggerIN
+		fmt.Printf("DEBUG LOGGER received message %+v\n", m)
 		if m.loggerMessageValidate(){
-			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time.String(), m.Argv[0])
-			_,err := l.logLocal.WriteString(newS)
+			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
+			_,err := l.logCombined.WriteString(newS)
 			if err != nil {
 				panic(err)}
 		}else{
@@ -78,20 +79,22 @@ func (l *Logger)messageHandler(){
 func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
 	
-func (l *Logger)msg(s string){
+func (l *Logger)msg(arg string){
+	var s string
+	var t = time.Now()
 	if l.setupDone == false {
-		fmt.Printf("WARNING Logging before log setup %s\n", s)
+		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
-	newS := fmt.Sprintf("[src: %s] %s", config.MyHostname, s)
-	fileString := fmt.Sprintf("[src: %s] %s\n", config.MyHostname, s)
+	//newS := fmt.Sprintf("[src: %s] %s", config.MyHostname, s)
+	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
 
-	_,err := l.logLocal.WriteString(fileString)
+	_,err := l.logLocal.WriteString(s)
 	if err != nil{
 		fmt.Println(err)
 		panic(err)}
-	fmt.Println(newS)
-	msg := msgFormat(&newS)
-	if config.disableRemoteLogging != false {
+	if config.DebugNoRemoteLogging == false {
+		msg := msgFormat(&arg)
+		fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)
 		l.exchangeIN <- *msg}
 	}
 

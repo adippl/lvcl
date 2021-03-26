@@ -37,7 +37,7 @@ type Exchange struct{
 	recQueue	chan message
 	brainIN		chan<- message
 	loggerIN	chan<- message
-	exIN		chan message
+	exchangeIN		chan message
 	
 	killExchange	bool // ugly solution
 	}
@@ -56,7 +56,7 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 		recQueue:	make(chan message),
 		brainIN:	bIN,
 		loggerIN:	lIN,
-		exIN:		exIN,
+		exchangeIN:		exIN,
 		}
 	
 	go e.initListen()
@@ -136,10 +136,10 @@ func (e *Exchange)forwarder(){
 		if e.killExchange { //ugly solution
 			return}
 
-		m = <-e.exIN
+		m = <-e.exchangeIN
 		// DEBUG outgoing messages
-		if config.DebugNetwork && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
-			lg.DEBUGmessage(&m)}
+		//if config.DebugNetwork && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
+		//	lg.DEBUGmessage(&m)}
 		
 		
 		//forward to everyone else
@@ -147,7 +147,7 @@ func (e *Exchange)forwarder(){
 			for _,n := range config.Nodes{
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
 					if config.DebugNetwork {
-						lg.msg(fmt.Sprintf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m))}
+						fmt.Printf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m)}
 					if e.outgoing[n.Hostname] != nil {
 						e.outgoing[n.Hostname].outgoing <- m }}}}}}
 
@@ -159,9 +159,21 @@ func (e *Exchange)sorter(){
 			return}
 		m = <-e.recQueue
 		if config.DebugNetwork {
-			fmt.Printf("DEBUG SORTER received u%+v\n", m)}
+			fmt.Printf("DEBUG SORTER received %+v\n", m)}
 		
-		//update heartbeat tab from heartbeat messages
+		//pass Logger messages
+		if	m.SrcHost != config.MyHostname &&
+			m.SrcMod == msgModLoggr &&
+			m.DestMod == msgModLoggr &&
+			m.RpcFunc == 1 &&
+			m.Argc == 1 {
+			
+			if config.DebugNetwork {
+				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
+			e.loggerIN <- m;}
+		
+		
+		//update heartbeat values from heartbeat messages
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
 			if config.checkIfNodeExists(&m.SrcHost){
 				dt = time.Now().Sub(m.Time)
@@ -197,7 +209,7 @@ func (e *Exchange)heartbeatSender(){
 			Argc: 1,
 			Argv: []string{"heartbeat"},
 			}
-		e.exIN <- m
+		e.exchangeIN <- m
 		fmt.Println("sending heartbeat")
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
