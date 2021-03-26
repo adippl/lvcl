@@ -39,7 +39,7 @@ type Exchange struct{
 	loggerIN	chan<- message
 	exIN		chan message
 	
-	killExchange	bool // very ugly solution
+	killExchange	bool // ugly solution
 	}
 
 
@@ -56,7 +56,8 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 		recQueue:	make(chan message),
 		brainIN:	bIN,
 		loggerIN:	lIN,
-		exIN:		exIN, }
+		exIN:		exIN,
+		}
 	
 	go e.initListen()
 	go e.reconnectLoop()
@@ -68,18 +69,16 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
 	eclient := &eclient{
 		incoming:	e.recQueue,
-		conn:		c,
-		//exch:		e,
-		}
+		conn:		c,}
 	go eclient.listen()
-	return eclient }
+	return eclient}
 
 func (e *Exchange)initListen(){
 	var err error
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport)
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen , %s",err))}
-	for {
+	for{
 		if e.killExchange { //ugly solution
 			return}
 		conn,err := e.listenTCP.Accept()
@@ -94,10 +93,7 @@ func (e *Exchange)initListen(){
 			hostname:	conn.RemoteAddr().String(),
 			incoming:	e.recQueue,
 			conn:		conn,}
-		go ec.listen()
-		//e.dialers[raddr]=ec
-		}
-	}
+		go ec.listen()}}
 
 func (e *Exchange)reconnectLoop(){
 	for{
@@ -132,37 +128,27 @@ func (e *Exchange)initListenUnix(){
 	var err error
 	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
 	if err != nil {
-		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}
-	}
+		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}}
 
 func (e *Exchange)forwarder(){
-	var debug bool = false
 	var m message
-	if config.DEbugLogAllAtExchange {
-		debug=true}
-	debug=true
-		
 	for{
 		if e.killExchange { //ugly solution
 			return}
 
 		m = <-e.exIN
 		// DEBUG outgoing messages
-		if debug && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
-			lg.DEBUGmessage(&m)
-			}
+		if config.DebugNetwork && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
+			lg.DEBUGmessage(&m)}
 		
 		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
-					//fmt.Printf("\nDEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
+					lg.msg(fmt.Sprintf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m))
 					if e.outgoing[n.Hostname] != nil {
-						e.outgoing[n.Hostname].outgoing <- m
-						}
-					}}}
-					}}
+						e.outgoing[n.Hostname].outgoing <- m }}}}}}
 
 func (e *Exchange)sorter(){
 	var m message
@@ -171,15 +157,16 @@ func (e *Exchange)sorter(){
 		if e.killExchange { //ugly solution
 			return}
 		m = <-e.recQueue
-		fmt.Printf("DEBUG SORTER received u%+v\n", m)
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG SORTER received u%+v\n", m)}
 		
 		//update heartbeat tab from heartbeat messages
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
 			if config.checkIfNodeExists(&m.SrcHost){
-				//ADDING FALT 100ms to time delta to avoid negative values with small time differences (-10ms or -550µs)
 				dt = time.Now().Sub(m.Time)
-				//dt.Add(time.Millisecond * 100)
-				dt = dt + (time.Millisecond * 100)
+				//NOT //ADDING FALT 100ms to time delta to avoid negative values with small time differences (-10ms or -550µs)
+				////dt.Add(time.Millisecond * 100)
+				//dt = dt + (time.Millisecond * 100)
 				e.heartbeatLastMsg[m.SrcHost]=&m.Time
 				e.heartbeatDelta[m.SrcHost]=&dt
 				}}}}

@@ -87,7 +87,7 @@ func (m *message)setStr(s *string){
 func (m *message)heartbeatGetTime() *time.Time {
 	t,err := time.Parse(config.HeartbeatTimeFormat, m.Argv[0])
 	if err != nil {
-		lg.msgE("heartbeatGetTime time.Parse error", err)}
+		lg.err("heartbeatGetTime time.Parse error", err)}
 	return &t}
 	
 	

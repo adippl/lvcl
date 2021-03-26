@@ -43,7 +43,7 @@ func (ec *eclient)listen(){
 			if ec.conn != nil{
 				ec.incoming <- m}
 		}else{
-			lg.msgE("eclient Decoder ", err)
+			lg.err("eclient Decoder ", err)
 			break}}
 	ec.conn.Close()
 	if ec.conn != nil{
@@ -60,7 +60,7 @@ func (ec *eclient)forward(){
 			fmt.Printf("conn Forwarder to %s received %+v", ec.hostname,  data)}
 			err := enc.Encode(data)
 			if err != nil{
-				lg.msgE("eclient forwarder ser ", err)
+				lg.err("eclient forwarder serializer ", err)
 				break}}
 	ec.conn.Close()
 	if ec.conn != nil{

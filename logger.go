@@ -25,9 +25,10 @@ import "time"
 var lg *Logger
 
 type Logger struct{
-	setupDone bool
-	logLocal *os.File
-	logCombined *os.File
+	setupDone	bool
+	logLocal	*os.File
+	logCombined	*os.File
+	killLogger	bool
 	
 	loggerIN	chan message
 	exchangeIN	chan<- message
@@ -36,6 +37,7 @@ type Logger struct{
 func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	var l Logger
 	l.setupDone=true
+	l.killLogger=false
 	l.exchangeIN=exIN
 	l.loggerIN=lIN
 	
@@ -55,21 +57,23 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 
 func (l *Logger)delLogger(){
 	fmt.Println("CLOSEING LOGGER")
+	l.killLogger=true
 	l.logLocal.Close()
 	l.logCombined.Close()
 	l=nil}
 	
 func (l *Logger)messageHandler(){
 	var newS string
+	var m message
 	for {
-		for m := range l.loggerIN{
-			if m.loggerMessageValidate(){
-				newS = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time.String(), m.Argv[0])
-				_,err := l.logLocal.WriteString(newS)
-				if err != nil {
-					panic(err)}
-			}else{
-				l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}}}}
+		m = <-l.loggerIN
+		if m.loggerMessageValidate(){
+			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time.String(), m.Argv[0])
+			_,err := l.logLocal.WriteString(newS)
+			if err != nil {
+				panic(err)}
+		}else{
+			l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}}}
 
 func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
@@ -91,7 +95,7 @@ func (l *Logger)msg(s string){
 		l.exchangeIN <- *msg}
 	}
 
-func (l *Logger)msgE(s string, e error){
+func (l *Logger)err(s string, e error){
 	l.msg(fmt.Sprintf("ERR %s - %s", s, e))}
 
 func msgFormat(s *string) *message{
