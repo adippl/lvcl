@@ -66,10 +66,14 @@ func (l *Logger)messageHandler(){
 	var newS string
 	var m message
 	for {
+		if l.killLogger == true{
+			return}
 		m = <-l.loggerIN
 		fmt.Printf("DEBUG LOGGER received message %+v\n", m)
 		if m.loggerMessageValidate(){
 			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
+			if config.DebugRawLogging {//debug option, separate in overwriting existing string
+				newS = fmt.Sprintf("%+v\n", m)}
 			_,err := l.logCombined.WriteString(newS)
 			if err != nil {
 				panic(err)}
@@ -85,8 +89,8 @@ func (l *Logger)msg(arg string){
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
-	//newS := fmt.Sprintf("[src: %s] %s", config.MyHostname, s)
 	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
+		
 
 	_,err := l.logLocal.WriteString(s)
 	if err != nil{
