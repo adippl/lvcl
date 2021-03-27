@@ -57,7 +57,7 @@ func (ec *eclient)forward(){
 	for{
 		data = <-ec.outgoing
 		if config.DebugNetwork {
-			fmt.Printf("conn Forwarder to %s received %+v", ec.hostname,  data)}
+			fmt.Printf("conn Forwarder to %s received %+v\n", ec.hostname,  data)}
 		err := enc.Encode(data)
 		if err != nil{
 			lg.err("eclient forwarder serializer ", err)

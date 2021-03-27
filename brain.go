@@ -26,19 +26,24 @@ const(
 	HealthRed=5
 	)
 const(
-	msgBrainRpcElectNominate=iota
-	msgBrainRpcElectReject
-	msgBrainRpcElectAccept
-	msgBrainRpcElectWasNominatedBy
+	brainRpcElectNominate=iota
+	brainRpcElectReject
+	brainRpcElectAccept
+	brainRpcElectWasNominatedBy
+	brainRpcAskForMasterNode
+	brainRpcHaveMasterNodeReply
+	brainRpcHaveMasterNodeReplyNil
 	)
-
 
 type Brain struct{
 	active	bool
-	master	bool
+	isMaster	bool
+	clusterHasMaster	bool
+	masterNode	*string
+	
 	killBrain	bool
 	brainIN		<-chan message
-	exIN		chan message
+	exchangeIN		chan message
 	nodeHealth	map[string]int
 	nodeHealthLast30Ticks	map[string][]int
 	}
@@ -49,15 +54,17 @@ type Brain struct{
 func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	b := Brain{
 		active: false,
-		master: false,
+		isMaster: false,
+		masterNode:	nil,
 		killBrain:	false,
 		brainIN:	bIN,
-		exIN:		exIN,
+		exchangeIN:		exIN,
 		nodeHealth: make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]int),
 		}
 	go b.updateNodeHealth()
 	go b.messageHandler()
+	go b.getMasterNode()
 	return &b}
 
 func (b *Brain)KillBrain(){
@@ -72,12 +79,39 @@ func  (b *Brain)messageHandler(){
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
 		fmt.Printf("DEBUG BRAIN received message %+v\n", m)
-		}}
+
+		if m.RpcFunc == brainRpcAskForMasterNode{
+			b.replyToAskForMasterNode(&m)
+		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
+			b.clusterHasMaster = true
+			b.masterNode=&m.Argv[0]
+		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
+			b.clusterHasMaster = false
+			b.masterNode=nil
+		}}}
+
+func (b *Brain)replyToAskForMasterNode(m *message){
+	newM := message{
+		SrcHost: config.MyHostname,
+		DestHost: m.SrcHost,
+		SrcMod: msgModBrain,
+		DestMod: msgModBrain,
+		RpcFunc: brainRpcHaveMasterNodeReply,
+		Time: time.Now(),
+		Argv: make([]string,1),
+		Argc: 1,}
+	if b.isMaster && *b.masterNode == config.MyHostname {
+		newM.RpcFunc=brainRpcHaveMasterNodeReply
+		newM.Argv[0] = config.MyHostname
+	}else if b.masterNode == nil {
+		newM.RpcFunc=brainRpcHaveMasterNodeReplyNil
+		newM.Argv[0]="cluster Doesn't currently have a masterNodea"}
+	b.exchangeIN <- newM}
 
 func (m *message)ValidateMessageBrain() bool {
 	if	m.SrcMod != msgModBrain ||
 		m.DestMod != msgModBrain ||
-		m.DestHost != config.MyHostname {
+		( m.DestHost != config.MyHostname && m.DestHost != "__everyone__") {
 		//config.checkIfNodeExists(&m.SrcHost) != false { //TODO consider adding check for SrcHost
 			return false}
 	return true}
@@ -124,7 +158,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		b.PrintNodeHealth()
-		fmt.Printf("highest weight, healthy,  node found %s\n", *b.findHighWeightNode())
+		fmt.Printf("highest weight, healthy node found %s\n", *b.findHighWeightNode())
 		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
 
 func (b *Brain)PrintNodeHealth(){
@@ -136,8 +170,7 @@ func (b *Brain)PrintNodeHealth(){
 			case HealthOrange:
 				fmt.Printf("node: %s health: %s\n",k,"Orange")
 			case HealthRed:
-				fmt.Printf("node: %s health: %s\n",k,"Red")
-				}}
+				fmt.Printf("node: %s health: %s\n",k,"Red")}}
 	fmt.Printf("===================\n")}
 
 func (b *Brain)findHighWeightNode() *string {
@@ -149,3 +182,34 @@ func (b *Brain)findHighWeightNode() *string {
 			hw=n.Weight
 			host=&n.Hostname}}
 	return host}
+
+func (b *Brain)askClusterForMasterNode(){
+	var m = message{
+		SrcHost: config.MyHostname,
+		DestHost: "__everyone__",
+		SrcMod: msgModBrain,
+		DestMod: msgModBrain,
+		RpcFunc: brainRpcAskForMasterNode,
+		Time: time.Now(),
+		Argc: 1,
+		Argv: []string{"askForMasterNode"},
+		}
+	e.exchangeIN <- m}
+
+func	(b *Brain)getMasterNode(){
+	//wait for cluster to stabilize after start
+	time.Sleep(time.Second*5)
+	for{
+		if b.killBrain {
+			return}
+		if b.masterNode == nil {
+			fmt.Println("looking for master node")
+			b.askClusterForMasterNode()
+			time.Sleep(time.Millisecond * 500)
+			continue}
+		if b.masterNode == nil && b.clusterHasMaster == true {
+			//TODO start cluster elections
+			}
+		time.Sleep(time.Millisecond * 1000) }
+		}
+

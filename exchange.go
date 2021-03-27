@@ -137,17 +137,32 @@ func (e *Exchange)forwarder(){
 			return}
 
 		m = <-e.exchangeIN
-		// DEBUG outgoing messages
-		//if config.DebugNetwork && m.SrcMod != msgModLoggr && m.DestMod != msgModLoggr && m.SrcHost == config.MyHostname {
-		//	lg.DEBUGmessage(&m)}
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG forwarder recieved %s  %+v\n", m)}
+		if	m.SrcHost == config.MyHostname &&
+			config.getNodebyHostname(&m.DestHost) != nil &&
+			e.outgoing[m.DestHost] != nil {
+			e.outgoing[m.DestHost].outgoing <- m}
 		
+	//var m = message{
+	//	SrcHost: config.MyHostname,
+	//	DestHost: "__everyone__",
+	//	SrcMod: msgModBrain,
+	//	DestMod: msgModBrain,
+	//	RpcFunc: brainRpcAskForMasterNode,
+	//	Time: time.Now(),
+	//	Argc: 1,
+	//	Argv: []string{"askForMasterNode"},
+	//	}
 		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
+					//fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
 					if config.DebugNetwork {
-						fmt.Printf("DEBUG forwarder pushing to %s  %+v", n.Hostname, m)}
+						fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)}
+					//making sure one more time, (it could've changed during debug write to console)
 					if e.outgoing[n.Hostname] != nil {
 						e.outgoing[n.Hostname].outgoing <- m }}}}}}
 
@@ -172,7 +187,7 @@ func (e *Exchange)sorter(){
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
 			e.loggerIN <- m;}
 			
-		if	m.SrcHost == config.MyHostname &&
+		if	m.SrcHost != config.MyHostname &&
 			m.DestMod == msgModBrain{
 				if m.ValidateMessageBrain(){
 				e.brainIN <- m;
