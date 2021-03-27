@@ -99,8 +99,7 @@ func confLoad(){
 	/* TODO DEBUG 
 	 * this codes tests if current hosts is in config file. 
 	 * exits program if host is not in config
-	_,err=config.getNodebyHostname(&config.MyHostname)
-	if(err == nil){
+	if(config.getNodebyHostname(&config.MyHostname) == nil){
 		fmt.Println("DEBUG err controller is started on hostname %s which doesn't exists in cluster configuration file\n",vm.DomainDefinition)
 		os.Exit()}
 	 */
@@ -146,11 +145,11 @@ func (c *Conf)getVMbyDomain(argDomain *string)(v *VM, err error){
 	return nil,errors.New("conf VM not found")}
 
 
-func (c *Conf)getNodebyHostname(argHostname *string)(v *Node, err error){
+func (c *Conf)getNodebyHostname(argHostname *string) *Node {
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
-			return &t, nil}}
-	return nil,errors.New("conf Node not found")}
+			return &t}}
+	return nil}
 
 func (c *Conf)checkIfNodeExists(argHostname *string)bool{
 	for _,t:= range c.Nodes{
@@ -201,6 +200,7 @@ func writeExampleConfig(){
 		HwCpuMax: 8,
 		VMemMax: 8192,
 		HwMemMax: 8192,
+		Quorum: 3,
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
 		NodeHealthCheckInterval: 1000,

@@ -25,6 +25,12 @@ const(
 	HealthOrange=2
 	HealthRed=5
 	)
+const(
+	msgBrainRpcElectNominate=iota
+	msgBrainRpcElectReject
+	msgBrainRpcElectAccept
+	msgBrainRpcElectWasNominatedBy
+	)
 
 
 type Brain struct{
@@ -95,27 +101,17 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			dt = *v
 			if dt < 0 {
 				dt = 0 - dt}
-			// flag host as red if t
 			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
 				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthRed)
-				//b.nodeHealth[k]=HealthRed
 			}else if dt > (time.Millisecond * time.Duration(config.NodeHealthCheckInterval)) {
 				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthOrange)
-				//b.nodeHealth[k]=HealthOrange
 			}else {
 				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthGreen)
-				//b.nodeHealth[k]=HealthGreen
 				}
-			//debug injecting bad values into slice
-			//b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthRed)
-			//b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthOrange)
 			sum=0
 			for _,x := range b.nodeHealthLast30Ticks[k] {
-				fmt.Printf("sum %v x %v\n", sum, x)
 				sum = sum + x}
 			avg = float32(sum) / float32(len(b.nodeHealthLast30Ticks[k]))
-			fmt.Println(avg)
-			fmt.Printf("node %s average %v sum %v len %v %+v\n",k,avg,sum,len(b.nodeHealthLast30Ticks[k]),b.nodeHealthLast30Ticks[k])
 			if avg>2 && avg<=3 {
 				b.nodeHealth[k]=HealthRed
 			}else if avg>1 && avg<=2 {
@@ -128,6 +124,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		b.PrintNodeHealth()
+		fmt.Printf("highest weight, healthy,  node found %s\n", *b.findHighWeightNode())
 		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
 
 func (b *Brain)PrintNodeHealth(){
@@ -143,5 +140,12 @@ func (b *Brain)PrintNodeHealth(){
 				}}
 	fmt.Printf("===================\n")}
 
-//func (m *message)findHighValueNode(){
-//	}
+func (b *Brain)findHighWeightNode() *string {
+	var host *string
+	var hw uint = 0
+	for k,v := range b.nodeHealth{
+		n := config.getNodebyHostname(&k)
+		if v == HealthGreen && n != nil && n.Weight > hw {
+			hw=n.Weight
+			host=&n.Hostname}}
+	return host}

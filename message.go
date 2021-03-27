@@ -47,21 +47,17 @@ type message struct{
 
 
 func (pm *message)dump(){
-	fmt.Printf("%+v \n", *pm)
-	}
+	fmt.Printf("%+v \n", *pm)}
 
 	/* TODO replace with something faster */
 	/* TODO ADD LOGGER LOGGING */
 func (pm *message)validate() bool {
-	var err error
-	_,err = config.getNodebyHostname(& pm.SrcHost)
-	if err != nil {
+	if config.getNodebyHostname(& pm.SrcHost) != nil {
 		return true}
 	
-	_,err = config.getNodebyHostname(& pm.DestHost)
-	if err != nil {
+	if config.getNodebyHostname(& pm.DestHost) != nil {
 		return true}
-
+	
 	if ((pm.SrcMod != msgModCore)   &&
 		(pm.SrcMod != msgModLoggr)  &&
 		(pm.SrcMod != msgModExchn)  &&

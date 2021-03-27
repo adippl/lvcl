@@ -24,8 +24,7 @@ import "time"
 func setup(){
 	writeExampleConfig()
 	confLoad()
-	n,err := config.getNodebyHostname(&config.MyHostname)
-	if n == nil && err != nil {
+	if config.getNodebyHostname(&config.MyHostname) == nil {
 		fmt.Printf("CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", config.MyHostname)
 		panic("WRONG HOSTNAME")}
 	brainIN:=make(chan message)
