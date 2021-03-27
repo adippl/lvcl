@@ -21,9 +21,9 @@ import "fmt"
 import "time"
 
 const(
-	HealthGreen=iota
-	HealthOrange
-	HealthRed
+	HealthGreen=1
+	HealthOrange=2
+	HealthRed=5
 	)
 
 
@@ -34,7 +34,7 @@ type Brain struct{
 	brainIN		<-chan message
 	exIN		chan message
 	nodeHealth	map[string]int
-	heartbeat	map[string]*time.Time
+	nodeHealthLast30Ticks	map[string][]int
 	}
 
 
@@ -46,7 +46,10 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 		master: false,
 		killBrain:	false,
 		brainIN:	bIN,
-		exIN:		exIN,}
+		exIN:		exIN,
+		nodeHealth: make(map[string]int),
+		nodeHealthLast30Ticks:	make(map[string][]int),
+		}
 	go b.updateNodeHealth()
 	go b.messageHandler()
 	return &b}
@@ -74,9 +77,12 @@ func (m *message)ValidateMessageBrain() bool {
 	return true}
 
 //this function is very naive
-//TODO add something better, for example node health Promotion only after X cycles of good behaviour
+//node health is calculated form average of last 30 check intervals
+//this code is not very optimized, but it's good enough
 func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 	var dt time.Duration
+	var sum int
+	var avg float32
 	for{
 		if b.killBrain {
 			return}
@@ -89,18 +95,40 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			dt = *v
 			if dt < 0 {
 				dt = 0 - dt}
-			if dt> (time.Millisecond * time.Duration(config.ClusterTickInterval * 2)){
+			// flag host as red if t
+			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
+				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthRed)
+				//b.nodeHealth[k]=HealthRed
+			}else if dt > (time.Millisecond * time.Duration(config.NodeHealthCheckInterval)) {
+				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthOrange)
+				//b.nodeHealth[k]=HealthOrange
+			}else {
+				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthGreen)
+				//b.nodeHealth[k]=HealthGreen
+				}
+			//debug injecting bad values into slice
+			//b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthRed)
+			//b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthOrange)
+			sum=0
+			for _,x := range b.nodeHealthLast30Ticks[k] {
+				fmt.Printf("sum %v x %v\n", sum, x)
+				sum = sum + x}
+			avg = float32(sum) / float32(len(b.nodeHealthLast30Ticks[k]))
+			fmt.Println(avg)
+			fmt.Printf("node %s average %v sum %v len %v %+v\n",k,avg,sum,len(b.nodeHealthLast30Ticks[k]),b.nodeHealthLast30Ticks[k])
+			if avg>2 && avg<=3 {
 				b.nodeHealth[k]=HealthRed
-				continue}
-			if dt > (time.Millisecond * time.Duration(config.ClusterTickInterval)) {
+			}else if avg>1 && avg<=2 {
 				b.nodeHealth[k]=HealthOrange
-				continue}
-			b.nodeHealth[k]=HealthGreen
-				
-		}
+			}else if avg >= 1 && avg <= 1.1 {
+				b.nodeHealth[k]=HealthGreen}
+			
+			
+			//remove last position if slice size gets over 29
+			if len(b.nodeHealthLast30Ticks[k]) > 29 {
+				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		b.PrintNodeHealth()
-		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))
-		}}
+		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
 
 func (b *Brain)PrintNodeHealth(){
 	fmt.Printf("=== Node Health ===\n")
