@@ -34,14 +34,17 @@ func setup(){
 	
 	lg = NewLoger(loggerIN, exchangeIN)
 	
-	e := NewExchange(exchangeIN, brainIN, loggerIN)
+	e = NewExchange(exchangeIN, brainIN, loggerIN)
 	e.placeholderStupidVariableNotUsedError()
+	
+	b := NewBrain(exchangeIN, brainIN)
 	
 	lg.msg("Starting lvcl")
 	
 	mainLoop()
 		e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
+	b.KillBrain()
 	e.KillExchange()
 	lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")

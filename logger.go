@@ -69,7 +69,8 @@ func (l *Logger)messageHandler(){
 		if l.killLogger == true{
 			return}
 		m = <-l.loggerIN
-		fmt.Printf("DEBUG LOGGER received message %+v\n", m)
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
 		if m.loggerMessageValidate(){
 			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
 			if config.DebugRawLogging {//debug option, separate in overwriting existing string
@@ -98,7 +99,8 @@ func (l *Logger)msg(arg string){
 		panic(err)}
 	if config.DebugNoRemoteLogging == false {
 		msg := msgFormat(&arg)
-		fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)}
 		l.exchangeIN <- *msg}
 	}
 

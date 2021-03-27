@@ -48,6 +48,7 @@ type Conf struct {
 	
 	HeartbeatInterval uint
 	ClusterTickInterval uint
+	NodeHealthCheckInterval uint
 	ReconnectLoopDelay uint
 	HeartbeatTimeFormat string
 
@@ -151,7 +152,7 @@ func (c *Conf)getNodebyHostname(argHostname *string)(v *Node, err error){
 			return &t, nil}}
 	return nil,errors.New("conf Node not found")}
 
-func (c *Conf)checkIfNodeExists(argHostname *string)(ret bool){
+func (c *Conf)checkIfNodeExists(argHostname *string)bool{
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
 			return true}}
@@ -202,13 +203,14 @@ func writeExampleConfig(){
 		HwMemMax: 8192,
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
+		NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 1000,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
-		DebugNetwork: true,
+		DebugNetwork: false,
 		DebugNoRemoteLogging: false,
 		DebugRawLogging: false,
 		}

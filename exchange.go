@@ -21,7 +21,7 @@ import "net"
 import "fmt"
 import "time"
 
-
+var e *Exchange
 
 type Exchange struct{
 	//myHostname	string
@@ -171,7 +171,13 @@ func (e *Exchange)sorter(){
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
 			e.loggerIN <- m;}
-		
+			
+		if	m.SrcHost == config.MyHostname &&
+			m.DestMod == msgModBrain{
+				if m.ValidateMessageBrain(){
+				e.brainIN <- m;
+				}else{
+					lg.msg(fmt.Sprintf("Brain message failed to validate: %+v",m))}}
 		
 		//update heartbeat values from heartbeat messages
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
@@ -224,6 +230,6 @@ func (e *Exchange)printHeartbeatStats(){
 func (e *Exchange)KillExchange(){
 	e.killExchange=true}
 
-func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
-	return e.heartbeatLastMsg}
+func (e *Exchange)GetHeartbeat()(map[string]*time.Duration){
+	return e.heartbeatDelta}
 
