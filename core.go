@@ -41,7 +41,7 @@ func setup(){
 	lg.msg("Starting lvcl")
 	
 	mainLoop()
-		e.printHeartbeatStats()
+	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
 	b.KillBrain()
 	e.KillExchange()
@@ -51,7 +51,7 @@ func setup(){
 	}
 
 func mainLoop(){
-	for i:=0;i<10;i++ {
+	for i:=0;i<15;i++ {
 		fmt.Println(i)
 		lg.msg(fmt.Sprintf("%d",i))
 		time.Sleep(time.Second)}

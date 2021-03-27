@@ -144,17 +144,6 @@ func (e *Exchange)forwarder(){
 			e.outgoing[m.DestHost] != nil {
 			e.outgoing[m.DestHost].outgoing <- m}
 		
-	//var m = message{
-	//	SrcHost: config.MyHostname,
-	//	DestHost: "__everyone__",
-	//	SrcMod: msgModBrain,
-	//	DestMod: msgModBrain,
-	//	RpcFunc: brainRpcAskForMasterNode,
-	//	Time: time.Now(),
-	//	Argc: 1,
-	//	Argv: []string{"askForMasterNode"},
-	//	}
-		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
