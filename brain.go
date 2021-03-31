@@ -40,11 +40,12 @@ type Brain struct{
 	killBrain	bool
 	nominatedBy	map[string]bool
 	voteCounterExists	bool
+	quorum	uint
 	
 	brainIN		<-chan message
 	exchangeIN		chan message
 	nodeHealth	map[string]int
-	nodeHealthLast30Ticks	map[string][]int
+	nodeHealthLast30Ticks	map[string][]uint
 	}
 
 
@@ -57,11 +58,12 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 		killBrain:	false,
 		nominatedBy:	make(map[string]bool),
 		voteCounterExists: false,
+		quorum:	0,
 		
 		brainIN:	bIN,
 		exchangeIN:		exIN,
 		nodeHealth: make(map[string]int),
-		nodeHealthLast30Ticks:	make(map[string][]int),
+		nodeHealthLast30Ticks:	make(map[string][]uint),
 		}
 	go b.updateNodeHealth()
 	go b.messageHandler()
@@ -93,10 +95,12 @@ func  (b *Brain)messageHandler(){
 				continue
 		// respond to message with info about master node
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
-			// make a copy of this string
-			// I had some strange (garbage collection?) problems with out this copy
+			// TODO remove, it's only for debug function using fmt.Printf
+			// makes a copy of this string
+			// I had some strange problems with fmt.Printf without creating string copy
 			str := m.Argv[0]
 			b.masterNode=&str
+			//b.masterNode=&m.Argv[0]
 			lg.msg(fmt.Sprintf("got master node %s from host %s",m.Argv[0],m.SrcHost))
 		// respond to brainRpcHaveMasterNodeReplyNil
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
@@ -112,8 +116,7 @@ func  (b *Brain)messageHandler(){
 			if config.MyHostname == m.Argv[0] {
 				//this node got nominated
 				b.nominatedBy[m.SrcHost]=true
-				go b.countVotes()
-			}}}}
+				go b.countVotes()}}}}
 
 func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
@@ -124,8 +127,7 @@ func (b *Brain)vote(){
 	nm.Argv=make([]string,2)
 	nm.Argv[0]=*hostname
 	nm.Argv[1]=fmt.Sprintf("nominating node %s",*hostname)
-	b.exchangeIN <- *nm
-	}
+	b.exchangeIN <- *nm}
 
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
@@ -177,7 +179,7 @@ func (m *message)ValidateMessageBrain() bool {
 //this code is not very optimized, but it's good enough
 func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 	var dt time.Duration
-	var sum int
+	var sum uint
 	var avg float32
 	for{
 		if b.killBrain {
@@ -192,17 +194,17 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			if dt < 0 {
 				dt = 0 - dt}
 			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
-				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthRed)
+				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthRed)
 			}else if dt > (time.Millisecond * time.Duration(config.NodeHealthCheckInterval)) {
-				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthOrange)
+				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthOrange)
 			}else {
-				b.nodeHealthLast30Ticks[k]=append(b.nodeHealthLast30Ticks[k], HealthGreen)
+				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthGreen)
 				}
 			sum=0
 			for _,x := range b.nodeHealthLast30Ticks[k] {
 				sum = sum + x}
 			avg = float32(sum) / float32(len(b.nodeHealthLast30Ticks[k]))
-			if avg>2 && avg<=3 {
+			if avg>2 {
 				b.nodeHealth[k]=HealthRed
 			}else if avg>1 && avg<=2 {
 				b.nodeHealth[k]=HealthOrange
@@ -211,8 +213,24 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			//remove last position if slice size gets over 29
 			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
-		//b.PrintNodeHealth()
-		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
+		// updating quorum stats
+		sum=0
+		for _,v := range b.nodeHealth {
+			if v <= HealthOrange {
+				sum++}
+			}
+		b.quorum = sum
+		// remove master node if quorum falls below config
+		if b.quorum < config.Quorum {
+			b.masterNode = nil
+			b.isMaster = false}
+		// remove master node if it's health gets above orange
+		// separate if for readability
+		if b.masterNode != nil && b.nodeHealth[*b.masterNode] >= HealthOrange {
+			b.masterNode = nil
+			b.isMaster = false}
+		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}
+		}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
@@ -251,13 +269,13 @@ func (b *Brain)SendMsg(host string, rpc uint, str string){
 	m.Argv = []string{str}
 	e.exchangeIN <- *m}
 
-
 func (b *Brain)PrintNodeHealth(){
 	fmt.Printf("=== Node Health ===\n")
 	if b.masterNode != nil {
 		fmt.Printf("Master node: %s\n", *b.masterNode)
 	}else{
 		fmt.Printf("No master node\n")}
+	fmt.Printf("Quorum: %d\n", b.quorum)
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
@@ -268,20 +286,7 @@ func (b *Brain)PrintNodeHealth(){
 				fmt.Printf("node: %s health: %s\n",k,"Red")}}
 	fmt.Printf("===================\n")}
 
-//func (b *Brain)PrintNodeHealth(){
-//	//fmt.Printf("=== Node Health ===\n")
-//	if b.masterNode != nil {
-//		lg.msg(fmt.Sprintf("Master node: %s\n", *b.masterNode))
-//	}else{
-//		lg.msg("No master node")}
-//	//for k,v := range b.nodeHealth {
-//	//	switch v {
-//	//		case HealthGreen:
-//	//			fmt.Printf("node: %s health: %s\n",k,"Green")
-//	//		case HealthOrange:
-//	//			fmt.Printf("node: %s health: %s\n",k,"Orange")
-//	//		case HealthRed:
-//	//			fmt.Printf("node: %s health: %s\n",k,"Red")}}
-//	//fmt.Printf("===================\n")
-//	}
-//
+//func (b *Brain)HealthChecker(){
+//	if b.isMaster {
+//		for k,v := range b.nodeHealth {
+//			

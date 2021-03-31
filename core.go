@@ -20,6 +20,7 @@ package main
 
 import "fmt"
 import "time"
+import "os"
 
 func setup(){
 	writeExampleConfig()
@@ -48,7 +49,8 @@ func setup(){
 	e.KillExchange()
 	//lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")
-	time.Sleep(time.Second*10)
+	//time.Sleep(time.Second*10)
+	os.Exit(0)
 	}
 
 func mainLoop(){
