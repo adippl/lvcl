@@ -36,7 +36,7 @@ func setup(){
 	e = NewExchange(exchangeIN, brainIN, loggerIN)
 	e.placeholderStupidVariableNotUsedError()
 	
-	b := NewBrain(exchangeIN, brainIN)
+	b = NewBrain(exchangeIN, brainIN)
 	
 	lg.msg("Starting lvcl")
 	
@@ -44,8 +44,9 @@ func setup(){
 	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
 	b.KillBrain()
+	lg.KillLogger()
 	e.KillExchange()
-	lg.delLogger()
+	//lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")
 	time.Sleep(time.Second*10)
 	}
@@ -54,5 +55,7 @@ func mainLoop(){
 	for i:=0;i<15;i++ {
 		fmt.Println(i)
 		lg.msg(fmt.Sprintf("%d",i))
+		b.PrintNodeHealth()
+		b.PrintMaster()
 		time.Sleep(time.Second)}
 	}

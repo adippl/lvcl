@@ -19,7 +19,6 @@ package main
 
 import "fmt"
 import "time"
-import "math/rand"
 
 const(
 	HealthGreen=1
@@ -28,12 +27,7 @@ const(
 	)
 const(
 	brainRpcElectNominate=iota
-	brainRpcElectReject
-	brainRpcElectAccept
-	brainRpcElectWasNominatedBy
 	brainRpcElectAsk
-	brainRpcElectAskReplyYes
-	brainRpcElectAskReplyNo
 	brainRpcAskForMasterNode
 	brainRpcHaveMasterNodeReply
 	brainRpcHaveMasterNodeReplyNil
@@ -46,8 +40,6 @@ type Brain struct{
 	masterNode	*string
 	
 	killBrain	bool
-	elections	bool
-	nominated	bool
 	nominatedBy	map[string]bool
 	voteCounterExists	bool
 	
@@ -55,11 +47,10 @@ type Brain struct{
 	exchangeIN		chan message
 	nodeHealth	map[string]int
 	nodeHealthLast30Ticks	map[string][]int
-	//TODO ADD ELECTION TIMEOUT
 	}
 
 
-
+var b *Brain
 
 func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	b := Brain{
@@ -67,8 +58,6 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 		isMaster: false,
 		masterNode:	nil,
 		killBrain:	false,
-		elections:	false,
-		nominated:	false,
 		nominatedBy:	make(map[string]bool),
 		voteCounterExists: false,
 		
@@ -87,8 +76,6 @@ func (b *Brain)KillBrain(){
 
 func  (b *Brain)messageHandler(){
 	var m message
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
 	for {
 		if b.killBrain == true{
 			return}
@@ -96,45 +83,24 @@ func  (b *Brain)messageHandler(){
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
 		fmt.Printf("DEBUG BRAIN received message %+v\n", m)
-
+		
 		if m.RpcFunc == brainRpcAskForMasterNode{
 			b.replyToAskForMasterNode(&m)
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
 			b.clusterHasMaster = true
 			b.masterNode=&m.Argv[0]
+			lg.msg(fmt.Sprintf("got master node %s from host %s",&m.Argv[0],m.SrcHost))
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
 			b.clusterHasMaster = false
 			b.masterNode=nil
-			//random length delay to make collisions less likely
-			time.Sleep(time.Millisecond * time.Duration(100 * r1.Intn(10)))
 			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
 		}else if m.RpcFunc == brainRpcElectAsk {
-			b.replyToAskForElections(&m)
-		}else if m.RpcFunc == brainRpcElectAskReplyYes {
-			//TODO voter goroutine
 			b.vote()
-		}else if m.RpcFunc == brainRpcElectAskReplyNo {
-			b.vote()
-			//hostname := b.findHighWeightNode()
-			////if !b.nominated{
-			//if !b.nominated{
-			//	nm := brainNewMessage()
-			//	nm.DestHost = "__everyone__"
-			//	nm.RpcFunc=brainRpcElectNominate
-			//	nm.Argc=2
-			//	nm.Argv=make([]string,2)
-			//	nm.Argv[0]=*hostname
-			//	nm.Argv[1]=fmt.Sprintf("nominating node %s",*hostname)
-			//	b.exchangeIN <- *nm
-			//	b.nominated=true}
 		}else if m.RpcFunc == brainRpcElectNominate {
-			//b.elections = true
 			if config.MyHostname == m.Argv[0] {
-				b.nominatedBy = make(map[string]bool)
 				//this node got nominated
 				b.nominatedBy[m.SrcHost]=true
 				go b.countVotes()
-				
 			}}}}
 
 func (b *Brain)vote(){
@@ -151,56 +117,41 @@ func (b *Brain)vote(){
 
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
-		fmt.Println("VOTE ALREADY RUNNING")
+		lg.msg("recieved ask for vote, but vote coroutine is already running")
 		return}
-	fmt.Println("VOTE COUNTER STARTED")
+	//fmt.Println("VOTE COUNTER STARTED")
 	b.voteCounterExists = true
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Millisecond * 1000)
 	var sum uint = 0
 	for k,v := range b.nominatedBy {
-		fmt.Println("nominated by",k,v)
+		lg.msg(fmt.Sprintf("this node (%s) nominated by $s $B ",k,v))
 		if v {
 			sum++}}
 	if sum == config.Quorum-1 {
-		//lg.msg("this host won elections with quorum-1 of votes")
 		fmt.Println("this host won elections with quorum-1 of votes")
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
-		b.elections = false
-		b.nominated = false
 		b.nominatedBy = make(map[string]bool)
+		fmt.Println("DEBUG WON ", b.isMaster, *b.masterNode, b.nominatedBy)
 	}else{
-		fmt.Printf("elections failed, not enough votes (quorum-1), %+v",b.nominatedBy)
 		lg.msg(fmt.Sprintf(
 			"elections failed, not enough votes (quorum-1), %+v",
 			b.nominatedBy))}
-	fmt.Println("VOTE COUNTER EXITED")
+	b.nominatedBy = make(map[string]bool)
 	b.voteCounterExists = false}
 
-
 func (b *Brain)replyToAskForMasterNode(m *message){
-	newM := brainNewMessage()
-	newM.DestHost = m.SrcHost
-	newM.RpcFunc=brainRpcHaveMasterNodeReply
 	if b.isMaster && *b.masterNode == config.MyHostname {
-	newM.RpcFunc=brainRpcHaveMasterNodeReply
-		newM.Argv[0] = config.MyHostname
+		//fmt.Println("\n\nreplying with master node\n\n")
+		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)
 	}else if b.masterNode == nil {
-		newM.RpcFunc=brainRpcHaveMasterNodeReplyNil
-		newM.Argv[0]="cluster Doesn't currently have a masterNode"}
-	b.exchangeIN <- *newM}
+		b.SendMsg(m.SrcHost,
+			brainRpcHaveMasterNodeReplyNil,
+			"cluster Doesn't currently have a masterNode")}}
 
-func (b *Brain)replyToAskForElections(m *message){
-	newM := brainNewMessage()
-	newM.DestHost = m.SrcHost
-	newM.RpcFunc=brainRpcHaveMasterNodeReply
-	if b.elections {
-		newM.RpcFunc=brainRpcElectAskReplyYes
-		newM.Argv[0] = "cluster elections active"
-	}else if !b.elections && b.masterNode != nil {
-		newM.RpcFunc=brainRpcElectAskReplyNo
-		newM.Argv[0] = "cluster doesn't have elections"}
-	b.exchangeIN <- *newM}
+func (b *Brain)replyFromMasterNode(m *message){
+	if b.isMaster && *b.masterNode == config.MyHostname {
+		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)}}
 
 func (m *message)ValidateMessageBrain() bool {
 	if	m.SrcMod != msgModBrain ||
@@ -250,20 +201,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		//b.PrintNodeHealth()
-		//fmt.Printf("highest weight, healthy node found %s\n", *b.findHighWeightNode())
 		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
-
-func (b *Brain)PrintNodeHealth(){
-	fmt.Printf("=== Node Health ===\n")
-	for k,v := range b.nodeHealth {
-		switch v {
-			case HealthGreen:
-				fmt.Printf("node: %s health: %s\n",k,"Green")
-			case HealthOrange:
-				fmt.Printf("node: %s health: %s\n",k,"Orange")
-			case HealthRed:
-				fmt.Printf("node: %s health: %s\n",k,"Red")}}
-	fmt.Printf("===================\n")}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
@@ -285,16 +223,13 @@ func brainNewMessage() *message {
 		Argv: make([]string,1)}
 	return &m}
 
-func	(b *Brain)getMasterNode(){
-	//wait for cluster to stabilize after start
-	//time.Sleep(time.Second*2)
+func (b *Brain)getMasterNode(){
 	for{
 		if b.killBrain {
 			return}
 		time.Sleep(time.Millisecond * 1000)
-		if b.masterNode == nil && b.elections == false {
-			fmt.Println("=================== asking for elections")
-			fmt.Println("looking for master node")
+		if b.masterNode == nil {
+			lg.msg("looking for master node")
 			b.SendMsg("__everyone__", brainRpcAskForMasterNode, "asking for master node")
 			time.Sleep(time.Millisecond * 500)}}}
 
@@ -304,4 +239,22 @@ func (b *Brain)SendMsg(host string, rpc uint, str string){
 	m.RpcFunc=rpc
 	m.Argv = []string{str}
 	e.exchangeIN <- *m}
+
+func (b *Brain)PrintMaster(){
+	if b.clusterHasMaster {
+		fmt.Printf("Cluster master node |%s|\n", *b.masterNode)
+	}else{
+		fmt.Printf("Cluster doesn't have master node\n")}}
+
+func (b *Brain)PrintNodeHealth(){
+	fmt.Printf("=== Node Health ===\n")
+	for k,v := range b.nodeHealth {
+		switch v {
+			case HealthGreen:
+				fmt.Printf("node: %s health: %s\n",k,"Green")
+			case HealthOrange:
+				fmt.Printf("node: %s health: %s\n",k,"Orange")
+			case HealthRed:
+				fmt.Printf("node: %s health: %s\n",k,"Red")}}
+	fmt.Printf("===================\n")}
 

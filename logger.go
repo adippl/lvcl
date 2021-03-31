@@ -54,6 +54,8 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	fmt.Println("logger setup end")
 	return &l}
 
+func (l *Logger)KillLogger(){
+	l.killLogger=true}
 
 func (l *Logger)delLogger(){
 	fmt.Println("CLOSEING LOGGER")
