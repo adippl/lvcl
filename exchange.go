@@ -220,7 +220,7 @@ func (e *Exchange)heartbeatSender(){
 			Argv: []string{"heartbeat"},
 			}
 		e.exchangeIN <- m
-		fmt.Println("sending heartbeat")
+		//fmt.Println("sending heartbeat")
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
 func (e *Exchange)printHeartbeatStats(){

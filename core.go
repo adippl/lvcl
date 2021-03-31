@@ -56,6 +56,5 @@ func mainLoop(){
 		fmt.Println(i)
 		lg.msg(fmt.Sprintf("%d",i))
 		b.PrintNodeHealth()
-		b.PrintMaster()
 		time.Sleep(time.Second)}
 	}

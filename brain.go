@@ -34,9 +34,7 @@ const(
 	)
 
 type Brain struct{
-	active	bool
 	isMaster	bool
-	clusterHasMaster	bool
 	masterNode	*string
 	
 	killBrain	bool
@@ -54,7 +52,6 @@ var b *Brain
 
 func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	b := Brain{
-		active: false,
 		isMaster: false,
 		masterNode:	nil,
 		killBrain:	false,
@@ -82,20 +79,35 @@ func  (b *Brain)messageHandler(){
 		m = <-b.brainIN
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
-		fmt.Printf("DEBUG BRAIN received message %+v\n", m)
+		//lg.msg(fmt.Sprintf("DEBUG BRAIN received message %+v\n", m))
 		
 		if m.RpcFunc == brainRpcAskForMasterNode{
 			b.replyToAskForMasterNode(&m)
+			continue
+		
+		// Master node only replies
+		}else if b.isMaster &&
+				(m.RpcFunc == brainRpcElectAsk ||
+				 m.RpcFunc == brainRpcElectNominate) {
+				b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)
+				continue
+		// respond to message with info about master node
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
-			b.clusterHasMaster = true
-			b.masterNode=&m.Argv[0]
-			lg.msg(fmt.Sprintf("got master node %s from host %s",&m.Argv[0],m.SrcHost))
+			// make a copy of this string
+			// I had some strange (garbage collection?) problems with out this copy
+			str := m.Argv[0]
+			b.masterNode=&str
+			lg.msg(fmt.Sprintf("got master node %s from host %s",m.Argv[0],m.SrcHost))
+		// respond to brainRpcHaveMasterNodeReplyNil
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
-			b.clusterHasMaster = false
-			b.masterNode=nil
+			b.masterNode = nil
 			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
+			continue
+		// respond to request for elections
 		}else if m.RpcFunc == brainRpcElectAsk {
 			b.vote()
+			continue
+		// respond to master node nomination
 		}else if m.RpcFunc == brainRpcElectNominate {
 			if config.MyHostname == m.Argv[0] {
 				//this node got nominated
@@ -119,7 +131,6 @@ func (b *Brain)countVotes(){
 	if b.voteCounterExists {
 		lg.msg("recieved ask for vote, but vote coroutine is already running")
 		return}
-	//fmt.Println("VOTE COUNTER STARTED")
 	b.voteCounterExists = true
 	time.Sleep(time.Millisecond * 1000)
 	var sum uint = 0
@@ -128,11 +139,11 @@ func (b *Brain)countVotes(){
 		if v {
 			sum++}}
 	if sum == config.Quorum-1 {
-		fmt.Println("this host won elections with quorum-1 of votes")
+		fmt.Println("this host won elections with (quorum - 1) of votes")
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
 		b.nominatedBy = make(map[string]bool)
-		fmt.Println("DEBUG WON ", b.isMaster, *b.masterNode, b.nominatedBy)
+		//fmt.Println("DEBUG WON ", b.isMaster, *b.masterNode, b.nominatedBy)
 	}else{
 		lg.msg(fmt.Sprintf(
 			"elections failed, not enough votes (quorum-1), %+v",
@@ -149,9 +160,9 @@ func (b *Brain)replyToAskForMasterNode(m *message){
 			brainRpcHaveMasterNodeReplyNil,
 			"cluster Doesn't currently have a masterNode")}}
 
-func (b *Brain)replyFromMasterNode(m *message){
-	if b.isMaster && *b.masterNode == config.MyHostname {
-		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)}}
+//func (b *Brain)replyFromMasterNode(m *message){
+//	if b.isMaster && *b.masterNode == config.MyHostname {
+//		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)}}
 
 func (m *message)ValidateMessageBrain() bool {
 	if	m.SrcMod != msgModBrain ||
@@ -240,14 +251,13 @@ func (b *Brain)SendMsg(host string, rpc uint, str string){
 	m.Argv = []string{str}
 	e.exchangeIN <- *m}
 
-func (b *Brain)PrintMaster(){
-	if b.clusterHasMaster {
-		fmt.Printf("Cluster master node |%s|\n", *b.masterNode)
-	}else{
-		fmt.Printf("Cluster doesn't have master node\n")}}
 
 func (b *Brain)PrintNodeHealth(){
 	fmt.Printf("=== Node Health ===\n")
+	if b.masterNode != nil {
+		fmt.Printf("Master node: %s\n", *b.masterNode)
+	}else{
+		fmt.Printf("No master node\n")}
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
@@ -258,3 +268,20 @@ func (b *Brain)PrintNodeHealth(){
 				fmt.Printf("node: %s health: %s\n",k,"Red")}}
 	fmt.Printf("===================\n")}
 
+//func (b *Brain)PrintNodeHealth(){
+//	//fmt.Printf("=== Node Health ===\n")
+//	if b.masterNode != nil {
+//		lg.msg(fmt.Sprintf("Master node: %s\n", *b.masterNode))
+//	}else{
+//		lg.msg("No master node")}
+//	//for k,v := range b.nodeHealth {
+//	//	switch v {
+//	//		case HealthGreen:
+//	//			fmt.Printf("node: %s health: %s\n",k,"Green")
+//	//		case HealthOrange:
+//	//			fmt.Printf("node: %s health: %s\n",k,"Orange")
+//	//		case HealthRed:
+//	//			fmt.Printf("node: %s health: %s\n",k,"Red")}}
+//	//fmt.Printf("===================\n")
+//	}
+//
