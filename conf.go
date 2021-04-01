@@ -151,7 +151,7 @@ func (c *Conf)getNodebyHostname(argHostname *string) *Node {
 			return &t}}
 	return nil}
 
-func (c *Conf)checkIfNodeExists(argHostname *string)bool{
+func (c *Conf)checkIfNodeExists(argHostname *string) bool {
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
 			return true}}
@@ -211,7 +211,7 @@ func writeExampleConfig(){
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DebugNetwork: false,
-		DebugNoRemoteLogging: false,
+		DebugNoRemoteLogging: true,
 		DebugRawLogging: false,
 		}
 	

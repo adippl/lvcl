@@ -54,9 +54,10 @@ func setup(){
 	}
 
 func mainLoop(){
-	for i:=0;i<15;i++ {
+	for i:=0;i<30;i++ {
 		fmt.Println(i)
 		lg.msg(fmt.Sprintf("%d",i))
+		e.printHeartbeatStats()
 		b.PrintNodeHealth()
 		time.Sleep(time.Second)}
 	}

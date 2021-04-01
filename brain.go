@@ -23,7 +23,7 @@ import "time"
 const(
 	HealthGreen=1
 	HealthOrange=2
-	HealthRed=5
+	HealthRed=10
 	)
 const(
 	brainRpcElectNominate=iota
@@ -162,10 +162,6 @@ func (b *Brain)replyToAskForMasterNode(m *message){
 			brainRpcHaveMasterNodeReplyNil,
 			"cluster Doesn't currently have a masterNode")}}
 
-//func (b *Brain)replyFromMasterNode(m *message){
-//	if b.isMaster && *b.masterNode == config.MyHostname {
-//		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)}}
-
 func (m *message)ValidateMessageBrain() bool {
 	if	m.SrcMod != msgModBrain ||
 		m.DestMod != msgModBrain ||
@@ -178,7 +174,7 @@ func (m *message)ValidateMessageBrain() bool {
 //node health is calculated form average of last 30 check intervals
 //this code is not very optimized, but it's good enough
 func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
-	var dt time.Duration
+	//var dt time.Duration
 	var sum uint
 	var avg float32
 	for{
@@ -190,7 +186,8 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		for k,v := range e.GetHeartbeat() {
 			//get absolute value of time.
 			//in this simple implemetation time can be negative due to time differences on host
-			dt = *v
+			dt := time.Now().Sub(*v)
+			//dt = *v
 			if dt < 0 {
 				dt = 0 - dt}
 			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
@@ -211,7 +208,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			}else if avg >= 1 && avg <= 1.1 {
 				b.nodeHealth[k]=HealthGreen}
 			//remove last position if slice size gets over 29
-			if len(b.nodeHealthLast30Ticks[k]) > 29 {
+			if len(b.nodeHealthLast30Ticks[k]) > 10 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		// updating quorum stats
 		sum=0
@@ -279,14 +276,9 @@ func (b *Brain)PrintNodeHealth(){
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
-				fmt.Printf("node: %s health: %s\n",k,"Green")
+				fmt.Printf("node: %s health: %s %+v\n",k,"Green",b.nodeHealthLast30Ticks[k])
 			case HealthOrange:
-				fmt.Printf("node: %s health: %s\n",k,"Orange")
+				fmt.Printf("node: %s health: %s %+v\n",k,"Orange",b.nodeHealthLast30Ticks[k])
 			case HealthRed:
-				fmt.Printf("node: %s health: %s\n",k,"Red")}}
+				fmt.Printf("node: %s health: %s %+v\n",k,"Red",b.nodeHealthLast30Ticks[k])}}
 	fmt.Printf("===================\n")}
-
-//func (b *Brain)HealthChecker(){
-//	if b.isMaster {
-//		for k,v := range b.nodeHealth {
-//			

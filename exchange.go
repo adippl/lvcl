@@ -24,7 +24,6 @@ import "time"
 var e *Exchange
 
 type Exchange struct{
-	//myHostname	string
 	nodeList	*[]Node
 	outgoing		map[string]*eclient
 	incoming		map[string]*eclient
@@ -46,7 +45,6 @@ type Exchange struct{
 
 func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exchange {
 	e := Exchange{
-		//myHostname:	config.MyHostname,
 		nodeList:	&config.Nodes,
 		outgoing:		make(map[string]*eclient),
 		incoming:		make(map[string]*eclient),
@@ -64,7 +62,20 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 	go e.forwarder()
 	go e.sorter()
 	go e.heartbeatSender()
+	go e.updateNodeHealthDelta()
 	return &e}
+
+func (e *Exchange)updateNodeHealthDelta(){
+	if e.killExchange {
+		return}
+	for{
+			e.heartbeatDelta=make(map[string]*time.Duration)
+		for k,v := range e.heartbeatLastMsg {
+			dt := time.Now().Sub(*v)
+			e.heartbeatDelta[k]=&dt}
+		e.dumpAllConnectedHosts()
+		//fmt.Println(e.heartbeatDelta)
+		time.Sleep(time.Millisecond * 10 * time.Duration(config.ClusterTickInterval))}}
 
 func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
 	eclient := &eclient{
@@ -100,8 +111,8 @@ func (e *Exchange)reconnectLoop(){
 		if e.killExchange { //ugly solution
 			return}
 		for _,n := range *e.nodeList{
-			//fmt.Printf("[ %s ]\n",n)
 			if e.outgoing[n.Hostname] == nil{
+				lg.msg(fmt.Sprintf("DEBUG -=-=-=-=-=- attempting to recconect to host %s",n.Hostname))
 				go e.startConn(n)}}
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
@@ -157,7 +168,6 @@ func (e *Exchange)forwarder(){
 
 func (e *Exchange)sorter(){
 	var m message
-	var dt time.Duration
 	for{
 		if e.killExchange { //ugly solution
 			return}
@@ -174,25 +184,22 @@ func (e *Exchange)sorter(){
 			
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
-			e.loggerIN <- m;}
+			e.loggerIN <- m;
+			continue}
 			
 		if	m.SrcHost != config.MyHostname &&
 			m.DestMod == msgModBrain{
 				if m.ValidateMessageBrain(){
 				e.brainIN <- m;
 				}else{
-					lg.msg(fmt.Sprintf("Brain message failed to validate: %+v",m))}}
+					lg.msg(fmt.Sprintf("Brain message failed to validate: %+v",m))}
+			continue}
 		
 		//update heartbeat values from heartbeat messages
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
 			if config.checkIfNodeExists(&m.SrcHost){
-				dt = time.Now().Sub(m.Time)
-				//uncomment to add 100ms to delta
-				//dt = dt + (time.Millisecond * 100)
-				e.heartbeatLastMsg[m.SrcHost]=&m.Time
-				e.heartbeatDelta[m.SrcHost]=&dt
-				}}}}
-
+				timeCopy := m.Time
+				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}}}}
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
@@ -220,20 +227,19 @@ func (e *Exchange)heartbeatSender(){
 			Argv: []string{"heartbeat"},
 			}
 		e.exchangeIN <- m
-		//fmt.Println("sending heartbeat")
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
 func (e *Exchange)printHeartbeatStats(){
 	fmt.Printf("\n === Heartbeat info per node === \n")
 	for k,v:= range e.heartbeatLastMsg{
-		fmt.Printf("NODE: %s last heartbeat message %s\n", k, v.String())}
-	for k,v:= range e.heartbeatDelta{
-		fmt.Printf("NODE: %s last heartbeat delta %s\n", k, v.String())}
+		fmt.Printf("NODE: %s last heartbeat message %s\n", k, v.String())
+		dt := time.Now().Sub(*v)
+		fmt.Printf("NODE: %s last heartbeat delta %s\n", k, dt.String())}
 	fmt.Printf(" === END of Heartbeat info === \n\n")}
 
 func (e *Exchange)KillExchange(){
 	e.killExchange=true}
 
-func (e *Exchange)GetHeartbeat()(map[string]*time.Duration){
-	return e.heartbeatDelta}
+func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
+	return e.heartbeatLastMsg}
 

@@ -65,5 +65,5 @@ func (ec *eclient)forward(){
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
-	//ec.exch.dialed[ec.hostname]=nil
+	ec.exch.outgoing[ec.hostname]=nil
 	ec = nil}

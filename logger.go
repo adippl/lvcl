@@ -58,7 +58,7 @@ func (l *Logger)KillLogger(){
 	l.killLogger=true}
 
 func (l *Logger)delLogger(){
-	fmt.Println("CLOSEING LOGGER")
+	fmt.Println("CLOSING LOGGER")
 	l.killLogger=true
 	l.logLocal.Close()
 	l.logCombined.Close()
