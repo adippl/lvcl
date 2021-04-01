@@ -69,13 +69,12 @@ func (e *Exchange)updateNodeHealthDelta(){
 	if e.killExchange {
 		return}
 	for{
-			e.heartbeatDelta=make(map[string]*time.Duration)
+		// creating new map is much easier than searching for missing nodes
+		e.heartbeatDelta=make(map[string]*time.Duration)
 		for k,v := range e.heartbeatLastMsg {
 			dt := time.Now().Sub(*v)
 			e.heartbeatDelta[k]=&dt}
-		e.dumpAllConnectedHosts()
-		//fmt.Println(e.heartbeatDelta)
-		time.Sleep(time.Millisecond * 10 * time.Duration(config.ClusterTickInterval))}}
+		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
 
 func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
 	eclient := &eclient{

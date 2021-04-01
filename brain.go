@@ -23,7 +23,7 @@ import "time"
 const(
 	HealthGreen=1
 	HealthOrange=2
-	HealthRed=10
+	HealthRed=5
 	)
 const(
 	brainRpcElectNominate=iota
@@ -208,7 +208,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			}else if avg >= 1 && avg <= 1.1 {
 				b.nodeHealth[k]=HealthGreen}
 			//remove last position if slice size gets over 29
-			if len(b.nodeHealthLast30Ticks[k]) > 10 {
+			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		// updating quorum stats
 		sum=0
