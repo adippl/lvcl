@@ -65,6 +65,7 @@ type Conf struct {
 	DebugNetwork bool
 	DebugNoRemoteLogging bool
 	DebugRawLogging bool
+	DebugHeartbeat bool
 	}
 
 
@@ -213,6 +214,7 @@ func writeExampleConfig(){
 		DebugNetwork: false,
 		DebugNoRemoteLogging: true,
 		DebugRawLogging: false,
+		DebugHeartbeat: false,
 		}
 	
 	confser, err := json.MarshalIndent(testConfig,"","	")

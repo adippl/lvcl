@@ -110,7 +110,7 @@ func (e *Exchange)reconnectLoop(){
 		if e.killExchange { //ugly solution
 			return}
 		for _,n := range *e.nodeList{
-			if e.outgoing[n.Hostname] == nil{
+			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
 				lg.msg(fmt.Sprintf("DEBUG -=-=-=-=-=- attempting to recconect to host %s",n.Hostname))
 				go e.startConn(n)}}
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
@@ -229,12 +229,13 @@ func (e *Exchange)heartbeatSender(){
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
 func (e *Exchange)printHeartbeatStats(){
-	fmt.Printf("\n === Heartbeat info per node === \n")
-	for k,v:= range e.heartbeatLastMsg{
-		fmt.Printf("NODE: %s last heartbeat message %s\n", k, v.String())
-		dt := time.Now().Sub(*v)
-		fmt.Printf("NODE: %s last heartbeat delta %s\n", k, dt.String())}
-	fmt.Printf(" === END of Heartbeat info === \n\n")}
+	if config.DebugHeartbeat {
+		fmt.Printf("\n === Heartbeat info per node === \n")
+		for k,v:= range e.heartbeatLastMsg{
+			fmt.Printf("NODE: %s last heartbeat message %s\n", k, v.String())
+			dt := time.Now().Sub(*v)
+			fmt.Printf("NODE: %s last heartbeat delta %s\n", k, dt.String())}
+		fmt.Printf(" === END of Heartbeat info === \n\n")}}
 
 func (e *Exchange)KillExchange(){
 	e.killExchange=true}

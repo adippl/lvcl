@@ -31,6 +31,7 @@ func setup(){
 	brainIN:=make(chan message)
 	loggerIN:=make(chan message)
 	exchangeIN:=make(chan message)
+	lvdIn:=make(chan message)
 	
 	lg = NewLoger(loggerIN, exchangeIN)
 	
@@ -41,6 +42,8 @@ func setup(){
 	
 	lg.msg("Starting lvcl")
 	
+	fmt.Println("libvirt connection")
+	lv = NewLVD(brainIN, lvdIn)
 	mainLoop()
 	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
@@ -59,5 +62,6 @@ func mainLoop(){
 		lg.msg(fmt.Sprintf("%d",i))
 		e.printHeartbeatStats()
 		b.PrintNodeHealth()
+		lv.listDomains()
 		time.Sleep(time.Second)}
 	}
