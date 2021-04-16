@@ -43,27 +43,28 @@ func (ec *eclient)listen(){
 			if ec.conn != nil{
 				ec.incoming <- m}
 		}else{
-			lg.err("eclient Decoder ", err)
 			break}}
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
-	ec = nil}
+	ec = nil
+	lg.err("eclient Decoder ", err)}
 
 func (ec *eclient)forward(){
 	var data message
+	var err error
 	enc := json.NewEncoder(ec.conn)
 	fmt.Printf("conn Forwarder started for %s\n", ec.hostname)
 	for{
 		data = <-ec.outgoing
 		if config.DebugNetwork {
 			fmt.Printf("conn Forwarder to %s received %+v\n", ec.hostname,  data)}
-		err := enc.Encode(data)
+		err = enc.Encode(data)
 		if err != nil{
-			lg.err("eclient forwarder serializer ", err)
 			break}}
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
 	ec.exch.outgoing[ec.hostname]=nil
-	ec = nil}
+	ec = nil
+	lg.err("eclient forwarder serializer ", err)}
