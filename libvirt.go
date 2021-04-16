@@ -44,20 +44,14 @@ var lv *lvd
 
 func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 	conn, err := libvirt.NewConnect("qemu:///system")
-	if err == nil {
-		lg.err("libvirt NewConnect Local",err) }
-	defer conn.Close()
-	
-//	doms, err := conn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
-//	if err == nil {
-//	    lg.err("libvirt listAllDomains",err) }
-//	
-//	fmt.Printf("%d running domains:\n", len(doms))
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if err == nil {
-//			fmt.Printf("  %s\n", name) }
-//		dom.Free() }
+	if err != nil {
+		lg.err("libvirt NewConnect Local",err)
+		defer conn.Close()
+		return nil
+		}
+	// TODO close this connection at some point
+	// defer close doesn't defer and closes connection immediately
+	//defer conn.Close()
 	
 	l_lvd := lvd{
 		brainIN: a_brainIN,
@@ -67,10 +61,15 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 	return &l_lvd }
 
 func (l *lvd)listDomains(){
+	if l == nil {
+		fmt.Println("lvd object ptr == nil")
+		return}
 	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
-	if err == nil {
-	    lg.err("libvirt listAllDomains",err) }
+	if err != nil {
+	    lg.err("libvirt listAllDomains",err)
+		return}
 	
+	fmt.Println(doms)
 	fmt.Printf("%d running domains:\n", len(doms))
 	for _, dom := range doms {
 		name, err := dom.GetName()
