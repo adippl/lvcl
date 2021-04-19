@@ -63,5 +63,6 @@ func mainLoop(){
 		e.printHeartbeatStats()
 		b.PrintNodeHealth()
 		lv.listDomains()
+		lv.updateDomStates()
 		time.Sleep(time.Second)}
 	}

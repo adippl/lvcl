@@ -26,19 +26,20 @@ import "io/ioutil"
 const(
 	lvdVmStateNil=iota
 	lvdVmStateStarting=iota
-	lvdVmStateStarted
+	lvdVmStateRunning
 	lvdVmStatePaused
 	lvdVmStateStopping
 	lvdVmStateFsHalt
 	lvdVmStateFsResume
+	lvdVmStateOther
 	lvdVmState
 	)
 
 type lvd struct {
 	brainIN					chan<- message
 	lvdIN					<-chan message
-	domainState				map[string]uint
-	domainDesiredState		map[string]uint
+	domState				map[string]uint
+	domDesiredState		map[string]uint
 	daemonConneciton		*libvirt.Connect
 	nodeCPUStats				*libvirt.NodeCPUStats
 	nodeMemStats				*libvirt.NodeMemoryStats
@@ -63,24 +64,12 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 	// defer close doesn't defer and closes connection immediately
 	//defer conn.Close()
 	
-//	err = nil
-//	cpustats, err := conn.GetCPUStats(int(libvirt.NODE_CPU_STATS_ALL_CPUS), 0)
-//	if err != nil {
-//		lg.err("libvirt GetCPUStats",err)
-//		cpustats = nil}
-//	
-//	err = nil
-//	memstats, err := conn.GetMemoryStats(int(libvirt.NODE_MEMORY_STATS_ALL_CELLS), 0)
-//	if err != nil {
-//		lg.err("libvirt GetMemoryStats",err)
-//		memstats = nil}
-	
 	l_lvd := lvd{
 		brainIN: a_brainIN,
 		lvdIN: a_lvdIN,
+		domState: make(map[string]uint),
+		domDesiredState: make(map[string]uint),
 		daemonConneciton: conn,
-//		nodeCPUStats: cpustats,
-//		nodeMemStats: memstats,
 		}
 	l_lvd.updateStats()
 	return &l_lvd }
@@ -133,11 +122,59 @@ func (l *lvd)startVM(v *VM) int {
 	// libvirt.DOMAIN_NONE
 	// libvirt.DOMAIN_START_VALIDATE
 	err = nil
-	//dom,err := l.daemonConneciton.DomainCreateXML(xml, libvirt.DOMAIN_NONE)
-	_,err = l.daemonConneciton.DomainCreateXML(xml, libvirt.DOMAIN_NONE)
+	dom,err := l.daemonConneciton.DomainCreateXML(xml, libvirt.DOMAIN_NONE)
 	if err != nil {
 		lg.err("startVM", err)
 		return 1}
+	dom.Free()
 	return 0}
 	
+func (l *lvd)updateDomStates(){
+	l.domState = make(map[string]uint)
+	if l == nil {
+		fmt.Println("lvd object ptr == nil")
+		return }
+	//l.updateStats()
+	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
+	if err != nil {
+	    lg.err("libvirt listAllDomains",err)
+		return}
+	
+	fmt.Printf("%d running domains:\n", len(doms))
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err == nil {
+			l.domState[name] = lvdVmStateRunning
+			fmt.Printf("running  %s\n", name) }
+		dom.Free() }
+	
+	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_PAUSED)
+	if err != nil {
+	    lg.err("libvirt listAllDomains",err)
+		return}
+	
+	fmt.Printf("%d paused domains:\n", len(doms))
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err == nil {
+			l.domState[name] = lvdVmStatePaused
+			fmt.Printf("paused  %s\n", name) }
+		dom.Free() }
 
+	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
+	if err != nil {
+	    lg.err("libvirt listAllDomains",err)
+		return}
+	
+	fmt.Printf("%d other domains:\n", len(doms))
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err == nil {
+			l.domState[name] = lvdVmStateOther
+			state,_,err := dom.GetState()
+			if err != nil {
+				fmt.Printf("state:%+v  %s\n",state , name ) 
+			}else{
+				lg.err("updateDomStates", err)
+				fmt.Printf("state: %s\n",state , name ) }} 
+		dom.Free() }}
