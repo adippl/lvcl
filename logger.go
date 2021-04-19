@@ -21,6 +21,7 @@ package main
 import "os"
 import "fmt"
 import "time"
+import "runtime"
 
 var lg *Logger
 
@@ -95,6 +96,7 @@ func (l *Logger)msg(arg string){
 	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
 		
 
+	fmt.Println(s)
 	_,err := l.logLocal.WriteString(s)
 	if err != nil{
 		fmt.Println(err)
@@ -107,7 +109,12 @@ func (l *Logger)msg(arg string){
 	}
 
 func (l *Logger)err(s string, e error){
-	l.msg(fmt.Sprintf("ERR %s - %s", s, e))}
+	pc := make([]uintptr, 10)  // at least 1 entry needed
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	file, line := f.FileLine(pc[0])
+	str := fmt.Sprintf("%s:%d %s\n", file, line, f.Name())
+	l.msg(fmt.Sprintf("ERR %s - %s - %s",str , s, e))}
 
 func msgFormat(s *string) *message{
 	var m message
