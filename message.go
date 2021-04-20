@@ -28,6 +28,7 @@ const(
 	msgModExchn
 	msgModBrain
 	msgModExchnHeartbeat
+	msgModBrainController
 
 	rpcHeartbeat
 	)
@@ -51,24 +52,24 @@ func (pm *message)dump(){
 
 	/* TODO replace with something faster */
 	/* TODO ADD LOGGER LOGGING */
-func (pm *message)validate() bool {
-	if config.getNodebyHostname(& pm.SrcHost) != nil {
-		return true}
-	
-	if config.getNodebyHostname(& pm.DestHost) != nil {
-		return true}
-	
-	if ((pm.SrcMod != msgModCore)   &&
-		(pm.SrcMod != msgModLoggr)  &&
-		(pm.SrcMod != msgModExchn)  &&
-		(pm.SrcMod != msgModBrain)) ||
-	   ((pm.DestMod != msgModCore)  &&
-		(pm.DestMod != msgModLoggr) &&
-		(pm.DestMod != msgModExchn) &&
-		(pm.DestMod != msgModBrain)) {
-		return true}
-	/* TODO module specific validation functions */
-	return false}
+//func (pm *message)validate() bool {
+//	if config.getNodebyHostname(& pm.SrcHost) != nil {
+//		return true}
+//	
+//	if config.getNodebyHostname(& pm.DestHost) != nil {
+//		return true}
+//	
+//	if ((pm.SrcMod != msgModCore)   &&
+//		(pm.SrcMod != msgModLoggr)  &&
+//		(pm.SrcMod != msgModExchn)  &&
+//		(pm.SrcMod != msgModBrain)) ||
+//	   ((pm.DestMod != msgModCore)  &&
+//		(pm.DestMod != msgModLoggr) &&
+//		(pm.DestMod != msgModExchn) &&
+//		(pm.DestMod != msgModBrain)) {
+//		return true}
+//	/* TODO module specific validation functions */
+//	return false}
 	
 func Newmessage() *message {
 	var m message

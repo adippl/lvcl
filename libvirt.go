@@ -22,6 +22,8 @@ package main
 import libvirt "gitlab.com/libvirt/libvirt-go"
 import "fmt"
 import "io/ioutil"
+import "encoding/json"
+import "time"
 
 const(
 	lvdVmStateNil=iota
@@ -36,13 +38,14 @@ const(
 	)
 
 type lvd struct {
-	brainIN					chan<- message
-	lvdIN					<-chan message
-	domState				map[string]uint
+	lvdKill				bool
+	brainIN				chan<- message
+	lvdIN				<-chan message
+	domState			map[string]uint
 	domDesiredState		map[string]uint
-	daemonConneciton		*libvirt.Connect
-	nodeCPUStats				*libvirt.NodeCPUStats
-	nodeMemStats				*libvirt.NodeMemoryStats
+	daemonConneciton	*libvirt.Connect
+	nodeCPUStats		*libvirt.NodeCPUStats
+	nodeMemStats		*libvirt.NodeMemoryStats
 	}
 
 type lvdVM struct {
@@ -72,6 +75,8 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 		daemonConneciton: conn,
 		}
 	l_lvd.updateStats()
+	go l_lvd.messageHandler()
+	go l_lvd.sendStatsToMaster()
 	return &l_lvd }
 
 func (l *lvd)updateStats(){
@@ -169,12 +174,46 @@ func (l *lvd)updateDomStates(){
 	fmt.Printf("%d other domains:\n", len(doms))
 	for _, dom := range doms {
 		name, err := dom.GetName()
-		if err == nil {
+		if(err == nil){
 			l.domState[name] = lvdVmStateOther
 			state,_,err := dom.GetState()
-			if err != nil {
+			if(err != nil){
 				fmt.Printf("state:%+v  %s\n",state , name ) 
 			}else{
 				lg.err("updateDomStates", err)
 				fmt.Printf("state: %s\n",state , name ) }} 
 		dom.Free() }}
+
+func (l *lvd)sendStatsToMaster(){
+	for {
+		if(l.lvdKill){
+			return }
+		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))
+		
+		l.updateStats()
+		l.updateDomStates()
+		
+		bytes,err := json.Marshal(l.domState)
+		if(err != nil){
+			lg.err("", err)
+			continue}
+		str := string(bytes[:])
+		
+		
+		m := message{
+			SrcHost:	config.MyHostname,
+			DestHost:	"__master__",
+			SrcMod:		msgModBrainController,
+			DestMod:	msgModBrain,
+			Time:		time.Now(),
+			RpcFunc:	brainRpcSendingStats,
+			Argc:		3,
+			Argv:		[]string{"cpuLoad", "FreeMem", str},
+			}
+		l.brainIN <- m }}
+
+func (l *lvd)messageHandler(){
+	var m message
+	for {
+		m = <-l.lvdIN
+		fmt.Println("dummy message handle for lvd ", m)}}

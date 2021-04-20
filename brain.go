@@ -32,6 +32,7 @@ const(
 	brainRpcAskForMasterNode
 	brainRpcHaveMasterNodeReply
 	brainRpcHaveMasterNodeReplyNil
+	brainRpcSendingStats
 	)
 
 type Brain struct{
