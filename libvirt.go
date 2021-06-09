@@ -142,6 +142,48 @@ func (l *lvd)updateDomStates(){
 	//l.updateStats()
 	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
 	if err != nil {
+		return}
+	
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err == nil {
+			l.domState[name] = lvdVmStateRunning }
+		dom.Free() }
+	
+	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_PAUSED)
+	if err != nil {
+		return}
+	
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if err == nil {
+			l.domState[name] = lvdVmStatePaused}
+		dom.Free() }
+
+	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
+	if err != nil {
+		return}
+	
+	for _, dom := range doms {
+		name, err := dom.GetName()
+		if(err == nil){
+			l.domState[name] = lvdVmStateOther
+			//state,_,err := dom.GetState()
+			_,_,err := dom.GetState()
+			if(err != nil){
+				l.domState[name] = lvdVmStateOther
+			}else{
+				lg.err("updateDomStates", err)}}
+		dom.Free()}}
+
+func (l *lvd)UpdataAndPrintDomStates(){
+	l.domState = make(map[string]uint)
+	if l == nil {
+		fmt.Println("lvd object ptr == nil")
+		return }
+	//l.updateStats()
+	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
+	if err != nil {
 	    lg.err("libvirt listAllDomains",err)
 		return}
 	
@@ -150,7 +192,8 @@ func (l *lvd)updateDomStates(){
 		name, err := dom.GetName()
 		if err == nil {
 			l.domState[name] = lvdVmStateRunning
-			fmt.Printf("running  %s\n", name) }
+			if config.DebugLibvirtShowDomStates {
+				fmt.Printf("running  %s\n", name) }}
 		dom.Free() }
 	
 	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_PAUSED)
@@ -181,7 +224,7 @@ func (l *lvd)updateDomStates(){
 				fmt.Printf("state:%+v  %s\n",state , name ) 
 			}else{
 				lg.err("updateDomStates", err)
-				fmt.Printf("state: %s\n",state , name ) }} 
+				fmt.Printf("state: %v %v\n",state , name ) }} 
 		dom.Free() }}
 
 func (l *lvd)sendStatsToMaster(){
@@ -198,7 +241,6 @@ func (l *lvd)sendStatsToMaster(){
 			lg.err("", err)
 			continue}
 		str := string(bytes[:])
-		
 		
 		m := message{
 			SrcHost:	config.MyHostname,

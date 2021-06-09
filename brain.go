@@ -50,8 +50,8 @@ type Brain struct{
 	nodeHealthLast30Ticks	map[string][]uint
 	}
 
-
 var b *Brain
+
 
 func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	b := Brain{
@@ -139,19 +139,19 @@ func (b *Brain)countVotes(){
 	time.Sleep(time.Millisecond * 1000)
 	var sum uint = 0
 	for k,v := range b.nominatedBy {
-		lg.msg(fmt.Sprintf("this node (%s) nominated by $s $B ",k,v))
+		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
 		if v {
 			sum++}}
-	if sum == config.Quorum-1 {
-		fmt.Println("this host won elections with (quorum - 1) of votes")
+	if sum >= config.Quorum {
+		fmt.Printf("this host won elections with %d votes (quorum==%d) of votes",sum,config.Quorum)
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
 		b.nominatedBy = make(map[string]bool)
 		//fmt.Println("DEBUG WON ", b.isMaster, *b.masterNode, b.nominatedBy)
 	}else{
 		lg.msg(fmt.Sprintf(
-			"elections failed, not enough votes (quorum-1), %+v",
-			b.nominatedBy))}
+			"elections failed, not enough votes (votes=%d) (quorum==%d), %+v",
+			sum,config.Quorum,b.nominatedBy))}
 	b.nominatedBy = make(map[string]bool)
 	b.voteCounterExists = false}
 
@@ -235,7 +235,7 @@ func (b *Brain)findHighWeightNode() *string {
 	var host *string
 	var hw uint = 0
 	for k,v := range b.nodeHealth{
-		n := config.getNodebyHostname(&k)
+		n := config.GetNodebyHostname(&k)
 		if v == HealthGreen && n != nil && n.Weight > hw {
 			hw=n.Weight
 			host=&n.Hostname}}

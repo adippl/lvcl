@@ -1,0 +1,2 @@
+libvirt.go:54: defer conn.close
+	fix it, it has to be closed at some point

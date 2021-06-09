@@ -148,9 +148,9 @@ func (e *Exchange)forwarder(){
 
 		m = <-e.exchangeIN
 		if config.DebugNetwork {
-			fmt.Printf("DEBUG forwarder recieved %s  %+v\n", m)}
+			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
 		if	m.SrcHost == config.MyHostname &&
-			config.getNodebyHostname(&m.DestHost) != nil &&
+			config.GetNodebyHostname(&m.DestHost) != nil &&
 			e.outgoing[m.DestHost] != nil {
 			e.outgoing[m.DestHost].outgoing <- m}
 		
@@ -196,7 +196,7 @@ func (e *Exchange)sorter(){
 		
 		//update heartbeat values from heartbeat messages
 		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
-			if config.checkIfNodeExists(&m.SrcHost){
+			if config.CheckIfNodeExists(&m.SrcHost){
 				timeCopy := m.Time
 				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}}}}
 

@@ -61,29 +61,21 @@ func VMReadFile(path string)(err error){
 		os.Exit(11);}
 	
 	var vm VM
+	var tmpvm *VM
 	json.Unmarshal(raw,&vm)
 	//vmPrint(&vm)
 
-	_,err=config.getVMbyName(&vm.Name)
-	if(err == nil){
-		fmt.Println("err VM with name %s already exists",vm.Name)
+	tmpvm=config.GetVMbyName(&vm.Name)
+	if(tmpvm != nil){
+		fmt.Printf("err VM with name %s already exists",vm.Name)
 		return fmt.Errorf("err VM with name %s already exists",vm.Name)}
 
-	_,err=config.getVMbyDomain(&vm.DomainDefinition)
-	if(err == nil){
-		fmt.Println("DEBUG err VM with domain file %s already exists\n",vm.DomainDefinition)
+	tmpvm=config.GetVMbyDomain(&vm.DomainDefinition)
+	if(tmpvm != nil){
+		fmt.Printf("DEBUG err VM with domain file %s already exists\n",vm.DomainDefinition)
 		return fmt.Errorf("err VM with domain file %s already exists",vm.DomainDefinition)}
 	
-	//TODO temporaly disabled, checks if domain.xml file exists on filesystem
-	//if(vm.validate()==false){
-	//	fmt.Println("DEBUG err VM failed .validate")
-	//	return fmt.Errorf("err VM failed .validate")}
-	
 	config.VMs = append(config.VMs,vm)
-	//fmt.Println("\n\n\n\nTESTESTSETSETSET\n\n\n")
-	//fmt.Println(config.VMs)
-	
-	//confPrint(&config)
 	
 	return nil}
 
@@ -91,7 +83,7 @@ func (v *VM)validate()(passed bool){
 	
 	_,err:=os.Stat(v.DomainDefinition)
 	if os.IsNotExist(err){
-		fmt.Println("DEBUG err vm DomainDefinition xml file doesn't exists\n")
+		fmt.Printf("DEBUG err vm DomainDefinition xml file doesn't exists\n")
 		return false}
 	
 	if(v.VCpus>=256){
@@ -104,7 +96,6 @@ func (v *VM)validate()(passed bool){
 	if(v.HwCpus<v.HwCpus){
 		fmt.Println("WARN, HwCpus lower than HwCpus")
 		v.HwCpus=v.HwCpus}
-	
 	
 	return true
 	}

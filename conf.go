@@ -22,7 +22,6 @@ import "fmt"
 import "os"
 import "encoding/json"
 import "io/ioutil"
-import "errors"
 import "crypto/sha256"
 import "io"
 
@@ -66,14 +65,8 @@ type Conf struct {
 	DebugNoRemoteLogging bool
 	DebugRawLogging bool
 	DebugHeartbeat bool
+	DebugLibvirtShowDomStates bool
 	}
-
-
-//func NewConf() Conf {
-//   conf := Something{}
-//   return conf
-//func NewConf()*Conf{
-//	return &Conf{}
 
 var config Conf
 
@@ -111,14 +104,12 @@ func confLoad(){
 	config.ConfFileHash=fmt.Sprintf("%x",h.Sum(nil))
 	config.ConfFileHashRaw=h.Sum(nil)
 		
-	
 	json.Unmarshal(raw,&config)
 	
 	loadAllVMfiles()
 	
-	fmt.Println("\n\n\n\n LOADED CONFIG\n\n\n\n")
-	dumpConfig()
-
+	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
+	//dumpConfig()
 	}
 
 func loadAllVMfiles(){
@@ -128,31 +119,31 @@ func loadAllVMfiles(){
 	for _, f := range f{
 		VMReadFile("domains/"+f.Name())}}
 
-func dumpConfig(){
+func (c *Conf)dumpConfig(){
 	raw, _ := json.MarshalIndent(&config,"","	")
 	fmt.Println(string(raw))
 	}
 
-func (c *Conf)getVMbyName(argName *string)(v *VM, err error){
+func (c *Conf)GetVMbyName(argName *string)(v *VM){
 	for _,t:= range c.VMs{
 		if t.Name == *argName{
-			return &t, nil}}
-	return nil,errors.New("conf VM not found")}
+			return &t}}
+	return nil}
 
-func (c *Conf)getVMbyDomain(argDomain *string)(v *VM, err error){
+func (c *Conf)GetVMbyDomain(argDomain *string)(v *VM){
 	for _,t:= range c.VMs{
 		if t.DomainDefinition == *argDomain{
-			return &t, nil}}
-	return nil,errors.New("conf VM not found")}
+			return &t}}
+	return nil}
 
 
-func (c *Conf)getNodebyHostname(argHostname *string) *Node {
+func (c *Conf)GetNodebyHostname(argHostname *string) *Node {
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
 			return &t}}
 	return nil}
 
-func (c *Conf)checkIfNodeExists(argHostname *string) bool {
+func (c *Conf)CheckIfNodeExists(argHostname *string) bool {
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
 			return true}}
@@ -201,7 +192,7 @@ func writeExampleConfig(){
 		HwCpuMax: 8,
 		VMemMax: 8192,
 		HwMemMax: 8192,
-		Quorum: 3,
+		Quorum: 2,
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
 		NodeHealthCheckInterval: 1000,
@@ -215,6 +206,7 @@ func writeExampleConfig(){
 		DebugNoRemoteLogging: false,
 		DebugRawLogging: false,
 		DebugHeartbeat: false,
+		DebugLibvirtShowDomStates: true,
 		}
 	
 	confser, err := json.MarshalIndent(testConfig,"","	")
