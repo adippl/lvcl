@@ -41,6 +41,20 @@ type Node struct{
 	HwMem	uint
 	}
 
+type NodeStats struct{
+	totalCores	uint64
+	totalMem	uint64
+	
+	cpuKernel	uint64
+	cpuUser		uint64
+	cpuIdle		uint64
+	cpuIo		uint64
+	
+	memTotal	uint64
+	memFree		uint64
+	memBuffers	uint64
+	memCached	uint64
+	}
 
 
 func (p *Node)dump(){

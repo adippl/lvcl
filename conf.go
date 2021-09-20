@@ -70,6 +70,7 @@ type Conf struct {
 
 var config Conf
 
+
 func confPrint(p *Conf){
 	fmt.Printf("%+v \n", *p)
 	}
@@ -156,20 +157,20 @@ func writeExampleConfig(){
 		Nodes: []Node{
 			Node{
 				Hostname: "r210II-1",
-				NodeAddress: "10.0.6.11:6798",
-				LibvirtAddress: "10.0.6.11",
+				NodeAddress: "10.0.6.14:6798",
+				LibvirtAddress: "10.0.6.14",
 				NodeState: NodePreparing,
 				Weight: 1003},
 			Node{
 				Hostname: "r210II-2",
-				NodeAddress: "10.0.6.12:6798",
-				LibvirtAddress: "10.0.6.12",
+				NodeAddress: "10.0.6.15:6798",
+				LibvirtAddress: "10.0.6.15",
 				NodeState: NodePreparing,
 				Weight: 1002},
 			Node{
 				Hostname: "r320-1",
-				NodeAddress: "10.0.6.14:6798",
-				LibvirtAddress: "10.0.6.14",
+				NodeAddress: "10.0.6.16:6798",
+				LibvirtAddress: "10.0.6.16",
 				NodeState: NodePreparing,
 				Weight: 1001}},
 		VMs: []VM{

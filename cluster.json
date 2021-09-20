@@ -1,0 +1,76 @@
+{
+	"UUID": "testuuid",
+	"DomainDefinitionDir": "domains/",
+	"Nodes": [
+		{
+			"Hostname": "r210II-1",
+			"NodeAddress": "10.0.6.14:6798",
+			"LibvirtAddress": "10.0.6.14",
+			"NodeState": 1,
+			"Weight": 1003,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		},
+		{
+			"Hostname": "r210II-2",
+			"NodeAddress": "10.0.6.15:6798",
+			"LibvirtAddress": "10.0.6.15",
+			"NodeState": 1,
+			"Weight": 1002,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		},
+		{
+			"Hostname": "r320-1",
+			"NodeAddress": "10.0.6.16:6798",
+			"LibvirtAddress": "10.0.6.16",
+			"NodeState": 1,
+			"Weight": 1001,
+			"VCores": 0,
+			"HwCores": 0,
+			"VMem": 0,
+			"HwMem": 0
+		}
+	],
+	"VMs": [
+		{
+			"Name": "gh-test",
+			"DomainDefinition": "tests struct embedded in main cluster.conf",
+			"VCpus": 1,
+			"HwCpus": 0,
+			"VMem": 512,
+			"HwMem": 512,
+			"StorageClass": 0,
+			"MigrationTimeout": 180,
+			"MigrateLive": true
+		}
+	],
+	"Quorum": 2,
+	"BalanceMode": 1,
+	"ResStickiness": 50,
+	"GlobMigrationTimeout": 120,
+	"GlobLiveMigrationBlock": false,
+	"Maintenance": true,
+	"VCpuMax": 8,
+	"HwCpuMax": 8,
+	"VMemMax": 8192,
+	"HwMemMax": 8192,
+	"HeartbeatInterval": 1000,
+	"ClusterTickInterval": 100,
+	"NodeHealthCheckInterval": 1000,
+	"ReconnectLoopDelay": 1000,
+	"HeartbeatTimeFormat": "2006-01-02 15:04:05",
+	"TCPport": "6798",
+	"UnixSocket": "lvcl.sock",
+	"LogLocal": "loc.log",
+	"LogCombined": "cmb.log",
+	"DebugNetwork": false,
+	"DebugNoRemoteLogging": false,
+	"DebugRawLogging": false,
+	"DebugHeartbeat": false,
+	"DebugLibvirtShowDomStates": true
+}

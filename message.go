@@ -43,6 +43,9 @@ type message struct{
 	RpcFunc		uint
 	Argc		uint
 	Argv		[]string
+	custom1		interface{}
+	custom2		interface{}
+	custom3		interface{}
 	}
 
 

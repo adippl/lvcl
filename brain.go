@@ -36,18 +36,19 @@ const(
 	)
 
 type Brain struct{
-	isMaster	bool
-	masterNode	*string
+	isMaster			bool
+	masterNode			*string
 	
-	killBrain	bool
-	nominatedBy	map[string]bool
+	killBrain			bool
+	nominatedBy			map[string]bool
 	voteCounterExists	bool
-	quorum	uint
+	quorum				uint
 	
-	brainIN		<-chan message
-	exchangeIN		chan message
-	nodeHealth	map[string]int
+	brainIN					<-chan message
+	exchangeIN				chan message
+	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
+	nodeHealthLastPing		map[string]uint
 	}
 
 var b *Brain
@@ -55,17 +56,18 @@ var b *Brain
 
 func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	b := Brain{
-		isMaster: false,
-		masterNode:	nil,
-		killBrain:	false,
-		nominatedBy:	make(map[string]bool),
-		voteCounterExists: false,
+		isMaster:			false,
+		masterNode:			nil,
+		killBrain:			false,
+		nominatedBy:		make(map[string]bool),
+		voteCounterExists:	false,
 		quorum:	0,
 		
 		brainIN:	bIN,
 		exchangeIN:		exIN,
 		nodeHealth: make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
+		nodeHealthLastPing:	make(map[string]uint),
 		}
 	go b.updateNodeHealth()
 	go b.messageHandler()
@@ -74,6 +76,13 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 
 func (b *Brain)KillBrain(){
 	b.killBrain=true}
+
+//			SrcHost:	config.MyHostname,
+//			DestHost:	"__master__",
+//			SrcMod:		msgModBrainController,
+//			DestMod:	msgModBrain,
+//			Time:		time.Now(),
+//			RpcFunc:	brainRpcSendingStats,
 
 func  (b *Brain)messageHandler(){
 	var m message
@@ -142,7 +151,8 @@ func (b *Brain)countVotes(){
 		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
 		if v {
 			sum++}}
-	if sum >= config.Quorum {
+	// to get quorum host needs quorum-1 votes (it doesnt vote for itself
+	if sum >= config.Quorum-1 {
 		fmt.Printf("this host won elections with %d votes (quorum==%d) of votes",sum,config.Quorum)
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
@@ -189,9 +199,12 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			//get absolute value of time.
 			//in this simple implemetation time can be negative due to time differences on host
 			dt := time.Now().Sub(*v)
-			//dt = *v
+			//get absolute value
 			if dt < 0 {
 				dt = 0 - dt}
+			//set last ping value
+			b.nodeHealthLastPing[k]=uint(dt / time.Millisecond)
+			//add health value to list
 			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
 				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthRed)
 			}else if dt > (time.Millisecond * time.Duration(config.NodeHealthCheckInterval)) {
@@ -278,9 +291,9 @@ func (b *Brain)PrintNodeHealth(){
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
-				fmt.Printf("node: %s health: %s %+v\n",k,"Green",b.nodeHealthLast30Ticks[k])
+				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Green",b.nodeHealthLast30Ticks[k])
 			case HealthOrange:
-				fmt.Printf("node: %s health: %s %+v\n",k,"Orange",b.nodeHealthLast30Ticks[k])
+				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Orange",b.nodeHealthLast30Ticks[k])
 			case HealthRed:
-				fmt.Printf("node: %s health: %s %+v\n",k,"Red",b.nodeHealthLast30Ticks[k])}}
+				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k])}}
 	fmt.Printf("===================\n")}
