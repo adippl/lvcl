@@ -151,7 +151,7 @@ func (b *Brain)countVotes(){
 		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
 		if v {
 			sum++}}
-	// to get quorum host needs quorum-1 votes (it doesnt vote for itself
+	// to get quorum host needs quorum-1 votes (it doesn't need it's own vote )
 	if sum >= config.Quorum-1 {
 		fmt.Printf("this host won elections with %d votes (quorum==%d) of votes",sum,config.Quorum)
 		b.isMaster = true

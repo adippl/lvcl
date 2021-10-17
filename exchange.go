@@ -145,14 +145,16 @@ func (e *Exchange)forwarder(){
 	for{
 		if e.killExchange { //ugly solution
 			return}
-
+		
 		m = <-e.exchangeIN
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
 		if	m.SrcHost == config.MyHostname &&
 			config.GetNodebyHostname(&m.DestHost) != nil &&
 			e.outgoing[m.DestHost] != nil {
-			e.outgoing[m.DestHost].outgoing <- m}
+			e.outgoing[m.DestHost].outgoing <- m
+		}else{
+			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}
 		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
