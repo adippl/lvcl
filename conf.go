@@ -39,6 +39,8 @@ type Conf struct {
 	GlobMigrationTimeout uint
 	GlobLiveMigrationBlock bool
 	Maintenance bool
+	Resources []cluster_resource
+	ResourceControllers map[string]bool
 
 	VCpuMax uint
 	HwCpuMax uint
@@ -184,6 +186,25 @@ func writeExampleConfig(){
 				MigrationTimeout: 180,
 				MigrateLive: true},
 				},
+		ResourceControllers: map[string]bool{
+			"libvirt": true},
+		Resources: []cluster_resource{
+			cluster_resource{
+				resourceController_name: "libvirt",
+				resourceController_id: 0,
+				id: 0,
+				resource: VM{
+					Name: "gh-test",
+					DomainDefinition: "tests struct embedded in main cluster.conf",
+					VCpus: 1,
+					HwCpus: 0,
+					VMem: 512,
+					HwMem: 512,
+					MigrationTimeout: 180,
+					MigrateLive: true,
+				},
+			},
+		},
 		BalanceMode: Cpus,
 		ResStickiness:50,
 		GlobMigrationTimeout:120,
