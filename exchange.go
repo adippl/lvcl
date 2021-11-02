@@ -76,12 +76,12 @@ func (e *Exchange)updateNodeHealthDelta(){
 			e.heartbeatDelta[k]=&dt}
 		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
 
-func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
-	eclient := &eclient{
-		incoming:	e.recQueue,
-		conn:		c,}
-	go eclient.listen()
-	return eclient}
+//func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
+//	eclient := &eclient{
+//		incoming:	e.recQueue,
+//		conn:		c,}
+//	go eclient.listen()
+//	return eclient}
 
 func (e *Exchange)initListen(){
 	var err error

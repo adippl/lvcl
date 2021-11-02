@@ -55,6 +55,7 @@ type lvd struct {
 	nodeMemStats		*libvirt.NodeMemoryStats
 	nodeInfo			*libvirt.NodeInfo
 	nodeStats			NodeStats
+	utilization			*[]utilization
 	}
 
 type lvdVM struct {
@@ -334,3 +335,94 @@ func (l *lvd)messageHandler(){
 	for {
 		m = <-l.lvdIN
 		fmt.Println("dummy message handle for lvd ", m)}}
+
+func (l *lvd)lvd_cluster_resource_template() *cluster_resource {
+	cr := cluster_resource{
+		resourceController_name: "libvirt",
+		resourceController_id: resource_controller_id_libvirt,
+		}
+	return &cr
+	}
+
+func (l *lvd)lvd_cluster_utilization_template() *utilization {
+	cr := utilization{
+		resourceController_name: "libvirt",
+		resourceController_id: resource_controller_id_libvirt,
+		}
+	return &cr
+	}
+
+func (l *lvd)get_running_resources() *[]cluster_resource {
+	var ret []cluster_resource
+	
+	for k,v := range l.domStates {
+		dom := l.lvd_cluster_resource_template()
+		dom.name = k
+		switch v {
+		case lvdVmStateStarting:
+			dom.state = resource_state_starting
+		case lvdVmStateRunning:
+			dom.state = resource_state_running
+		case lvdVmStateStopping:
+			dom.state = resource_state_stopping
+		case lvdVmStatePaused:
+			dom.state = resource_state_paused
+		default:
+			dom.state = resource_state_other
+		}
+		ret = append(ret,*dom)
+		}
+	return &ret
+	}
+
+
+func (l *lvd)get_utilization() *[]utilization {
+	//var ret []utilization
+	ret := make([]utilization,0,10)
+	var util *utilization
+	
+	// cpu stats
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_cpu_time_kernel
+	util.value=l.nodeStats.cpuKernel
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_cpu_time_user
+	util.value=l.nodeStats.cpuUser
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_cpu_time_io
+	util.value=l.nodeStats.cpuIo
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_cpu_time_idle
+	util.value=l.nodeStats.cpuIdle
+	ret = append(ret,*util)
+	
+	// memory
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_mem_total_kb
+	util.value=l.nodeStats.memTotal
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_mem_free_kb
+	util.value=l.nodeStats.memFree
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_mem_cached_kb
+	util.value=l.nodeStats.memCached
+	ret = append(ret,*util)
+	
+	util = l.lvd_cluster_utilization_template()
+	util.id=utilization_mem_buffers_kb
+	util.value=l.nodeStats.memBuffers
+	ret = append(ret,*util)
+	
+	return &ret
+	}
+

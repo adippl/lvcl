@@ -1,7 +1,18 @@
 package main
 
 const(
-	utilization_hw_cores=iota
+	resource_controller_id_libvirt=iota
+	resource_controller_id_docker
+	
+	resource_state_starting
+	resource_state_running
+	resource_state_stopping
+	resource_state_stopped
+	resource_state_paused
+	resource_state_other
+	
+	
+	utilization_hw_cores
 	utilization_hw_threads
 	utilization_hw_numaNodes
 	utilization_hw_core_pre_numa
@@ -29,7 +40,7 @@ type utilization struct {
 	resourceController_id	int
 	name	string
 	id		int
-	value	int
+	value	uint64
 }
 
 // generalized cluster resource deployed by balance system
@@ -38,13 +49,14 @@ type cluster_resource struct {
 	resourceController_id	int
 	name		string
 	id			int
+	state		int
 	resource	interface{}
 }
 
 
 type resourceController interface {
-	get_running_resources() []string
-	get_utilization() []string
+	get_running_resources() *[]cluster_resource
+	get_utilization() *[]utilization
 	start_resource(name string) bool
 	stop_resource(name string) bool
 	migrate_resource(resource_name string, dest_node string) bool
