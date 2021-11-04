@@ -1,4 +1,5 @@
-/*  lvcl is a simple program clustering libvirt servers
+/*
+ *  lvcl is a simple program clustering libvirt servers
  *  Copyright (C) 2020 Adam Prycki (email: adam.prycki@gmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -49,7 +50,6 @@ type lvd struct {
 	brainIN				chan<- message
 	lvdIN				<-chan message
 	domStates			map[string]uint
-	domDesiredState		map[string]uint
 	daemonConneciton	*libvirt.Connect
 	nodeCPUStats		*libvirt.NodeCPUStats
 	nodeMemStats		*libvirt.NodeMemoryStats
@@ -85,7 +85,6 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 		nodeCPUStats:		nil,
 		nodeMemStats:		nil,
 		nodeInfo:			nil,
-		domDesiredState:	make(map[string]uint),
 		daemonConneciton: conn,
 		}
 	l_lvd.getNodeInfo()
@@ -178,7 +177,7 @@ func (l *lvd)startVM(v *VM) int {
 	err = nil
 	dom,err := l.daemonConneciton.DomainCreateXML(xml, libvirt.DOMAIN_NONE)
 	if err != nil {
-		lg.err("startVM", err)
+		lg.err("startVM failed", err)
 		return 1}
 	dom.Free()
 	return 0}
@@ -426,3 +425,67 @@ func (l *lvd)get_utilization() *[]utilization {
 	return &ret
 	}
 
+func (l *lvd)start_resource(name string) bool {
+	vm := config.GetVMbyName(&name)
+	if(vm==nil){
+		lg.msg("config.GetVMbyName returned null pointer")
+		return false }
+	if(l.startVM(vm)!=0){
+		return(false)
+	}else{
+		return(true)}}
+
+// remember to dom.Free() after you're done using Domain pointer
+func (l *lvd)getDomainPtr(domain_name string) *libvirt.Domain {
+	var r_dom *libvirt.Domain = nil
+	doms, err := l.daemonConneciton.ListAllDomains(0)
+	if(err!=nil){
+		return nil}
+	for _, dom := range doms {
+		dom_name, _ := dom.GetName()
+		if(dom_name==domain_name){
+			r_dom=&dom
+		}else{
+			// free all domain objects except for returned one
+			dom.Free()}
+		err=nil}
+	return(r_dom)}
+
+func (l *lvd)stop_resource(name string) bool {
+	var ret bool = false
+	//doms, err = l.daemonConneciton.ListAllDomains(0)
+	vm := config.GetVMbyName(&name)
+	if(vm==nil){
+		return(false)}
+	dom := l.getDomainPtr(vm.Name)
+	if(dom==nil){
+		return(false)}
+	err := dom.Shutdown()
+	if(err!=nil){
+		lg.err("lvd.stop_resource domain failed to stop",err)
+		return(false)
+	}else{
+		ret=true}
+	dom.Free()
+	return(ret)}
+
+func (l *lvd)nuke_resource(name string) bool {
+	var ret bool = false
+	//doms, err = l.daemonConneciton.ListAllDomains(0)
+	vm := config.GetVMbyName(&name)
+	if(vm==nil){
+		return(false)}
+	dom := l.getDomainPtr(vm.Name)
+	if(dom==nil){
+		return(false)}
+	err := dom.Shutdown()
+	if(err!=nil){
+		lg.err("lvd.stop_resource domain failed to stop",err)
+		return(false)
+	}else{
+		ret=true}
+	dom.Free()
+	return(ret)}
+
+//func (l *lvd)clean_resource(name string) bool {
+//	l.nuke_resource(&name)
