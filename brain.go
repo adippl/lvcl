@@ -36,6 +36,7 @@ const(
 	brainRpcHaveMasterNodeReply
 	brainRpcHaveMasterNodeReplyNil
 	brainRpcSendingStats
+	brianRpcSendingClusterResources
 	)
 
 type Brain struct{
@@ -54,7 +55,10 @@ type Brain struct{
 	nodeHealthLastPing		map[string]uint
 	
 	resourceControllers		map[uint]interface{}
+	resCtl_lvd				*lvd
+	resourcePlacementAndState	map[string]cluster_resource
 	}
+
 
 var b *Brain
 
@@ -76,9 +80,13 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 		
 		resourceControllers:	make(map[uint]interface{}),
 		}
+//	if config.enabledResourceControllers[resource_controller_id_libvirt] {
+//		b.resourceControllers[resource_controller_id_libvirt] = NewLVD()
+//		if b.resourceControllers[resource_controller_id_libvirt] == nil {
+//			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
 	if config.enabledResourceControllers[resource_controller_id_libvirt] {
-		b.resourceControllers[resource_controller_id_libvirt] = NewLVD()
-		if b.resourceControllers[resource_controller_id_libvirt] == nil {
+		b.resCtl_lvd = NewLVD()
+		if b.resCtl_lvd == nil {
 			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
 		
 	go b.updateNodeHealth()
@@ -293,7 +301,15 @@ func (b *Brain)SendMsg(host string, rpc uint, str string){
 	m.RpcFunc=rpc
 	m.Argv = []string{str}
 	e.exchangeIN <- *m}
-
+	
+func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
+	var m *message = brainNewMessage()
+	m.DestHost=host
+	m.RpcFunc=rpc
+	m.Argv = []string{str}
+	m.custom1 = c1
+	e.exchangeIN <- *m}
+	
 func (b *Brain)PrintNodeHealth(){
 	fmt.Printf("=== Node Health ===\n")
 	if b.masterNode != nil {
@@ -311,10 +327,36 @@ func (b *Brain)PrintNodeHealth(){
 				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k])}}
 	fmt.Printf("===================\n")}
 
+func (b *Brain)reportControllerResourceState(ctl resourceController) {
+	var cl_res *[]cluster_resource
+	var cl_utl *[]cluster_utilization
+	cl_res = ctl.get_running_resources()
+		if cl_res == nil {
+			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
+	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending cluster_resources to Master node", *cl_res)
+	
+	cl_utl = ctl.get_utilization()
+		if cl_utl == nil {
+			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
+	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending clsuter_utilization to Master node", *cl_utl)
+	}
+
+
+	
+//func (b *Brain)SendMsg(host string, rpc uint, str string){
+//	var m *message = brainNewMessage()
+//	m.DestHost=host
+//	m.RpcFunc=rpc
+//	m.Argv = []string{str}
+//	e.exchangeIN <- *m}
+
 func (b *Brain)resourceBalancer(){
 	for{
 		if(b.killBrain){
 			return}
+		
+		b.reportControllerResourceState(b.resCtl_lvd)
+		
 		if(b.isMaster){
 			// TODO
 			// get resource states

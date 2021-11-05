@@ -53,7 +53,7 @@ type lvd struct {
 	nodeMemStats		*libvirt.NodeMemoryStats
 	nodeInfo			*libvirt.NodeInfo
 	nodeStats			NodeStats
-	utilization			*[]utilization
+	utilization			*[]cluster_utilization
 	}
 
 type lvdVM struct {
@@ -311,8 +311,8 @@ func (l *lvd)lvd_cluster_resource_template() *cluster_resource {
 	return &cr
 	}
 
-func (l *lvd)lvd_cluster_utilization_template() *utilization {
-	cr := utilization{
+func (l *lvd)lvd_cluster_utilization_template() *cluster_utilization {
+	cr := cluster_utilization{
 		resourceController_name: "libvirt",
 		resourceController_id: resource_controller_id_libvirt,
 		}
@@ -343,10 +343,10 @@ func (l *lvd)get_running_resources() *[]cluster_resource {
 	}
 
 
-func (l *lvd)get_utilization() *[]utilization {
+func (l *lvd)get_utilization() *[]cluster_utilization {
 	//var ret []utilization
-	ret := make([]utilization,0,10)
-	var util *utilization
+	ret := make([]cluster_utilization,0,10)
+	var util *cluster_utilization
 	
 	// cpu stats
 	util = l.lvd_cluster_utilization_template()
@@ -455,9 +455,23 @@ func (l *lvd)nuke_resource(name string) bool {
 	dom.Free()
 	return(ret)}
 
-func (l *lvd)kill_controller() {
-	l.lvdKill=true}
+func (l *lvd)kill_controller() bool {
+	l.lvdKill=true
+	time.Sleep(time.Millisecond * 1000)
+	//defer conn.Close()
+	rc,err := l.daemonConneciton.Close()
+	if(err!=nil){
+		lg.err("lvd.kill_controller .Close() failed",err)}
+	lg.msg(fmt.Sprintf("DEBUG lvd.kill_controller returned %d",rc))
+	return(true)}
 	
+func (l *lvd)clean_resource(name string) bool {
+	lg.msg("WARNING lvd.clean_controller IS A PLACEHOLDER FOR REAL METHOD")
+	return(true)}
+	
+func (l *lvd)migrate_resource(name string, dest_node string) bool {
+	lg.msg("WARNING lvd.migrate_controller IS A PLACEHOLDER FOR REAL METHOD")
+	return(true)}
 
 //func (l *lvd)clean_resource(name string) bool {
 //	l.nuke_resource(&name)

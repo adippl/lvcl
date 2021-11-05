@@ -53,7 +53,7 @@ const(
 
 // generalized HARDWARE resource
 // could be number of cores, RAM usage, cpu load etc
-type utilization struct {
+type cluster_utilization struct {
 	resourceController_name	string
 	resourceController_id	int
 	name	string
@@ -74,7 +74,7 @@ type cluster_resource struct {
 
 type resourceController interface {
 	get_running_resources() *[]cluster_resource
-	get_utilization() *[]utilization
+	get_utilization() *[]cluster_utilization
 	start_resource(name string) bool
 	stop_resource(name string) bool
 	nuke_resource(name string) bool
