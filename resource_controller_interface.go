@@ -80,4 +80,5 @@ type resourceController interface {
 	nuke_resource(name string) bool
 	migrate_resource(resource_name string, dest_node string) bool
 	clean_resource(name string) bool
+	kill_controller() bool
 }

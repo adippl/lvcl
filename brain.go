@@ -20,6 +20,9 @@ package main
 import "fmt"
 import "time"
 
+const(
+	CLUSTER_TICK = time.Millisecond * 1000 
+	)
 
 const(
 	HealthGreen=1
@@ -49,6 +52,8 @@ type Brain struct{
 	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
 	nodeHealthLastPing		map[string]uint
+	
+	resourceControllers		map[uint]interface{}
 	}
 
 var b *Brain
@@ -63,15 +68,23 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 		voteCounterExists:	false,
 		quorum:	0,
 		
-		brainIN:	bIN,
-		exchangeIN:		exIN,
-		nodeHealth: make(map[string]int),
+		brainIN:				bIN,
+		exchangeIN:				exIN,
+		nodeHealth:				make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
-		nodeHealthLastPing:	make(map[string]uint),
+		nodeHealthLastPing:		make(map[string]uint),
+		
+		resourceControllers:	make(map[uint]interface{}),
 		}
+	if config.enabledResourceControllers[resource_controller_id_libvirt] {
+		b.resourceControllers[resource_controller_id_libvirt] = NewLVD()
+		if b.resourceControllers[resource_controller_id_libvirt] == nil {
+			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
+		
 	go b.updateNodeHealth()
 	go b.messageHandler()
 	go b.getMasterNode()
+	go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){
@@ -145,7 +158,7 @@ func (b *Brain)countVotes(){
 		lg.msg("recieved ask for vote, but vote coroutine is already running")
 		return}
 	b.voteCounterExists = true
-	time.Sleep(time.Millisecond * 1000)
+	time.Sleep(CLUSTER_TICK)
 	var sum uint = 0
 	for k,v := range b.nominatedBy {
 		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
@@ -268,11 +281,11 @@ func (b *Brain)getMasterNode(){
 	for{
 		if b.killBrain {
 			return}
-		time.Sleep(time.Millisecond * 1000)
+		time.Sleep(CLUSTER_TICK)
 		if b.masterNode == nil {
 			lg.msg("looking for master node")
 			b.SendMsg("__everyone__", brainRpcAskForMasterNode, "asking for master node")
-			time.Sleep(time.Millisecond * 500)}}}
+			time.Sleep(CLUSTER_TICK)}}}
 
 func (b *Brain)SendMsg(host string, rpc uint, str string){
 	var m *message = brainNewMessage()
@@ -297,3 +310,17 @@ func (b *Brain)PrintNodeHealth(){
 			case HealthRed:
 				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k])}}
 	fmt.Printf("===================\n")}
+
+func (b *Brain)resourceBalancer(){
+	for{
+		if(b.killBrain){
+			return}
+		if(b.isMaster){
+			// TODO
+			// get resource states
+			
+			// generate resource placement plan
+			
+			// change resource states on nodes
+			}
+		time.Sleep(CLUSTER_TICK)}}

@@ -41,7 +41,7 @@ type Conf struct {
 	Maintenance bool
 	Resources []cluster_resource
 	ResourceControllers map[string]bool
-
+	
 	VCpuMax uint
 	HwCpuMax uint
 	VMemMax uint
@@ -52,17 +52,19 @@ type Conf struct {
 	NodeHealthCheckInterval uint
 	ReconnectLoopDelay uint
 	HeartbeatTimeFormat string
-
+	
+	enabledResourceControllers map[uint]bool
+	
 	TCPport string
 	UnixSocket string
 	ConfFileHash string `json:"-"`
 	ConfFileHashRaw []byte `json:"-"`
 	MyHostname string `json:"-"`
-
+	
 	LogLocal string
 	LogCombined string
-
-
+	
+	
 	DebugNetwork bool
 	DebugNoRemoteLogging bool
 	DebugRawLogging bool
@@ -215,6 +217,8 @@ func writeExampleConfig(){
 		VMemMax: 8192,
 		HwMemMax: 8192,
 		Quorum: 2,
+		enabledResourceControllers: map[uint]bool{
+			resource_controller_id_libvirt: true},
 		HeartbeatInterval: 1000,
 		ClusterTickInterval: 100,
 		NodeHealthCheckInterval: 1000,

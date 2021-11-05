@@ -245,3 +245,9 @@ func (e *Exchange)KillExchange(){
 func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
 	return e.heartbeatLastMsg}
 
+//func (l *Exchange)__dummy_messageHandler(){
+//	var m message
+//	for {
+//		m = <-l.lvdIN
+//		fmt.Println("dummy message handle for lvd ", m)}}
+

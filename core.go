@@ -1,5 +1,4 @@
-/*
- *  lvcl is a simple program clustering libvirt servers
+/*  lvcl is a simple program clustering libvirt servers
  *  Copyright (C) 2020 Adam Prycki (email: adam.prycki@gmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -31,7 +30,7 @@ func setup(){
 	brainIN:=make(chan message)
 	loggerIN:=make(chan message)
 	exchangeIN:=make(chan message)
-	lvdIn:=make(chan message)
+	//lvdIn:=make(chan message)
 	
 	lg = NewLoger(loggerIN, exchangeIN)
 	
@@ -43,7 +42,7 @@ func setup(){
 	lg.msg("Starting lvcl")
 	
 	fmt.Println("libvirt connection")
-	lv = NewLVD(brainIN, lvdIn)
+	//lv = NewLVD(brainIN, lvdIn)
 	mainLoop()
 	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
@@ -62,7 +61,7 @@ func mainLoop(){
 		lg.msg(fmt.Sprintf("%d",i))
 		e.printHeartbeatStats()
 		b.PrintNodeHealth()
-		lv.listDomains()
-		lv.updateDomStates()
+		//lv.listDomains()
+		//lv.updateDomStates()
 		time.Sleep(time.Second)}
 	}

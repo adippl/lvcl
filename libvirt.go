@@ -47,8 +47,6 @@ const(
 
 type lvd struct {
 	lvdKill				bool
-	brainIN				chan<- message
-	lvdIN				<-chan message
 	domStates			map[string]uint
 	daemonConneciton	*libvirt.Connect
 	nodeCPUStats		*libvirt.NodeCPUStats
@@ -65,7 +63,7 @@ type lvdVM struct {
 
 var lv *lvd
 
-func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
+func NewLVD() *lvd {
 	var err error
 	conn, err := libvirt.NewConnect("qemu:///system")
 	if err != nil {
@@ -79,8 +77,6 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 	
 	l_lvd := lvd{
 		lvdKill:	false,
-		brainIN:	a_brainIN,
-		lvdIN:		a_lvdIN,
 		domStates:	make(map[string]uint),
 		nodeCPUStats:		nil,
 		nodeMemStats:		nil,
@@ -89,8 +85,8 @@ func NewLVD(a_brainIN chan<- message, a_lvdIN <-chan message) *lvd {
 		}
 	l_lvd.getNodeInfo()
 	go l_lvd.updateStats()
-	go l_lvd.messageHandler()
-	go l_lvd.sendStatsToMaster()
+	//go l_lvd.messageHandler()
+	//go l_lvd.sendStatsToMaster()
 	return &l_lvd }
 
 func (l *lvd)getNodeInfo(){
@@ -307,34 +303,6 @@ func (l *lvd)updateDomStates(){
 //				fmt.Printf("state: %v %v\n",state , name ) }} 
 //		dom.Free() }}
 
-func (l *lvd)sendStatsToMaster(){
-	for {
-		if(l.lvdKill){
-			return }
-		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))
-		
-		l.updateDomStates()
-		
-		m := message{
-			SrcHost:	config.MyHostname,
-			DestHost:	"__master__",
-			SrcMod:		msgModBrainController,
-			DestMod:	msgModBrain,
-			Time:		time.Now(),
-			RpcFunc:	brainRpcSendingStats,
-			Argc:		1,
-			Argv:		[]string{"NodeStats in custom1",},
-			custom1:	l.nodeStats,
-			custom2:	l.domStates,
-			}
-		l.brainIN <- m }}
-
-func (l *lvd)messageHandler(){
-	var m message
-	for {
-		m = <-l.lvdIN
-		fmt.Println("dummy message handle for lvd ", m)}}
-
 func (l *lvd)lvd_cluster_resource_template() *cluster_resource {
 	cr := cluster_resource{
 		resourceController_name: "libvirt",
@@ -486,6 +454,10 @@ func (l *lvd)nuke_resource(name string) bool {
 		ret=true}
 	dom.Free()
 	return(ret)}
+
+func (l *lvd)kill_controller() {
+	l.lvdKill=true}
+	
 
 //func (l *lvd)clean_resource(name string) bool {
 //	l.nuke_resource(&name)
