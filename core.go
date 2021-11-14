@@ -27,20 +27,21 @@ func setup(){
 	if config.GetNodebyHostname(&config.MyHostname) == nil {
 		fmt.Printf("CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", config.MyHostname)
 		panic("WRONG HOSTNAME")}
-	brainIN:=make(chan message)
-	loggerIN:=make(chan message)
-	exchangeIN:=make(chan message)
-	//lvdIn:=make(chan message)
 	
-	lg = NewLoger(loggerIN, exchangeIN)
+	brain_exchange:=make(chan message)
+	exchange_brain:=make(chan message)
 	
-	e = NewExchange(exchangeIN, brainIN, loggerIN)
+	logger_exchange:=make(chan message)
+	exchange_logger:=make(chan message)
+	
+	
+	lg = NewLoger(exchange_logger, logger_exchange)
+	e = NewExchange(brain_exchange, exchange_brain, logger_exchange, exchange_brain)
 	e.placeholderStupidVariableNotUsedError()
+	b = NewBrain(exchange_brain, brain_exchange)
 	
-	b = NewBrain(exchangeIN, brainIN)
-	
+
 	lg.msg("Starting lvcl")
-	
 	fmt.Println("libvirt connection")
 	//lv = NewLVD(brainIN, lvdIn)
 	mainLoop()

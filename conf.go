@@ -221,7 +221,7 @@ func writeExampleConfig(){
 		enabledResourceControllers: map[uint]bool{
 			resource_controller_id_libvirt: true},
 		HeartbeatInterval: 1000,
-		ClusterTickInterval: 100,
+		ClusterTickInterval: 250,
 		NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 1000,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
@@ -231,7 +231,7 @@ func writeExampleConfig(){
 		LogCombined: "cmb.log",
 		DebugNetwork: false,
 		DebugLogger: false,
-		DebugNoRemoteLogging: false,
+		DebugNoRemoteLogging: true,
 		DebugRawLogging: false,
 		DebugHeartbeat: false,
 		DebugLibvirtShowDomStates: true,

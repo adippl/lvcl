@@ -31,17 +31,17 @@ type Logger struct{
 	logCombined	*os.File
 	killLogger	bool
 	
-	loggerIN		chan message
+	ex_logIN		chan message
 	localLoggerIN	chan message
-	exchangeIN		chan<- message
+	log_ex		chan<- message
 	}
 
 func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	var l Logger
 	l.setupDone=true
 	l.killLogger=false
-	l.exchangeIN=exIN
-	l.loggerIN=lIN
+	l.log_ex=exIN
+	l.ex_logIN=lIN
 	
 	l.localLoggerIN=make(chan message)
 	
@@ -55,7 +55,7 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 		panic(err)}
 	l.logCombined=f
 	go l.messageHandler()
-	fmt.Println("logger setup end")
+	fmt.Println("ex_log setup end")
 	return &l}
 
 func (l *Logger)KillLogger(){
@@ -74,46 +74,50 @@ func (l *Logger)messageHandler(){
 	var m message
 	var exOk, loc_logOk bool
 	exOk = true
-	loc_logOk = false
+	loc_logOk = true
 	for {
 		if l.killLogger == true{
 			return}
-		//m = <-l.loggerIN
 		select{
-		case m,exOk = <-l.loggerIN:
-			if config.DebugNetwork {
-				fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
-			if m.loggerMessageValidate(){
-				newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
-				if config.DebugRawLogging {//debug option, separate in overwriting existing string
-					newS = fmt.Sprintf("%+v\n", m)}
-				_,err := l.logCombined.WriteString(newS)
-				if err != nil {
-					panic(err)}
-			}else{
-				l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
-		case m,loc_logOk = <-l.localLoggerIN:
-			fmt.Printf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])}
+			case m,exOk = <-l.ex_logIN:
+				fmt.Printf("DEBUG LOGGER received message %+v\n", m)
+				if config.DebugNetwork {
+					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
+				if m.ex_logMessageValidate(){
+					newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
+					if config.DebugRawLogging {//debug option, separate in overwriting existing string
+						newS = fmt.Sprintf("%+v\n", m)}
+					_,err := l.logCombined.WriteString(newS)
+					if err != nil {
+						panic(err)}
+					fmt.Println(fmt.Sprintf("remote_print %s", newS))
+				}else{
+					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
+			case m,loc_logOk = <-l.localLoggerIN:
+				fmt.Printf("local_print [src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])
+				}
 		if(config.DebugLogger){
-			fmt.Printf("\n\nD_E_B_U_G logger exOk =%b\n\n", exOk)
-			fmt.Printf("\n\nD_E_B_U_G logger loc_logOk =%b\n\n", loc_logOk)}
+			fmt.Printf("\n\nD_E_B_U_G ex_log exOk =%b\n\n", exOk)
+			fmt.Printf("\n\nD_E_B_U_G ex_log loc_logOk =%b\n\n", loc_logOk)}
 		if !( exOk || loc_logOk ) {
 			//one of channels is closed, deleting object
 			l.delLogger()
-			return}}}
+			return}
+			}}
 
-func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
+func (m *message)ex_logMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
 	
 func (l *Logger)msg(arg string){
+//	fmt.Println("MSG CALLED",arg)
 	var s string
 	var t = time.Now()
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
 	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
-	//fmt.Println(s)
-	lmsg := local_msgFormat(&arg)
+	lmsg := msgFormat(&arg)
+	lmsg.DestHost=config._MyHostname()
 	l.localLoggerIN <- *lmsg
 	_,err := l.logLocal.WriteString(s)
 	if err != nil{
@@ -123,11 +127,14 @@ func (l *Logger)msg(arg string){
 		msg := msgFormat(&arg)
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)}
-		l.exchangeIN <- *msg}
+		l.log_ex <- *msg}
 	}
 
 func (l *Logger)msgERR(s string){
 	l.msg(fmt.Sprintf("ERR %s - %s", s))}
+
+func (l *Logger)msg_debug(s string, level int){
+	l.msg(fmt.Sprintf("debug(level:%d) %s ", level, s))}
 
 func (l *Logger)err(s string, e error){
 	pc := make([]uintptr, 10)  // at least 1 entry needed
@@ -145,20 +152,6 @@ func msgFormat(s *string) *message{
 	m.SrcMod=msgModLoggr
 	m.DestMod=msgModLoggr
 	m.RpcFunc=1
-	m.Time=time.Now()
-	m.Argc=1
-	m.Argv=append(m.Argv,*s)
-	
-	return &m}
-
-func local_msgFormat(s *string) *message{
-	var m message
-	
-	m.SrcHost=config._MyHostname()
-	m.DestHost="__everyone__"
-	m.SrcMod=msgModLoggr
-	m.DestMod=msgModLoggr
-	m.RpcFunc=2
 	m.Time=time.Now()
 	m.Argc=1
 	m.Argv=append(m.Argv,*s)

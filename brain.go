@@ -48,8 +48,8 @@ type Brain struct{
 	voteCounterExists	bool
 	quorum				uint
 	
-	brainIN					<-chan message
-	exchangeIN				chan message
+	ex_brn					<-chan message
+	brn_ex				chan<- message
 	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
 	nodeHealthLastPing		map[string]uint
@@ -57,28 +57,30 @@ type Brain struct{
 	resourceControllers		map[uint]interface{}
 	resCtl_lvd				*lvd
 	resourcePlacementAndState	map[string]cluster_resource
+//	_vote_delay	chan int
 	}
 
 
 var b *Brain
 
 
-func NewBrain(exIN chan message, bIN <-chan message) *Brain {
+func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	b := Brain{
 		isMaster:			false,
 		masterNode:			nil,
 		killBrain:			false,
 		nominatedBy:		make(map[string]bool),
 		voteCounterExists:	false,
-		quorum:	0,
+		quorum:				0,
 		
-		brainIN:				bIN,
-		exchangeIN:				exIN,
+		ex_brn:					a_ex_brn,
+		brn_ex:					a_brn_ex,
 		nodeHealth:				make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
 		nodeHealthLastPing:		make(map[string]uint),
 		
 		resourceControllers:	make(map[uint]interface{}),
+//		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
 //		b.resourceControllers[resource_controller_id_libvirt] = NewLVD()
@@ -98,24 +100,17 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 func (b *Brain)KillBrain(){
 	b.killBrain=true}
 
-//			SrcHost:	config.MyHostname,
-//			DestHost:	"__master__",
-//			SrcMod:		msgModBrainController,
-//			DestMod:	msgModBrain,
-//			Time:		time.Now(),
-//			RpcFunc:	brainRpcSendingStats,
-
 func  (b *Brain)messageHandler(){
 	var m message
 	for {
 		if b.killBrain == true{
 			return}
-		m = <-b.brainIN
+		m = <-b.ex_brn
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
 		//lg.msg(fmt.Sprintf("DEBUG BRAIN received message %+v\n", m))
 		
-		if m.RpcFunc == brainRpcAskForMasterNode{
+		if m.RpcFunc == brainRpcAskForMasterNode && m.SrcHost != config._MyHostname() {
 			b.replyToAskForMasterNode(&m)
 			continue
 		
@@ -136,6 +131,7 @@ func  (b *Brain)messageHandler(){
 			lg.msg(fmt.Sprintf("got master node %s from host %s",m.Argv[0],m.SrcHost))
 		// respond to brainRpcHaveMasterNodeReplyNil
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
+			fmt.Println("DEBUG ASKING FOR ELECTIONS")
 			b.masterNode = nil
 			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
 			continue
@@ -144,7 +140,8 @@ func  (b *Brain)messageHandler(){
 			b.vote()
 			continue
 		// respond to master node nomination
-		}else if m.RpcFunc == brainRpcElectNominate {
+		}else if m.RpcFunc == brainRpcElectNominate && 
+				m.SrcHost != config._MyHostname() {
 			if config.MyHostname == m.Argv[0] {
 				//this node got nominated
 				b.nominatedBy[m.SrcHost]=true
@@ -154,12 +151,17 @@ func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
 	nm := brainNewMessage()
 	nm.DestHost = "__everyone__"
+	nm.SrcMod = msgModBrain
+	nm.DestMod = msgModBrain
 	nm.RpcFunc=brainRpcElectNominate
 	nm.Argc=2
 	nm.Argv=make([]string,2)
 	nm.Argv[0]=*hostname
 	nm.Argv[1]=fmt.Sprintf("nominating node %s",*hostname)
-	b.exchangeIN <- *nm}
+	b.brn_ex <- *nm}
+
+//func (b *Brain)real_vote(){
+	
 
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
@@ -188,7 +190,6 @@ func (b *Brain)countVotes(){
 
 func (b *Brain)replyToAskForMasterNode(m *message){
 	if b.isMaster && *b.masterNode == config.MyHostname {
-		//fmt.Println("\n\nreplying with master node\n\n")
 		b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)
 	}else if b.masterNode == nil {
 		b.SendMsg(m.SrcHost,
@@ -300,7 +301,7 @@ func (b *Brain)SendMsg(host string, rpc uint, str string){
 	m.DestHost=host
 	m.RpcFunc=rpc
 	m.Argv = []string{str}
-	e.exchangeIN <- *m}
+	b.brn_ex <- *m}
 	
 func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
 	var m *message = brainNewMessage()
@@ -308,7 +309,7 @@ func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
 	m.RpcFunc=rpc
 	m.Argv = []string{str}
 	m.custom1 = c1
-	e.exchangeIN <- *m}
+	b.brn_ex <- *m}
 	
 func (b *Brain)PrintNodeHealth(){
 	fmt.Printf("=== Node Health ===\n")
@@ -348,7 +349,7 @@ func (b *Brain)reportControllerResourceState(ctl resourceController) {
 //	m.DestHost=host
 //	m.RpcFunc=rpc
 //	m.Argv = []string{str}
-//	e.exchangeIN <- *m}
+//	e.brn_ex <- *m}
 
 func (b *Brain)resourceBalancer(){
 	for{

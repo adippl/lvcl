@@ -34,16 +34,18 @@ type Exchange struct{
 	heartbeatDelta		map[string]*time.Duration
 	
 	recQueue	chan message
-	brainIN		chan<- message
-	loggerIN	chan<- message
-	exchangeIN		chan message
+	loc_ex		chan message
+	brn_ex		<-chan message
+	ex_brn		chan<- message
+	log_ex		<-chan message
+	ex_log		chan<- message
 	
 	killExchange	bool // ugly solution
 	}
 
 
 
-func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exchange {
+func NewExchange(a_brn_ex <-chan message, a_ex_brn chan<- message, a_log_ex <-chan message, a_ex_log chan<- message) *Exchange {
 	e := Exchange{
 		nodeList:	&config.Nodes,
 		outgoing:		make(map[string]*eclient),
@@ -52,9 +54,11 @@ func NewExchange(exIN chan message, bIN chan<- message, lIN chan<- message) *Exc
 		heartbeatDelta:	make(map[string]*time.Duration),
 		killExchange:	false,
 		recQueue:	make(chan message),
-		brainIN:	bIN,
-		loggerIN:	lIN,
-		exchangeIN:		exIN,
+		loc_ex:		make(chan message),
+		brn_ex:		a_brn_ex,
+		ex_brn:		a_ex_brn,
+		log_ex:		a_log_ex,
+		ex_log:		a_ex_log,
 		}
 	
 	go e.initListen()
@@ -111,7 +115,7 @@ func (e *Exchange)reconnectLoop(){
 			return}
 		for _,n := range *e.nodeList{
 			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
-				lg.msg(fmt.Sprintf("DEBUG -=-=-=-=-=- attempting to recconect to host %s",n.Hostname))
+				lg.msg_debug(fmt.Sprintf("attempting to recconect to host %s",n.Hostname),1)
 				go e.startConn(n)}}
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
@@ -142,11 +146,21 @@ func (e *Exchange)initListenUnix(){
 
 func (e *Exchange)forwarder(){
 	var m message
+	var brnOk, logOk, locOk bool
 	for{
+		brnOk=true
+		logOk=true
+		locOk=true
 		if e.killExchange { //ugly solution
 			return}
 		
-		m = <-e.exchangeIN
+		select{
+			case m,brnOk = <-e.brn_ex:
+			case m,logOk = <-e.log_ex:
+			case m,locOk = <-e.loc_ex:}
+		if !(brnOk&&logOk&&locOk) { 
+			fmt.Printf("\nbrnOk=%b logOk=%b locOk=%b\n", brnOk, logOk, locOk)}
+		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
 		if	m.SrcHost == config.MyHostname &&
@@ -187,13 +201,15 @@ func (e *Exchange)sorter(){
 			
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
-			e.loggerIN <- m;
+			e.ex_log <- m;
 			continue}
 			
 		if	m.SrcHost != config.MyHostname &&
 			m.DestMod == msgModBrain{
 				if m.ValidateMessageBrain(){
-				e.brainIN <- m;
+				if config.DebugNetwork {
+					fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
+				e.ex_brn <- m;
 				}else{
 					lg.msg(fmt.Sprintf("Brain message failed to validate: %+v",m))}
 			continue}
@@ -229,7 +245,7 @@ func (e *Exchange)heartbeatSender(){
 			Argc: 1,
 			Argv: []string{"heartbeat"},
 			}
-		e.exchangeIN <- m
+		e.loc_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
 func (e *Exchange)printHeartbeatStats(){
