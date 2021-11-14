@@ -92,7 +92,7 @@ func NewBrain(exIN chan message, bIN <-chan message) *Brain {
 	go b.updateNodeHealth()
 	go b.messageHandler()
 	go b.getMasterNode()
-	go b.resourceBalancer()
+//	go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){

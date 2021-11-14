@@ -29,7 +29,6 @@ const(
 	msgModBrain
 	msgModExchnHeartbeat
 	msgModBrainController
-
 	rpcHeartbeat
 	)
 

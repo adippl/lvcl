@@ -154,7 +154,9 @@ func (e *Exchange)forwarder(){
 			e.outgoing[m.DestHost] != nil {
 			e.outgoing[m.DestHost].outgoing <- m
 		}else{
+			if(m.DestHost!="__everyone__"){
 			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}
+			}
 		
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
