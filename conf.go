@@ -66,6 +66,7 @@ type Conf struct {
 	
 	
 	DebugNetwork bool
+	DebugLogger bool
 	DebugNoRemoteLogging bool
 	DebugRawLogging bool
 	DebugHeartbeat bool
@@ -229,6 +230,7 @@ func writeExampleConfig(){
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DebugNetwork: false,
+		DebugLogger: false,
 		DebugNoRemoteLogging: false,
 		DebugRawLogging: false,
 		DebugHeartbeat: false,
@@ -240,3 +242,7 @@ func writeExampleConfig(){
 		fmt.Println("Can't serislize", testConfig)
 		}
 	ioutil.WriteFile("./cluster.json",confser,0644)}
+
+
+func (c *Conf)_MyHostname()(hostname string){
+	return c.MyHostname }

@@ -31,8 +31,9 @@ type Logger struct{
 	logCombined	*os.File
 	killLogger	bool
 	
-	loggerIN	chan message
-	exchangeIN	chan<- message
+	loggerIN		chan message
+	localLoggerIN	chan message
+	exchangeIN		chan<- message
 	}
 
 func NewLoger(lIN chan message, exIN chan<- message) *Logger{
@@ -42,11 +43,13 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	l.exchangeIN=exIN
 	l.loggerIN=lIN
 	
+	l.localLoggerIN=make(chan message)
+	
 	f,err := os.OpenFile(config.LogLocal, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)}
 	l.logLocal=f
-
+	
 	f,err = os.OpenFile(config.LogCombined, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)}
@@ -63,26 +66,41 @@ func (l *Logger)delLogger(){
 	l.killLogger=true
 	l.logLocal.Close()
 	l.logCombined.Close()
+	close(l.localLoggerIN)
 	l=nil}
 	
 func (l *Logger)messageHandler(){
 	var newS string
 	var m message
+	var exOk, loc_logOk bool
+	exOk = true
+	loc_logOk = false
 	for {
 		if l.killLogger == true{
 			return}
-		m = <-l.loggerIN
-		if config.DebugNetwork {
-			fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
-		if m.loggerMessageValidate(){
-			newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
-			if config.DebugRawLogging {//debug option, separate in overwriting existing string
-				newS = fmt.Sprintf("%+v\n", m)}
-			_,err := l.logCombined.WriteString(newS)
-			if err != nil {
-				panic(err)}
-		}else{
-			l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}}}
+		//m = <-l.loggerIN
+		select{
+		case m,exOk = <-l.loggerIN:
+			if config.DebugNetwork {
+				fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
+			if m.loggerMessageValidate(){
+				newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
+				if config.DebugRawLogging {//debug option, separate in overwriting existing string
+					newS = fmt.Sprintf("%+v\n", m)}
+				_,err := l.logCombined.WriteString(newS)
+				if err != nil {
+					panic(err)}
+			}else{
+				l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
+		case m,loc_logOk = <-l.localLoggerIN:
+			fmt.Printf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])}
+		if(config.DebugLogger){
+			fmt.Printf("\n\nD_E_B_U_G logger exOk =%b\n\n", exOk)
+			fmt.Printf("\n\nD_E_B_U_G logger loc_logOk =%b\n\n", loc_logOk)}
+		if !( exOk || loc_logOk ) {
+			//one of channels is closed, deleting object
+			l.delLogger()
+			return}}}
 
 func (m *message)loggerMessageValidate() bool { // TODO PLACEHOLDER
 	return true}
@@ -94,9 +112,9 @@ func (l *Logger)msg(arg string){
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
 	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
-		
-
-	fmt.Println(s)
+	//fmt.Println(s)
+	lmsg := local_msgFormat(&arg)
+	l.localLoggerIN <- *lmsg
 	_,err := l.logLocal.WriteString(s)
 	if err != nil{
 		fmt.Println(err)
@@ -107,6 +125,9 @@ func (l *Logger)msg(arg string){
 			fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)}
 		l.exchangeIN <- *msg}
 	}
+
+func (l *Logger)msgERR(s string){
+	l.msg(fmt.Sprintf("ERR %s - %s", s))}
 
 func (l *Logger)err(s string, e error){
 	pc := make([]uintptr, 10)  // at least 1 entry needed
@@ -119,7 +140,7 @@ func (l *Logger)err(s string, e error){
 func msgFormat(s *string) *message{
 	var m message
 	
-	m.SrcHost=config.MyHostname
+	m.SrcHost=config._MyHostname()
 	m.DestHost="__everyone__"
 	m.SrcMod=msgModLoggr
 	m.DestMod=msgModLoggr
@@ -130,9 +151,22 @@ func msgFormat(s *string) *message{
 	
 	return &m}
 
+func local_msgFormat(s *string) *message{
+	var m message
+	
+	m.SrcHost=config._MyHostname()
+	m.DestHost="__everyone__"
+	m.SrcMod=msgModLoggr
+	m.DestMod=msgModLoggr
+	m.RpcFunc=2
+	m.Time=time.Now()
+	m.Argc=1
+	m.Argv=append(m.Argv,*s)
+	
+	return &m}
+
 func (l *Logger)DEBUGmessage(m *message){
 	str := fmt.Sprintf("\nDEBUG logged message: %+v \n", *m)
 	nmsg := msgFormat(&str)
-	l.loggerIN <- *nmsg
+	l.localLoggerIN <- *nmsg
 	}
-

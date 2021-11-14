@@ -63,5 +63,8 @@ func mainLoop(){
 		b.PrintNodeHealth()
 		//lv.listDomains()
 		//lv.updateDomStates()
+//		if(i==20){
+//			close(lg.loggerIN)
+//			}
 		time.Sleep(time.Second)}
 	}
