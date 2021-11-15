@@ -73,17 +73,19 @@ func (l *Logger)messageHandler(){
 	var newS string
 	var m message
 	var exOk, loc_logOk bool
+	var err error
 	exOk = true
 	loc_logOk = true
 	for {
 		if l.killLogger == true{
 			return}
 		select{
+			//incoming messagess from other hosts
 			case m,exOk = <-l.ex_logIN:
-				fmt.Printf("DEBUG LOGGER received message %+v\n", m)
+				//fmt.Printf("DEBUG LOGGER received message %+v\n", m)
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
-				if m.ex_logMessageValidate(){
+				if m.logger_message_validate(){
 					newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
 					if config.DebugRawLogging {//debug option, separate in overwriting existing string
 						newS = fmt.Sprintf("%+v\n", m)}
@@ -93,36 +95,54 @@ func (l *Logger)messageHandler(){
 					fmt.Println(fmt.Sprintf("remote_print %s", newS))
 				}else{
 					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
+			//incoming messages from local
 			case m,loc_logOk = <-l.localLoggerIN:
-				fmt.Printf("local_print [src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])
-				}
+				//fmt.Printf("local_print [src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])
+				s := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time, m.Argv[0])
+				fmt.Println("local_print",s)
+				//write to local log
+				_,err = l.logLocal.WriteString(s)
+				if err != nil{
+					fmt.Println(err)
+					panic(err)}
+				//write to combined log
+				_,err = l.logCombined.WriteString(s)
+				if err != nil{
+					fmt.Println(err)
+					panic(err)}
+							}
 		if(config.DebugLogger){
 			fmt.Printf("\n\nD_E_B_U_G ex_log exOk =%b\n\n", exOk)
 			fmt.Printf("\n\nD_E_B_U_G ex_log loc_logOk =%b\n\n", loc_logOk)}
 		if !( exOk || loc_logOk ) {
-			//one of channels is closed, deleting object
+			lg.msg("both of the logger channels are closed, deleting logger")
 			l.delLogger()
 			return}
 			}}
 
-func (m *message)ex_logMessageValidate() bool { // TODO PLACEHOLDER
-	return true}
-	
+func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
+	return (
+		m.SrcHost != config._MyHostname() &&
+		m.SrcMod == msgModLoggr &&
+		m.DestMod == msgModLoggr &&
+		m.RpcFunc == 1 &&
+		m.Argc == 1 )}
+ 
 func (l *Logger)msg(arg string){
 //	fmt.Println("MSG CALLED",arg)
-	var s string
-	var t = time.Now()
+	//var s string
+	//var t = time.Now()
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
-	s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
 	lmsg := msgFormat(&arg)
 	lmsg.DestHost=config._MyHostname()
 	l.localLoggerIN <- *lmsg
-	_,err := l.logLocal.WriteString(s)
-	if err != nil{
-		fmt.Println(err)
-		panic(err)}
+	//s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
+	//_,err := l.logLocal.WriteString(s)
+	//if err != nil{
+	//	fmt.Println(err)
+	//	panic(err)}
 	if config.DebugNoRemoteLogging == false {
 		msg := msgFormat(&arg)
 		if config.DebugNetwork {
@@ -134,7 +154,8 @@ func (l *Logger)msgERR(s string){
 	l.msg(fmt.Sprintf("ERR %s - %s", s))}
 
 func (l *Logger)msg_debug(s string, level int){
-	l.msg(fmt.Sprintf("debug(level:%d) %s ", level, s))}
+	if level <= config.DebugLevel {
+		l.msg(fmt.Sprintf("debug(level:%d) %s ", level, s))}}
 
 func (l *Logger)err(s string, e error){
 	pc := make([]uintptr, 10)  // at least 1 entry needed
@@ -154,7 +175,8 @@ func msgFormat(s *string) *message{
 	m.RpcFunc=1
 	m.Time=time.Now()
 	m.Argc=1
-	m.Argv=append(m.Argv,*s)
+	//m.Argv=append(m.Argv,*s)
+	m.Argv=[]string{*s}
 	
 	return &m}
 

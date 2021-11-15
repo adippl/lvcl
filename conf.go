@@ -24,6 +24,7 @@ import "encoding/json"
 import "io/ioutil"
 import "crypto/sha256"
 import "io"
+import "time"
 
 const( confDir="./" )
 const( confFile="cluster.json" )
@@ -48,6 +49,7 @@ type Conf struct {
 	HwMemMax uint
 	
 	HeartbeatInterval uint
+	ClusterTick uint
 	ClusterTickInterval uint
 	NodeHealthCheckInterval uint
 	ReconnectLoopDelay uint
@@ -65,6 +67,7 @@ type Conf struct {
 	LogCombined string
 	
 	
+	DebugLevel int
 	DebugNetwork bool
 	DebugLogger bool
 	DebugNoRemoteLogging bool
@@ -221,6 +224,7 @@ func writeExampleConfig(){
 		enabledResourceControllers: map[uint]bool{
 			resource_controller_id_libvirt: true},
 		HeartbeatInterval: 1000,
+		ClusterTick: 1000,
 		ClusterTickInterval: 250,
 		NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 1000,
@@ -229,6 +233,7 @@ func writeExampleConfig(){
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
+		DebugLevel: 1,
 		DebugNetwork: false,
 		DebugLogger: false,
 		DebugNoRemoteLogging: true,
@@ -246,3 +251,6 @@ func writeExampleConfig(){
 
 func (c *Conf)_MyHostname()(hostname string){
 	return c.MyHostname }
+
+func (c *Conf)ClusterTick_sleep(){
+	time.Sleep( time.Duration(c.ClusterTick) * time.Millisecond )}

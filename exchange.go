@@ -20,6 +20,7 @@ package main
 import "net"
 import "fmt"
 import "time"
+import "sync"
 
 var e *Exchange
 
@@ -41,11 +42,15 @@ type Exchange struct{
 	ex_log		chan<- message
 	
 	killExchange	bool // ugly solution
+	rwmux			sync.RWMutex
 	}
 
 
 
-func NewExchange(a_brn_ex <-chan message, a_ex_brn chan<- message, a_log_ex <-chan message, a_ex_log chan<- message) *Exchange {
+func NewExchange(	a_brn_ex <-chan message,
+					a_ex_brn chan<- message,
+					a_log_ex <-chan message,
+					a_ex_log chan<- message) *Exchange {
 	e := Exchange{
 		nodeList:	&config.Nodes,
 		outgoing:		make(map[string]*eclient),
@@ -59,6 +64,7 @@ func NewExchange(a_brn_ex <-chan message, a_ex_brn chan<- message, a_log_ex <-ch
 		ex_brn:		a_ex_brn,
 		log_ex:		a_log_ex,
 		ex_log:		a_ex_log,
+		rwmux:		sync.RWMutex{},
 		}
 	
 	go e.initListen()
@@ -79,6 +85,7 @@ func (e *Exchange)updateNodeHealthDelta(){
 			dt := time.Now().Sub(*v)
 			e.heartbeatDelta[k]=&dt}
 		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
+//		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
 
 //func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
 //	eclient := &eclient{
@@ -114,9 +121,11 @@ func (e *Exchange)reconnectLoop(){
 		if e.killExchange { //ugly solution
 			return}
 		for _,n := range *e.nodeList{
+			e.rwmux.RLock()
 			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
 				lg.msg_debug(fmt.Sprintf("attempting to recconect to host %s",n.Hostname),1)
-				go e.startConn(n)}}
+				go e.startConn(n)}
+			e.rwmux.RUnlock()}
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
 
@@ -126,7 +135,9 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 	c,err := net.Dial("tcp",n.NodeAddress)
 	if(err!=nil){
 		lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
+		e.rwmux.Lock()
 		e.outgoing[n.Hostname]=nil //just to be sure
+		e.rwmux.Unlock()
 		return}
 	ec := eclient{
 		hostname:		n.Hostname,
@@ -136,7 +147,10 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 		exch:			e,
 		}
 	go ec.forward();
-	e.outgoing[n.Hostname]=&ec}
+	e.rwmux.Lock()
+	e.outgoing[n.Hostname]=&ec
+	e.rwmux.Unlock()
+	}
 
 func (e *Exchange)initListenUnix(){
 	var err error
@@ -145,29 +159,38 @@ func (e *Exchange)initListenUnix(){
 		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}}
 
 func (e *Exchange)forwarder(){
-	var m message
+	var m *message
+	var temp_m message
 	var brnOk, logOk, locOk bool
 	for{
 		brnOk=true
 		logOk=true
 		locOk=true
+		m=nil
 		if e.killExchange { //ugly solution
 			return}
 		
 		select{
-			case m,brnOk = <-e.brn_ex:
-			case m,logOk = <-e.log_ex:
-			case m,locOk = <-e.loc_ex:}
+			case temp_m,brnOk = <-e.brn_ex:
+				m=&temp_m
+			case temp_m,logOk = <-e.log_ex:
+				m=&temp_m
+			case temp_m,locOk = <-e.loc_ex:
+				m=&temp_m
+			}
 		if !(brnOk&&logOk&&locOk) { 
 			fmt.Printf("\nbrnOk=%b logOk=%b locOk=%b\n", brnOk, logOk, locOk)}
 		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
+		e.rwmux.RLock()
 		if	m.SrcHost == config.MyHostname &&
 			config.GetNodebyHostname(&m.DestHost) != nil &&
 			e.outgoing[m.DestHost] != nil {
-			e.outgoing[m.DestHost].outgoing <- m
+			e.outgoing[m.DestHost].outgoing <- *m
+			e.rwmux.RUnlock()
 		}else{
+			e.rwmux.RUnlock()
 			if(m.DestHost!="__everyone__"){
 			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}
 			}
@@ -175,57 +198,75 @@ func (e *Exchange)forwarder(){
 		//forward to everyone else
 		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
 			for _,n := range config.Nodes{
+				e.rwmux.RLock()
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
 					//fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
 					if config.DebugNetwork {
 						fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)}
 					//making sure one more time, (it could've changed during debug write to console)
 					if e.outgoing[n.Hostname] != nil {
-						e.outgoing[n.Hostname].outgoing <- m }}}}}}
+						e.outgoing[n.Hostname].outgoing <- *m }}
+					e.rwmux.RUnlock()}}}}
+
+func (m *message)_check_pass_message_to_logger() bool {
+	return 	( m.SrcHost != config._MyHostname() &&
+				m.SrcMod == msgModLoggr &&
+				m.DestMod == msgModLoggr &&
+				m.RpcFunc == 1 &&
+				m.Argc == 1 )}
 
 func (e *Exchange)sorter(){
 	var m message
 	for{
 		if e.killExchange { //ugly solution
 			return}
+		m = message{}
 		m = <-e.recQueue
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG SORTER received %+v\n", m)}
 		
 		//pass Logger messages
-		if	m.SrcHost != config.MyHostname &&
-			m.SrcMod == msgModLoggr &&
-			m.DestMod == msgModLoggr &&
-			m.RpcFunc == 1 &&
-			m.Argc == 1 {
+		if	m.logger_message_validate() {
 			
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
 			e.ex_log <- m;
 			continue}
 			
-		if	m.SrcHost != config.MyHostname &&
-			m.DestMod == msgModBrain{
-				if m.ValidateMessageBrain(){
-				if config.DebugNetwork {
-					fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
-				e.ex_brn <- m;
-				}else{
-					lg.msg(fmt.Sprintf("Brain message failed to validate: %+v",m))}
+		if	m.validate_Brain() {
+			if config.DebugNetwork {
+				fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
+			e.ex_brn <- m;
 			continue}
 		
 		//update heartbeat values from heartbeat messages
-		if m.SrcMod == msgModExchnHeartbeat && m.DestMod == msgModExchnHeartbeat && m.RpcFunc == rpcHeartbeat {
+		if m.validate_Heartbeat() {
 			if config.CheckIfNodeExists(&m.SrcHost){
 				timeCopy := m.Time
-				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}}}}
+				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}
+			continue}
+		lg.msg_debug(fmt.Sprintf("exchange received message which failed all validation functions: %+v",m),1)}}
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
 
+func (m *message)validate_Heartbeat() bool {
+	return (
+		m.SrcMod == msgModExchnHeartbeat &&
+		m.DestMod == msgModExchnHeartbeat &&
+		m.RpcFunc == rpcHeartbeat )}
+
+func (m *message)validate_Brain() bool {
+	return (
+	m.SrcHost != config.MyHostname &&
+	m.SrcMod == msgModBrain &&
+	m.DestMod == msgModBrain )}
+
 func (e *Exchange)dumpAllConnectedHosts(){
+	e.rwmux.RLock()
 	fmt.Println(e.outgoing)
 	fmt.Println(e.incoming)
+	e.rwmux.RUnlock()
 	}
 
 func (e *Exchange)heartbeatSender(){

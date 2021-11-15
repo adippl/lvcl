@@ -65,6 +65,10 @@ func (ec *eclient)forward(){
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
+	//lock exchange writing mutex
+	ec.exch.rwmux.Lock()
 	ec.exch.outgoing[ec.hostname]=nil
+	//unlock exchange writing mutex 
+	ec.exch.rwmux.Unlock()
 	ec = nil
 	lg.err("eclient forwarder serializer ", err)}

@@ -19,9 +19,13 @@ package main
 
 import "fmt"
 import "time"
+import "sync"
 
 const(
 	CLUSTER_TICK = time.Millisecond * 1000 
+	INTERNAL_CLUSTER_TICK = time.Millisecond * 250 
+	//config.ClusterTick = config.ClusterTick
+	//INTERNAL_config.ClusterTick = config.ClusterTickInterval 
 	)
 
 const(
@@ -53,6 +57,7 @@ type Brain struct{
 	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
 	nodeHealthLastPing		map[string]uint
+	rwmux					sync.RWMutex
 	
 	resourceControllers		map[uint]interface{}
 	resCtl_lvd				*lvd
@@ -80,6 +85,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		nodeHealthLastPing:		make(map[string]uint),
 		
 		resourceControllers:	make(map[uint]interface{}),
+		rwmux:					sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -103,12 +109,13 @@ func (b *Brain)KillBrain(){
 func  (b *Brain)messageHandler(){
 	var m message
 	for {
+		m=message{}
 		if b.killBrain == true{
 			return}
 		m = <-b.ex_brn
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
-		//lg.msg(fmt.Sprintf("DEBUG BRAIN received message %+v\n", m))
+		lg.msg_debug(fmt.Sprintf("DEBUG BRAIN received message %+v\n", m),3)
 		
 		if m.RpcFunc == brainRpcAskForMasterNode && m.SrcHost != config._MyHostname() {
 			b.replyToAskForMasterNode(&m)
@@ -151,8 +158,6 @@ func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
 	nm := brainNewMessage()
 	nm.DestHost = "__everyone__"
-	nm.SrcMod = msgModBrain
-	nm.DestMod = msgModBrain
 	nm.RpcFunc=brainRpcElectNominate
 	nm.Argc=2
 	nm.Argv=make([]string,2)
@@ -160,15 +165,12 @@ func (b *Brain)vote(){
 	nm.Argv[1]=fmt.Sprintf("nominating node %s",*hostname)
 	b.brn_ex <- *nm}
 
-//func (b *Brain)real_vote(){
-	
-
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
-		lg.msg("recieved ask for vote, but vote coroutine is already running")
+		lg.msg_debug("recieved ask for vote, but vote coroutine is already running",1)
 		return}
 	b.voteCounterExists = true
-	time.Sleep(CLUSTER_TICK)
+	config.ClusterTick_sleep()
 	var sum uint = 0
 	for k,v := range b.nominatedBy {
 		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
@@ -196,14 +198,6 @@ func (b *Brain)replyToAskForMasterNode(m *message){
 			brainRpcHaveMasterNodeReplyNil,
 			"cluster Doesn't currently have a masterNode")}}
 
-func (m *message)ValidateMessageBrain() bool {
-	if	m.SrcMod != msgModBrain ||
-		m.DestMod != msgModBrain ||
-		( m.DestHost != config.MyHostname && m.DestHost != "__everyone__") {
-		//config.checkIfNodeExists(&m.SrcHost) != false { //TODO consider adding check for SrcHost
-			return false}
-	return true}
-
 //this function is very naive
 //node health is calculated form average of last 30 check intervals
 //this code is not very optimized, but it's good enough
@@ -215,6 +209,8 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		if b.killBrain {
 			return}
 		//make new map, it's safer than removing dropped nodes from old map
+		//lock mutex for writing
+		b.rwmux.Lock()
 		b.nodeHealth = make(map[string]int)
 		b.nodeHealth[config.MyHostname]=HealthGreen
 		for k,v := range e.GetHeartbeat() {
@@ -263,17 +259,23 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		if b.masterNode != nil && b.nodeHealth[*b.masterNode] >= HealthOrange {
 			b.masterNode = nil
 			b.isMaster = false}
+		//unlock writing mutex 
+		b.rwmux.Unlock()
 		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}
 		}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
 	var hw uint = 0
+	//lock read mutex
+	b.rwmux.RLock()
 	for k,v := range b.nodeHealth{
 		n := config.GetNodebyHostname(&k)
 		if v == HealthGreen && n != nil && n.Weight > hw {
 			hw=n.Weight
 			host=&n.Hostname}}
+	//unlock read mutex
+	b.rwmux.RUnlock()
 	return host}
 
 func brainNewMessage() *message {
@@ -290,11 +292,11 @@ func (b *Brain)getMasterNode(){
 	for{
 		if b.killBrain {
 			return}
-		time.Sleep(CLUSTER_TICK)
+		config.ClusterTick_sleep()
 		if b.masterNode == nil {
 			lg.msg("looking for master node")
 			b.SendMsg("__everyone__", brainRpcAskForMasterNode, "asking for master node")
-			time.Sleep(CLUSTER_TICK)}}}
+			config.ClusterTick_sleep()}}}
 
 func (b *Brain)SendMsg(host string, rpc uint, str string){
 	var m *message = brainNewMessage()
@@ -318,6 +320,8 @@ func (b *Brain)PrintNodeHealth(){
 	}else{
 		fmt.Printf("No master node\n")}
 	fmt.Printf("Quorum: %d\n", b.quorum)
+	//read lock mutex for nodeHealth maps
+	b.rwmux.RLock()
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
@@ -326,6 +330,8 @@ func (b *Brain)PrintNodeHealth(){
 				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Orange",b.nodeHealthLast30Ticks[k])
 			case HealthRed:
 				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k])}}
+	//unlock mutex for nodeHealth maps
+	b.rwmux.RUnlock()
 	fmt.Printf("===================\n")}
 
 func (b *Brain)reportControllerResourceState(ctl resourceController) {
@@ -342,15 +348,6 @@ func (b *Brain)reportControllerResourceState(ctl resourceController) {
 	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending clsuter_utilization to Master node", *cl_utl)
 	}
 
-
-	
-//func (b *Brain)SendMsg(host string, rpc uint, str string){
-//	var m *message = brainNewMessage()
-//	m.DestHost=host
-//	m.RpcFunc=rpc
-//	m.Argv = []string{str}
-//	e.brn_ex <- *m}
-
 func (b *Brain)resourceBalancer(){
 	for{
 		if(b.killBrain){
@@ -366,4 +363,4 @@ func (b *Brain)resourceBalancer(){
 			
 			// change resource states on nodes
 			}
-		time.Sleep(CLUSTER_TICK)}}
+		config.ClusterTick_sleep()}}
