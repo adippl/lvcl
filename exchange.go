@@ -227,7 +227,6 @@ func (e *Exchange)sorter(){
 		
 		//pass Logger messages
 		if	m.logger_message_validate() {
-			
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
 			e.ex_log <- m;

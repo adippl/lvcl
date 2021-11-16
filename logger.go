@@ -77,12 +77,13 @@ func (l *Logger)messageHandler(){
 	exOk = true
 	loc_logOk = true
 	for {
+		m=message{}
 		if l.killLogger == true{
 			return}
 		select{
 			//incoming messagess from other hosts
 			case m,exOk = <-l.ex_logIN:
-				//fmt.Printf("DEBUG LOGGER received message %+v\n", m)
+				fmt.Printf("DEBUG LOGGER received message %+v\n", m)
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
 				if m.logger_message_validate(){
@@ -129,20 +130,13 @@ func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 		m.Argc == 1 )}
  
 func (l *Logger)msg(arg string){
-//	fmt.Println("MSG CALLED",arg)
-	//var s string
-	//var t = time.Now()
+	fmt.Println("MSG CALLED",arg)
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
 	lmsg := msgFormat(&arg)
 	lmsg.DestHost=config._MyHostname()
 	l.localLoggerIN <- *lmsg
-	//s = fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, t, arg)
-	//_,err := l.logLocal.WriteString(s)
-	//if err != nil{
-	//	fmt.Println(err)
-	//	panic(err)}
 	if config.DebugNoRemoteLogging == false {
 		msg := msgFormat(&arg)
 		if config.DebugNetwork {

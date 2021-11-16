@@ -36,7 +36,7 @@ func setup(){
 	
 	
 	lg = NewLoger(exchange_logger, logger_exchange)
-	e = NewExchange(brain_exchange, exchange_brain, logger_exchange, exchange_brain)
+	e = NewExchange(brain_exchange, exchange_brain, logger_exchange, exchange_logger)
 	e.placeholderStupidVariableNotUsedError()
 	b = NewBrain(exchange_brain, brain_exchange)
 	

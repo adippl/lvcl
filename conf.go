@@ -236,7 +236,7 @@ func writeExampleConfig(){
 		DebugLevel: 1,
 		DebugNetwork: false,
 		DebugLogger: false,
-		DebugNoRemoteLogging: true,
+		DebugNoRemoteLogging: false,
 		DebugRawLogging: false,
 		DebugHeartbeat: false,
 		DebugLibvirtShowDomStates: true,

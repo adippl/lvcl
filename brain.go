@@ -152,6 +152,8 @@ func  (b *Brain)messageHandler(){
 			if config.MyHostname == m.Argv[0] {
 				//this node got nominated
 				b.nominatedBy[m.SrcHost]=true
+				//go b.countVotes()}}}}
+				fmt.Println("DEBUG ",m)
 				go b.countVotes()}}}}
 
 func (b *Brain)vote(){
@@ -167,7 +169,7 @@ func (b *Brain)vote(){
 
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
-		lg.msg_debug("recieved ask for vote, but vote coroutine is already running",1)
+		lg.msg_debug("received ask for vote, but vote coroutine is already running",1)
 		return}
 	b.voteCounterExists = true
 	config.ClusterTick_sleep()
