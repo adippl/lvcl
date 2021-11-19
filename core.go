@@ -64,7 +64,7 @@ func mainLoop(){
 		b.PrintNodeHealth()
 //		if(i==20){
 //			close(lg.loggerIN)}
-		test_conf_rw(i)
+		//test_conf_rw(i)
 		//fmt.Println("coooore", config.GetField_string("Hostname"))
 		time.Sleep(time.Second)}
 	}

@@ -65,6 +65,7 @@ type Conf struct {
 	ConfFileHash string `json:"-"`
 	ConfFileHashRaw []byte `json:"-"`
 	MyHostname string `json:"-"`
+	ConfHashCheck bool
 	
 	LogLocal string
 	LogCombined string
@@ -232,6 +233,7 @@ func writeExampleConfig(){
 			resource_controller_id_libvirt: true},
 		HeartbeatInterval: 1000,
 		ClusterTick: 1000,
+		ConfHashCheck: true,
 		ClusterTickInterval: 250,
 		NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 1000,

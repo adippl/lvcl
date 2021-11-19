@@ -43,6 +43,9 @@ type Exchange struct{
 	
 	killExchange	bool // ugly solution
 	rwmux			sync.RWMutex
+	
+	confFileHash string `json:"-"`
+	confHashCheck	bool `json:"-"` 
 	}
 
 
@@ -52,19 +55,21 @@ func NewExchange(	a_brn_ex <-chan message,
 					a_log_ex <-chan message,
 					a_ex_log chan<- message) *Exchange {
 	e := Exchange{
-		nodeList:	&config.Nodes,
+		nodeList:		&config.Nodes,
 		outgoing:		make(map[string]*eclient),
 		incoming:		make(map[string]*eclient),
 		heartbeatLastMsg:	make(map[string]*time.Time),
 		heartbeatDelta:	make(map[string]*time.Duration),
 		killExchange:	false,
-		recQueue:	make(chan message),
-		loc_ex:		make(chan message),
-		brn_ex:		a_brn_ex,
-		ex_brn:		a_ex_brn,
-		log_ex:		a_log_ex,
-		ex_log:		a_ex_log,
-		rwmux:		sync.RWMutex{},
+		recQueue:		make(chan message),
+		loc_ex:			make(chan message),
+		brn_ex:			a_brn_ex,
+		ex_brn:			a_ex_brn,
+		log_ex:			a_log_ex,
+		ex_log:			a_ex_log,
+		rwmux:			sync.RWMutex{},
+		confFileHash:	config.GetField_string("ConfFileHash"),
+		confHashCheck:	config.GetField_bool("ConfHashCheck"),
 		}
 	
 	go e.initListen()
@@ -178,8 +183,10 @@ func (e *Exchange)forwarder(){
 			case temp_m,locOk = <-e.loc_ex:
 				m=&temp_m
 			}
-		if !(brnOk&&logOk&&locOk) { 
+		if !( brnOk && logOk && locOk ) { 
 			fmt.Printf("\nbrnOk=%b logOk=%b locOk=%b\n", brnOk, logOk, locOk)}
+		
+		e.markMessageWithConfigHash(m)
 		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
@@ -224,6 +231,12 @@ func (e *Exchange)sorter(){
 		m = <-e.recQueue
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG SORTER received %+v\n", m)}
+		
+		// check if message comes with  
+		if ! e.verifyMessageConfigHash(&m) {
+			lg.msg_debug(fmt.Sprintf("exchange: validation config hash: %+v",m),1)
+			lg.msgERR(fmt.Sprintf("exchange: config hash failed on message from: %+v",m.SrcHost))
+			continue}
 		
 		//pass Logger messages
 		if	m.logger_message_validate() {
@@ -303,9 +316,20 @@ func (e *Exchange)KillExchange(){
 func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
 	return e.heartbeatLastMsg}
 
-//func (l *Exchange)__dummy_messageHandler(){
-//	var m message
-//	for {
-//		m = <-l.lvdIN
-//		fmt.Println("dummy message handle for lvd ", m)}}
+func (m *message)verifyMessageConfigHash() bool {
+	if config.GetField_string("ConfFileHash") == m.ConfHash {
+		return true
+	}else{
+		return false}}
 
+func (e *Exchange)verifyMessageConfigHash(m *message) bool {
+	if ! e.confHashCheck {
+		return true }
+	if e.confFileHash == m.ConfHash {
+		return true
+	}else{
+		return false }}
+
+func (e *Exchange)markMessageWithConfigHash(m *message){
+	if e.confHashCheck {
+		m.ConfHash = e.confFileHash }}
