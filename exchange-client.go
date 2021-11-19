@@ -53,6 +53,7 @@ func (ec *eclient)listen(){
 func (ec *eclient)forward(){
 	var data message
 	var err error
+	var cleanup_loop bool = true
 	enc := json.NewEncoder(ec.conn)
 	fmt.Printf("conn Forwarder started for %s\n", ec.hostname)
 	for{
@@ -66,9 +67,15 @@ func (ec *eclient)forward(){
 	if ec.conn != nil{
 		ec.conn = nil}
 	//lock exchange writing mutex
-	ec.exch.rwmux.Lock()
+	//ec.exch.rwmux.Lock()
 	ec.exch.outgoing[ec.hostname]=nil
 	//unlock exchange writing mutex 
-	ec.exch.rwmux.Unlock()
+	//ec.exch.rwmux.Unlock()
+	
+	//read all queued messages 
+	for cleanup_loop {
+		data,cleanup_loop = <-ec.outgoing
+		fmt.Println("CLEANUP LOOP ",data)
+		}
 	ec = nil
 	lg.err("eclient forwarder serializer ", err)}

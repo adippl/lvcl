@@ -125,12 +125,12 @@ func (e *Exchange)reconnectLoop(){
 	for{
 		if e.killExchange { //ugly solution
 			return}
+		e.rwmux.RLock()
 		for _,n := range *e.nodeList{
-			e.rwmux.RLock()
 			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
 				lg.msg_debug(fmt.Sprintf("attempting to recconect to host %s",n.Hostname),1)
-				go e.startConn(n)}
-			e.rwmux.RUnlock()}
+				go e.startConn(n)}}
+		e.rwmux.RUnlock()
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
 
@@ -210,9 +210,10 @@ func (e *Exchange)forwarder(){
 					//fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
 					if config.DebugNetwork {
 						fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)}
-					//making sure one more time, (it could've changed during debug write to console)
-					if e.outgoing[n.Hostname] != nil {
-						e.outgoing[n.Hostname].outgoing <- *m }}
+					////making sure one more time, (it could've changed during debug write to console)
+					//if e.outgoing[n.Hostname] != nil {
+					//	e.outgoing[n.Hostname].outgoing <- *m }}
+					e.outgoing[n.Hostname].outgoing <- *m }
 					e.rwmux.RUnlock()}}}}
 
 func (m *message)_check_pass_message_to_logger() bool {
