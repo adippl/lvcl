@@ -38,6 +38,7 @@ const(
 	brainRpcHaveMasterNodeReplyNil
 	brainRpcSendingStats
 	brianRpcSendingClusterResources
+	brianMasterSendUpdatedResources
 	)
 
 type message struct{

@@ -42,7 +42,7 @@ type Conf struct {
 	GlobMigrationTimeout uint
 	GlobLiveMigrationBlock bool
 	Maintenance bool
-	Resources []cluster_resource
+	Resources []Cluster_resource
 	ResourceControllers map[string]bool
 	rwmux sync.RWMutex `json:"-"`
 	
@@ -142,17 +142,36 @@ func (c *Conf)dumpConfig(){
 	}
 
 func (c *Conf)GetVMbyName(argName *string)(v *VM){
+	c.rwmux.RLock()
 	for _,t:= range c.VMs{
 		if t.Name == *argName{
+			c.rwmux.RUnlock()
 			return &t}}
+	c.rwmux.RUnlock()
 	return nil}
 
 func (c *Conf)GetVMbyDomain(argDomain *string)(v *VM){
+	c.rwmux.RLock()
 	for _,t:= range c.VMs{
 		if t.DomainDefinition == *argDomain{
 			return &t}}
 	return nil}
 
+func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
+	c.rwmux.RLock()
+	for _,t:= range c.Resources{
+		if t.Name == *argName{
+			c.rwmux.RUnlock()
+			return &t}}
+	c.rwmux.RUnlock()
+	return nil}
+
+//func (c *Conf)GetCluster_resourcebyDomain(argDomain *string)(v *Cluster_resource){
+//	c.rwmux.RLock()
+//	for _,t:= range c.Resources{
+//		if t.DomainDefinition == *argDomain{
+//			return &t}}
+//	return nil}
 
 func (c *Conf)GetNodebyHostname(argHostname *string) *Node {
 	for _,t:= range c.Nodes{
@@ -202,12 +221,12 @@ func writeExampleConfig(){
 				},
 		ResourceControllers: map[string]bool{
 			"libvirt": true},
-		Resources: []cluster_resource{
-			cluster_resource{
-				resourceController_name: "libvirt",
-				resourceController_id: 0,
-				id: 0,
-				resource: VM{
+		Resources: []Cluster_resource{
+			Cluster_resource{
+				ResourceController_name: "libvirt",
+				ResourceController_id: 0,
+				Id: 0,
+				Resource: VM{
 					Name: "gh-test",
 					DomainDefinition: "tests struct embedded in main cluster.conf",
 					VCpus: 1,
@@ -306,3 +325,12 @@ func (c *Conf)SetField_bool(field string, value bool){
 	f.SetBool(bool(value))
 	c.rwmux.Unlock()}
 
+
+//func (b *Brain)is_this_node_a_master() bool {
+//func (b *Brain)getMasterNodeName() *string {
+
+func (c *Conf)SetNewResourceState(res *[]Cluster_resource){
+	c.rwmux.Lock()
+	c.Resources = *res
+	c.rwmux.Unlock()}
+	

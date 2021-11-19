@@ -52,7 +52,7 @@ type Brain struct{
 	
 	resourceControllers		map[uint]interface{}
 	resCtl_lvd				*lvd
-	resourcePlacementAndState	map[string]cluster_resource
+	resourcePlacementAndState	map[string]Cluster_resource
 //	_vote_delay	chan int
 	}
 
@@ -129,7 +129,6 @@ func  (b *Brain)messageHandler(){
 			lg.msg(fmt.Sprintf("got master node %s from host %s",m.Argv[0],m.SrcHost))
 		// respond to brainRpcHaveMasterNodeReplyNil
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
-			fmt.Println("DEBUG ASKING FOR ELECTIONS")
 			b.masterNode = nil
 			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
 			continue
@@ -327,15 +326,15 @@ func (b *Brain)PrintNodeHealth(){
 	b.rwmux.RUnlock()
 	fmt.Printf("===================\n")}
 
-func (b *Brain)reportControllerResourceState(ctl resourceController) {
-	var cl_res *[]cluster_resource
-	var cl_utl *[]cluster_utilization
-	cl_res = ctl.get_running_resources()
+func (b *Brain)reportControllerResourceState(ctl ResourceController) {
+	var cl_res *[]Cluster_resource
+	var cl_utl *[]Cluster_utilization
+	cl_res = ctl.Get_running_resources()
 		if cl_res == nil {
 			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
-	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending cluster_resources to Master node", *cl_res)
+	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending Cluster_resources to Master node", *cl_res)
 	
-	cl_utl = ctl.get_utilization()
+	cl_utl = ctl.Get_utilization()
 		if cl_utl == nil {
 			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
 	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending clsuter_utilization to Master node", *cl_utl)

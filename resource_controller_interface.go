@@ -1,5 +1,5 @@
 /*
- *  lvcl is a simple program clustering libvirt servers
+ *  lvcl is a simple program Clustering libvirt servers
  *  Copyright (C) 2020 Adam Prycki (email: adam.prycki@gmail.com)
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -53,32 +53,32 @@ const(
 
 // generalized HARDWARE resource
 // could be number of cores, RAM usage, cpu load etc
-type cluster_utilization struct {
-	resourceController_name	string
-	resourceController_id	int
-	name	string
-	id		int
-	value	uint64
+type Cluster_utilization struct {
+	ResourceController_name	string
+	ResourceController_id	int
+	Name	string
+	Id		int
+	Value	uint64
 }
 
-// generalized cluster resource deployed by balance system
-type cluster_resource struct {
-	resourceController_name	string
-	resourceController_id	int
-	name		string
-	id			int
-	state		int
-	resource	interface{}
+// generalized Cluster resource deployed by balance system
+type Cluster_resource struct {
+	ResourceController_name	string
+	ResourceController_id	int
+	Name		string
+	Id			int
+	State		int
+	Resource	interface{}
 }
 
 
-type resourceController interface {
-	get_running_resources() *[]cluster_resource
-	get_utilization() *[]cluster_utilization
-	start_resource(name string) bool
-	stop_resource(name string) bool
-	nuke_resource(name string) bool
-	migrate_resource(resource_name string, dest_node string) bool
-	clean_resource(name string) bool
-	kill_controller() bool
+type ResourceController interface {
+	Get_running_resources() *[]Cluster_resource
+	Get_utilization() *[]Cluster_utilization
+	Start_resource(name string) bool
+	Stop_resource(name string) bool
+	Nuke_resource(name string) bool
+	Migrate_resource(resource_name string, dest_node string) bool
+	Clean_resource(name string) bool
+	Kill_controller() bool
 }

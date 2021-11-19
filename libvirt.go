@@ -53,7 +53,7 @@ type lvd struct {
 	nodeMemStats		*libvirt.NodeMemoryStats
 	nodeInfo			*libvirt.NodeInfo
 	nodeStats			NodeStats
-	utilization			*[]cluster_utilization
+	utilization			*[]Cluster_utilization
 	}
 
 type lvdVM struct {
@@ -303,39 +303,39 @@ func (l *lvd)updateDomStates(){
 //				fmt.Printf("state: %v %v\n",state , name ) }} 
 //		dom.Free() }}
 
-func (l *lvd)lvd_cluster_resource_template() *cluster_resource {
-	cr := cluster_resource{
-		resourceController_name: "libvirt",
-		resourceController_id: resource_controller_id_libvirt,
+func (l *lvd)lvd_cluster_resource_template() *Cluster_resource {
+	cr := Cluster_resource{
+		ResourceController_name: "libvirt",
+		ResourceController_id: resource_controller_id_libvirt,
 		}
 	return &cr
 	}
 
-func (l *lvd)lvd_cluster_utilization_template() *cluster_utilization {
-	cr := cluster_utilization{
-		resourceController_name: "libvirt",
-		resourceController_id: resource_controller_id_libvirt,
+func (l *lvd)lvd_cluster_utilization_template() *Cluster_utilization {
+	cr := Cluster_utilization{
+		ResourceController_name: "libvirt",
+		ResourceController_id: resource_controller_id_libvirt,
 		}
 	return &cr
 	}
 
-func (l *lvd)get_running_resources() *[]cluster_resource {
-	var ret []cluster_resource
+func (l *lvd)Get_running_resources() *[]Cluster_resource {
+	var ret []Cluster_resource
 	
 	for k,v := range l.domStates {
 		dom := l.lvd_cluster_resource_template()
-		dom.name = k
+		dom.Name = k
 		switch v {
 		case lvdVmStateStarting:
-			dom.state = resource_state_starting
+			dom.State = resource_state_starting
 		case lvdVmStateRunning:
-			dom.state = resource_state_running
+			dom.State = resource_state_running
 		case lvdVmStateStopping:
-			dom.state = resource_state_stopping
+			dom.State = resource_state_stopping
 		case lvdVmStatePaused:
-			dom.state = resource_state_paused
+			dom.State = resource_state_paused
 		default:
-			dom.state = resource_state_other
+			dom.State = resource_state_other
 		}
 		ret = append(ret,*dom)
 		}
@@ -343,57 +343,57 @@ func (l *lvd)get_running_resources() *[]cluster_resource {
 	}
 
 
-func (l *lvd)get_utilization() *[]cluster_utilization {
+func (l *lvd)Get_utilization() *[]Cluster_utilization {
 	//var ret []utilization
-	ret := make([]cluster_utilization,0,10)
-	var util *cluster_utilization
+	ret := make([]Cluster_utilization,0,10)
+	var util *Cluster_utilization
 	
 	// cpu stats
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_cpu_time_kernel
-	util.value=l.nodeStats.cpuKernel
+	util.Id=utilization_cpu_time_kernel
+	util.Value=l.nodeStats.cpuKernel
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_cpu_time_user
-	util.value=l.nodeStats.cpuUser
+	util.Id=utilization_cpu_time_user
+	util.Value=l.nodeStats.cpuUser
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_cpu_time_io
-	util.value=l.nodeStats.cpuIo
+	util.Id=utilization_cpu_time_io
+	util.Value=l.nodeStats.cpuIo
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_cpu_time_idle
-	util.value=l.nodeStats.cpuIdle
+	util.Id=utilization_cpu_time_idle
+	util.Value=l.nodeStats.cpuIdle
 	ret = append(ret,*util)
 	
 	// memory
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_mem_total_kb
-	util.value=l.nodeStats.memTotal
+	util.Id=utilization_mem_total_kb
+	util.Value=l.nodeStats.memTotal
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_mem_free_kb
-	util.value=l.nodeStats.memFree
+	util.Id=utilization_mem_free_kb
+	util.Value=l.nodeStats.memFree
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_mem_cached_kb
-	util.value=l.nodeStats.memCached
+	util.Id=utilization_mem_cached_kb
+	util.Value=l.nodeStats.memCached
 	ret = append(ret,*util)
 	
 	util = l.lvd_cluster_utilization_template()
-	util.id=utilization_mem_buffers_kb
-	util.value=l.nodeStats.memBuffers
+	util.Id=utilization_mem_buffers_kb
+	util.Value=l.nodeStats.memBuffers
 	ret = append(ret,*util)
 	
 	return &ret
 	}
 
-func (l *lvd)start_resource(name string) bool {
+func (l *lvd)Start_resource(name string) bool {
 	vm := config.GetVMbyName(&name)
 	if(vm==nil){
 		lg.msg("config.GetVMbyName returned null pointer")
@@ -404,7 +404,7 @@ func (l *lvd)start_resource(name string) bool {
 		return(true)}}
 
 // remember to dom.Free() after you're done using Domain pointer
-func (l *lvd)getDomainPtr(domain_name string) *libvirt.Domain {
+func (l *lvd)GetDomainPtr(domain_name string) *libvirt.Domain {
 	var r_dom *libvirt.Domain = nil
 	doms, err := l.daemonConneciton.ListAllDomains(0)
 	if(err!=nil){
@@ -419,13 +419,13 @@ func (l *lvd)getDomainPtr(domain_name string) *libvirt.Domain {
 		err=nil}
 	return(r_dom)}
 
-func (l *lvd)stop_resource(name string) bool {
+func (l *lvd)Stop_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
 	vm := config.GetVMbyName(&name)
 	if(vm==nil){
 		return(false)}
-	dom := l.getDomainPtr(vm.Name)
+	dom := l.GetDomainPtr(vm.Name)
 	if(dom==nil){
 		return(false)}
 	err := dom.Shutdown()
@@ -437,13 +437,13 @@ func (l *lvd)stop_resource(name string) bool {
 	dom.Free()
 	return(ret)}
 
-func (l *lvd)nuke_resource(name string) bool {
+func (l *lvd)Nuke_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
 	vm := config.GetVMbyName(&name)
 	if(vm==nil){
 		return(false)}
-	dom := l.getDomainPtr(vm.Name)
+	dom := l.GetDomainPtr(vm.Name)
 	if(dom==nil){
 		return(false)}
 	err := dom.Shutdown()
@@ -455,7 +455,7 @@ func (l *lvd)nuke_resource(name string) bool {
 	dom.Free()
 	return(ret)}
 
-func (l *lvd)kill_controller() bool {
+func (l *lvd)Kill_controller() bool {
 	l.lvdKill=true
 	time.Sleep(time.Millisecond * 1000)
 	//defer conn.Close()
@@ -465,11 +465,11 @@ func (l *lvd)kill_controller() bool {
 	lg.msg(fmt.Sprintf("DEBUG lvd.kill_controller returned %d",rc))
 	return(true)}
 	
-func (l *lvd)clean_resource(name string) bool {
+func (l *lvd)Clean_resource(name string) bool {
 	lg.msg("WARNING lvd.clean_controller IS A PLACEHOLDER FOR REAL METHOD")
 	return(true)}
 	
-func (l *lvd)migrate_resource(name string, dest_node string) bool {
+func (l *lvd)Migrate_resource(name string, dest_node string) bool {
 	lg.msg("WARNING lvd.migrate_controller IS A PLACEHOLDER FOR REAL METHOD")
 	return(true)}
 
