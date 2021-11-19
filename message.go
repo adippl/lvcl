@@ -29,9 +29,16 @@ const(
 	msgModBrain
 	msgModExchnHeartbeat
 	msgModBrainController
+	
 	rpcHeartbeat
+	brainRpcElectNominate=iota
+	brainRpcElectAsk
+	brainRpcAskForMasterNode
+	brainRpcHaveMasterNodeReply
+	brainRpcHaveMasterNodeReplyNil
+	brainRpcSendingStats
+	brianRpcSendingClusterResources
 	)
-
 
 type message struct{
 	SrcHost		string

@@ -62,10 +62,28 @@ func mainLoop(){
 		lg.msg(fmt.Sprintf("%d",i))
 		e.printHeartbeatStats()
 		b.PrintNodeHealth()
-		//lv.listDomains()
-		//lv.updateDomStates()
 //		if(i==20){
-//			close(lg.loggerIN)
-//			}
+//			close(lg.loggerIN)}
+		test_conf_rw(i)
+		//fmt.Println("coooore", config.GetField_string("Hostname"))
 		time.Sleep(time.Second)}
+	}
+
+func test_conf_rw(i int){
+	var b bool
+	fmt.Println("coooore", config.GetField_uint("VCpuMax"))
+	config.SetField_uint("VCpuMax", uint(i))
+	fmt.Println("coooore", config.GetField_uint("VCpuMax"))
+
+	fmt.Println("coooore", config.GetField_string("UUID"))
+	config.SetField_string("UUID", fmt.Sprintf("%d", i+10))
+	fmt.Println("coooore", config.GetField_string("UUID"))
+
+	if(i%2==0){
+		b=true
+	}else{
+		b=false}
+	fmt.Println("coooore", config.GetField_bool("DebugHeartbeat"))
+	config.SetField_bool("DebugHeartbeat", b)
+	fmt.Println("coooore", config.GetField_bool("DebugHeartbeat"))
 	}

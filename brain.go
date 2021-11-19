@@ -28,19 +28,10 @@ const(
 	//INTERNAL_config.ClusterTick = config.ClusterTickInterval 
 	)
 
-const(
+const (
 	HealthGreen=1
 	HealthOrange=2
 	HealthRed=5
-	)
-const(
-	brainRpcElectNominate=iota
-	brainRpcElectAsk
-	brainRpcAskForMasterNode
-	brainRpcHaveMasterNodeReply
-	brainRpcHaveMasterNodeReplyNil
-	brainRpcSendingStats
-	brianRpcSendingClusterResources
 	)
 
 type Brain struct{
@@ -366,3 +357,9 @@ func (b *Brain)resourceBalancer(){
 			// change resource states on nodes
 			}
 		config.ClusterTick_sleep()}}
+
+func (b *Brain)is_this_node_a_master() bool {
+	return b.isMaster }
+
+func (b *Brain)getMasterNodeName() *string {
+	return b.masterNode }

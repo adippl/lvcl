@@ -25,6 +25,8 @@ import "io/ioutil"
 import "crypto/sha256"
 import "io"
 import "time"
+import "sync"
+import "reflect"
 
 const( confDir="./" )
 const( confFile="cluster.json" )
@@ -42,6 +44,7 @@ type Conf struct {
 	Maintenance bool
 	Resources []cluster_resource
 	ResourceControllers map[string]bool
+	rwmux sync.RWMutex `json:"-"`
 	
 	VCpuMax uint
 	HwCpuMax uint
@@ -67,7 +70,7 @@ type Conf struct {
 	LogCombined string
 	
 	
-	DebugLevel int
+	DebugLevel uint
 	DebugNetwork bool
 	DebugLogger bool
 	DebugNoRemoteLogging bool
@@ -95,6 +98,8 @@ func confLoad(){
 		fmt.Println("ERR reading cluster.json")
 		os.Exit(10);}
 		
+	config.rwmux = sync.RWMutex{}
+	config.rwmux.Lock()
 	config.MyHostname,err=os.Hostname()
 	if(err != nil){
 		panic(err)}
@@ -115,8 +120,10 @@ func confLoad(){
 		
 	json.Unmarshal(raw,&config)
 	
+
 	loadAllVMfiles()
 	
+	config.rwmux.Unlock()
 	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
 	//dumpConfig()
 	}
@@ -254,3 +261,46 @@ func (c *Conf)_MyHostname()(hostname string){
 
 func (c *Conf)ClusterTick_sleep(){
 	time.Sleep( time.Duration(c.ClusterTick) * time.Millisecond )}
+
+func (c *Conf)GetField_uint(field string) (uint) {
+	c.rwmux.RLock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	c.rwmux.RUnlock()
+	return uint(f.Uint()) }
+
+func (c *Conf)SetField_uint(field string, value uint){
+	c.rwmux.Lock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	f.SetUint(uint64(value))
+	c.rwmux.Unlock()}
+
+func (c *Conf)GetField_string(field string) (string) {
+	c.rwmux.RLock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	c.rwmux.RUnlock()
+	return string(f.String()) }
+
+func (c *Conf)SetField_string(field string, value string){
+	c.rwmux.Lock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	f.SetString(value)
+	c.rwmux.Unlock()}
+
+func (c *Conf)GetField_bool(field string) (bool) {
+	c.rwmux.RLock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	c.rwmux.RUnlock()
+	return bool(f.Bool()) }
+
+func (c *Conf)SetField_bool(field string, value bool){
+	c.rwmux.Lock()
+	r := reflect.ValueOf(c)
+	f := reflect.Indirect(r).FieldByName(field)
+	f.SetBool(bool(value))
+	c.rwmux.Unlock()}
+

@@ -83,7 +83,6 @@ func (l *Logger)messageHandler(){
 		select{
 			//incoming messagess from other hosts
 			case m,exOk = <-l.ex_logIN:
-				fmt.Printf("DEBUG LOGGER received message %+v\n", m)
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
 				if m.logger_message_validate(){
@@ -130,7 +129,6 @@ func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 		m.Argc == 1 )}
  
 func (l *Logger)msg(arg string){
-	fmt.Println("MSG CALLED",arg)
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
 		return}
@@ -147,7 +145,7 @@ func (l *Logger)msg(arg string){
 func (l *Logger)msgERR(s string){
 	l.msg(fmt.Sprintf("ERR %s - %s", s))}
 
-func (l *Logger)msg_debug(s string, level int){
+func (l *Logger)msg_debug(s string, level uint){
 	if level <= config.DebugLevel {
 		l.msg(fmt.Sprintf("debug(level:%d) %s ", level, s))}}
 
