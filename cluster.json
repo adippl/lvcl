@@ -25,7 +25,7 @@
 			"HwMem": 0
 		},
 		{
-			"Hostname": "r320-1",
+			"Hostname": "r210II-3",
 			"NodeAddress": "10.0.6.16:6798",
 			"LibvirtAddress": "10.0.6.16",
 			"NodeState": 1,
@@ -55,20 +55,47 @@
 	"GlobMigrationTimeout": 120,
 	"GlobLiveMigrationBlock": false,
 	"Maintenance": true,
+	"Resources": [
+		{
+			"ResourceController_name": "libvirt",
+			"ResourceController_id": 0,
+			"Name": "",
+			"Id": 0,
+			"State": 0,
+			"Resource": {
+				"Name": "gh-test",
+				"DomainDefinition": "tests struct embedded in main cluster.conf",
+				"VCpus": 1,
+				"HwCpus": 0,
+				"VMem": 512,
+				"HwMem": 512,
+				"StorageClass": 0,
+				"MigrationTimeout": 180,
+				"MigrateLive": true
+			}
+		}
+	],
+	"ResourceControllers": {
+		"libvirt": true
+	},
 	"VCpuMax": 8,
 	"HwCpuMax": 8,
 	"VMemMax": 8192,
 	"HwMemMax": 8192,
 	"HeartbeatInterval": 1000,
-	"ClusterTickInterval": 100,
+	"ClusterTick": 1000,
+	"ClusterTickInterval": 250,
 	"NodeHealthCheckInterval": 1000,
 	"ReconnectLoopDelay": 1000,
 	"HeartbeatTimeFormat": "2006-01-02 15:04:05",
 	"TCPport": "6798",
 	"UnixSocket": "lvcl.sock",
+	"ConfHashCheck": true,
 	"LogLocal": "loc.log",
 	"LogCombined": "cmb.log",
+	"DebugLevel": 5,
 	"DebugNetwork": false,
+	"DebugLogger": false,
 	"DebugNoRemoteLogging": false,
 	"DebugRawLogging": false,
 	"DebugHeartbeat": false,

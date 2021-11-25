@@ -88,14 +88,19 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		if b.resCtl_lvd == nil {
 			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
 		
-	go b.updateNodeHealth()
 	go b.messageHandler()
+	lg.msg_debug(3, "brain started messageHandler()")
+	go b.updateNodeHealth()
+	lg.msg_debug(3, "brain started updateNodeHealth()")
 	go b.getMasterNode()
+	lg.msg_debug(3, "brain started getMasterNode()")
 //	go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){
-	b.killBrain=true}
+	b.killBrain=true
+	if config.DebugLevel>2 {
+		fmt.Println("Debug, KillBrain()")}}
 
 func  (b *Brain)messageHandler(){
 	var m message
@@ -106,7 +111,7 @@ func  (b *Brain)messageHandler(){
 		m = <-b.ex_brn
 		//if config.DebugNetwork{
 		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
-		lg.msg_debug(fmt.Sprintf("DEBUG BRAIN received message %+v\n", m),3)
+		lg.msg_debug(1, fmt.Sprintf("DEBUG BRAIN received message %+v\n", m))
 		
 		if m.RpcFunc == brainRpcAskForMasterNode && m.SrcHost != config._MyHostname() {
 			b.replyToAskForMasterNode(&m)
@@ -159,7 +164,8 @@ func (b *Brain)vote(){
 
 func (b *Brain)countVotes(){
 	if b.voteCounterExists {
-		lg.msg_debug("received ask for vote, but vote coroutine is already running",1)
+		lg.msg_debug(1, 
+			"received ask for vote, but vote coroutine is already running")
 		return}
 	b.voteCounterExists = true
 	config.ClusterTick_sleep()

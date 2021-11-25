@@ -49,7 +49,6 @@ type Exchange struct{
 	}
 
 
-
 func NewExchange(	a_brn_ex <-chan message,
 					a_ex_brn chan<- message,
 					a_log_ex <-chan message,
@@ -71,16 +70,19 @@ func NewExchange(	a_brn_ex <-chan message,
 		confFileHash:	config.GetField_string("ConfFileHash"),
 		confHashCheck:	config.GetField_bool("ConfHashCheck"),
 		}
-	
+	// don't log before forwarder is started
+	go e.forwarder()
+	lg.msg_debug(3, "exchange launched forwarder()")
 	go e.initListen()
 	go e.reconnectLoop()
-	go e.forwarder()
 	go e.sorter()
 	go e.heartbeatSender()
 	go e.updateNodeHealthDelta()
+	lg.msg_debug(1, "exchange launched all it's goroutines")
 	return &e}
 
 func (e *Exchange)updateNodeHealthDelta(){
+	lg.msg_debug(3, "exchange launched updateNodeHealthDelta()")
 	if e.killExchange {
 		return}
 	for{
@@ -90,17 +92,10 @@ func (e *Exchange)updateNodeHealthDelta(){
 			dt := time.Now().Sub(*v)
 			e.heartbeatDelta[k]=&dt}
 		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
-//		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}}
-
-//func (e *Exchange)tcpHandleListen(c net.Conn) *eclient{ //TODO move into initListen
-//	eclient := &eclient{
-//		incoming:	e.recQueue,
-//		conn:		c,}
-//	go eclient.listen()
-//	return eclient}
 
 func (e *Exchange)initListen(){
 	var err error
+	lg.msg_debug(3, "exchange launched initListen()")
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport)
 	if err != nil {
 		lg.msg(fmt.Sprintf("ERR, net.Listen , %s",err))}
@@ -122,13 +117,14 @@ func (e *Exchange)initListen(){
 		go ec.listen()}}
 
 func (e *Exchange)reconnectLoop(){
+	lg.msg_debug(3, "exchange launched reconnectLoop()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
 		e.rwmux.RLock()
 		for _,n := range *e.nodeList{
 			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
-				lg.msg_debug(fmt.Sprintf("attempting to recconect to host %s",n.Hostname),1)
+				lg.msg_debug(1, fmt.Sprintf("attempting to recconect to host %s",n.Hostname))
 				go e.startConn(n)}}
 		e.rwmux.RUnlock()
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
@@ -225,6 +221,7 @@ func (m *message)_check_pass_message_to_logger() bool {
 
 func (e *Exchange)sorter(){
 	var m message
+	lg.msg_debug(3, "exchange launched sorter()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
@@ -235,8 +232,10 @@ func (e *Exchange)sorter(){
 		
 		// check if message comes with  
 		if ! e.verifyMessageConfigHash(&m) {
-			lg.msg_debug(fmt.Sprintf("exchange: validation config hash: %+v",m),1)
-			lg.msgERR(fmt.Sprintf("exchange: config hash failed on message from: %+v",m.SrcHost))
+			lg.msg_debug(1,
+				fmt.Sprintf("exchange: validation config hash: %+v", m))
+			lg.msgERR(fmt.Sprintf(
+				"exchange: config hash failed on message from: %+v",m.SrcHost))
 			continue}
 		
 		//pass Logger messages
@@ -258,7 +257,7 @@ func (e *Exchange)sorter(){
 				timeCopy := m.Time
 				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}
 			continue}
-		lg.msg_debug(fmt.Sprintf("exchange received message which failed all validation functions: %+v",m),1)}}
+		lg.msg_debug(1, fmt.Sprintf("exchange received message which failed all validation functions: %+v",m))}}
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
@@ -285,6 +284,7 @@ func (e *Exchange)dumpAllConnectedHosts(){
 func (e *Exchange)heartbeatSender(){
 	var m message
 	var t time.Time
+	lg.msg_debug(3, "exchange launched heartbeatSender()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
@@ -312,7 +312,30 @@ func (e *Exchange)printHeartbeatStats(){
 		fmt.Printf(" === END of Heartbeat info === \n\n")}}
 
 func (e *Exchange)KillExchange(){
-	e.killExchange=true}
+	var brnOp, logOp, locOp bool = false, false, false
+	e.killExchange=true
+	if config.DebugLevel>2 {
+		fmt.Println("Debug, KillExchange()")
+	//cleanup all channnels
+	close(e.loc_ex)
+	for{
+	select{
+		case _,brnOp = <-e.brn_ex:
+		case _,logOp = <-e.log_ex:
+		case _,locOp = <-e.loc_ex:
+		}
+		//placeholder
+		//close channel sending to specific module  
+		if ! brnOp {
+			close(e.ex_brn)}
+		if ! logOp {
+			close(e.ex_log)}
+		//if ! locOp {
+		//	close(e.ex_loc)}
+		//break if all channels are closed
+		if ( brnOp || logOp || locOp ) {
+			break
+		}}}}
 
 func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
 	return e.heartbeatLastMsg}

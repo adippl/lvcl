@@ -19,9 +19,27 @@
 package main
 
 //import "time"
-//import "fmt"
+import "fmt"
+import "strings"
+import "os"
 
 func main(){
-	setup()
-	//mainLoop()
-	}
+	var args0split []string
+	var progname string
+	
+	// get name of the program
+	fmt.Println("arg0", os.Args[0])
+	args0split = strings.Split(os.Args[0], "/")
+	progname = args0split[len(args0split)-1]
+	
+	if progname == "lvcl" {
+		fmt.Println("lvcl starting in daemon mode")
+		daemonSetup()
+		os.Exit(0)
+	}else if progname == "lvcl-client" {
+		//fmt.Println("lvcl started in client mode")
+		client()
+		os.Exit(0)
+	}else{
+		fmt.Fprintln(os.Stderr, "incorrect filename!")
+		os.Exit(1)}}

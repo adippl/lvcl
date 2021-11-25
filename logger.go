@@ -59,7 +59,9 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	return &l}
 
 func (l *Logger)KillLogger(){
-	l.killLogger=true}
+	l.killLogger=true
+	if config.DebugLevel>2 {
+		fmt.Println("Debug, KillLogger()")}}
 
 func (l *Logger)delLogger(){
 	fmt.Println("CLOSING LOGGER")
@@ -145,7 +147,7 @@ func (l *Logger)msg(arg string){
 func (l *Logger)msgERR(s string){
 	l.msg(fmt.Sprintf("ERR %s - %s", s))}
 
-func (l *Logger)msg_debug(s string, level uint){
+func (l *Logger)msg_debug(level uint, s string){
 	if level <= config.DebugLevel {
 		l.msg(fmt.Sprintf("debug(level:%d) %s ", level, s))}}
 

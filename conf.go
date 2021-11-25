@@ -78,6 +78,7 @@ type Conf struct {
 	DebugRawLogging bool
 	DebugHeartbeat bool
 	DebugLibvirtShowDomStates bool
+	debugRunOnAnyHost			bool
 	}
 
 var config Conf
@@ -100,7 +101,7 @@ func confLoad(){
 		os.Exit(10);}
 		
 	config.rwmux = sync.RWMutex{}
-	config.rwmux.Lock()
+	//config.rwmux.Lock()
 	config.MyHostname,err=os.Hostname()
 	if(err != nil){
 		panic(err)}
@@ -124,7 +125,7 @@ func confLoad(){
 
 	loadAllVMfiles()
 	
-	config.rwmux.Unlock()
+	//config.rwmux.Unlock()
 	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
 	//dumpConfig()
 	}
@@ -261,13 +262,14 @@ func writeExampleConfig(){
 		UnixSocket: "lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
-		DebugLevel: 1,
+		DebugLevel: 5,
 		DebugNetwork: false,
 		DebugLogger: false,
 		DebugNoRemoteLogging: false,
 		DebugRawLogging: false,
 		DebugHeartbeat: false,
 		DebugLibvirtShowDomStates: true,
+		debugRunOnAnyHost: true,
 		}
 	
 	confser, err := json.MarshalIndent(testConfig,"","	")

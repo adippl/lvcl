@@ -29,6 +29,7 @@ const(
 	msgModBrain
 	msgModExchnHeartbeat
 	msgModBrainController
+	msgModClient
 	
 	rpcHeartbeat
 	brainRpcElectNominate=iota
@@ -46,6 +47,7 @@ type message struct{
 	DestHost	string
 	SrcMod		uint
 	DestMod		uint
+	ClientID	uint
 	ConfHash	string
 	Time		time.Time
 	RpcFunc		uint

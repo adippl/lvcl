@@ -21,11 +21,13 @@ import "fmt"
 import "time"
 import "os"
 
-func setup(){
+func daemonSetup(){
 	writeExampleConfig()
 	confLoad()
-	if config.GetNodebyHostname(&config.MyHostname) == nil {
-		fmt.Printf("CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", config.MyHostname)
+	if config.GetNodebyHostname(&config.MyHostname) == nil &&
+		config.GetField_bool("debugRunOnAnyHost") { //debug option
+		fmt.Fprintf(os.Stderr, "CURRENT HOST [%s] IS NOT IN CONFIG, EXITTING", 
+			config.MyHostname)
 		panic("WRONG HOSTNAME")}
 	
 	brain_exchange:=make(chan message)
@@ -42,8 +44,6 @@ func setup(){
 	
 
 	lg.msg("Starting lvcl")
-	fmt.Println("libvirt connection")
-	//lv = NewLVD(brainIN, lvdIn)
 	mainLoop()
 	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
