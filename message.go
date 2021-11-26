@@ -44,6 +44,9 @@ const(
 	exchangeNotifyAboutClient
 	exchangeNotifyClientDisconnect
 	exchangeSendClientID
+	clientAskAboutStatus
+	clientAskAboutStatusReply
+	clientPrintText
 	)
 
 type message struct{

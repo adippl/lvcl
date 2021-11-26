@@ -94,6 +94,15 @@ func confLoad(){
 		fmt.Println(err)
 		os.Exit(10)}
 	defer file.Close()
+	
+	var h=sha256.New()
+	if _,err:=io.Copy(h,file);err!=nil {
+		fmt.Println("ERR hashing cluster.json")}
+	config.ConfFileHash=fmt.Sprintf("%x",h.Sum(nil))
+	config.ConfFileHashRaw=h.Sum(nil)
+	file.Seek(0, io.SeekStart)
+	fmt.Println("cluster.json sha256 "+config.ConfFileHash)
+	
 	fmt.Println("reading cluster.json")	
 	raw, err := ioutil.ReadAll(file)
 	if err != nil {
@@ -114,19 +123,13 @@ func confLoad(){
 		os.Exit()}
 	 */
 	
-	var h=sha256.New()
-	if _,err:=io.Copy(h,file);err!=nil {
-		fmt.Println("ERR hashing cluster.json")}
-	config.ConfFileHash=fmt.Sprintf("%x",h.Sum(nil))
-	config.ConfFileHashRaw=h.Sum(nil)
-		
 	json.Unmarshal(raw,&config)
 	
-
+	
 	loadAllVMfiles()
 	
+	
 	//config.rwmux.Unlock()
-	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
 	//dumpConfig()
 	}
 
@@ -138,6 +141,7 @@ func loadAllVMfiles(){
 		VMReadFile("domains/"+f.Name())}}
 
 func (c *Conf)dumpConfig(){
+	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
 	raw, _ := json.MarshalIndent(&config,"","	")
 	fmt.Println(string(raw))
 	}

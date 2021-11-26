@@ -42,6 +42,8 @@ func (ec *eclient)listen(){
 			fmt.Printf("conn Listener received %+v\n", m)}
 		if err == nil{
 			if ec.conn != nil{
+//DEBUG
+if ec.usock { fmt.Printf("U_S_O_C_K %+v", m)}
 				ec.incoming <- m}
 		}else{
 			break}}
