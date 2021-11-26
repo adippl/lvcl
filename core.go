@@ -47,12 +47,11 @@ func daemonSetup(){
 	mainLoop()
 	e.printHeartbeatStats()
 	e.dumpAllConnectedHosts()
+	os.Exit(0)
 	b.KillBrain()
 	lg.KillLogger()
 	e.KillExchange()
-	//lg.delLogger()
 	fmt.Println("program should've closed all files and connections by now")
-	//time.Sleep(time.Second*10)
 	os.Exit(0)
 	}
 
@@ -62,10 +61,6 @@ func mainLoop(){
 		lg.msg(fmt.Sprintf("%d",i))
 		e.printHeartbeatStats()
 		b.PrintNodeHealth()
-//		if(i==20){
-//			close(lg.loggerIN)}
-		//test_conf_rw(i)
-		//fmt.Println("coooore", config.GetField_string("Hostname"))
 		time.Sleep(time.Second)}
 	}
 

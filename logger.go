@@ -59,18 +59,29 @@ func NewLoger(lIN chan message, exIN chan<- message) *Logger{
 	return &l}
 
 func (l *Logger)KillLogger(){
+	var ex_logOp, loc_logOp bool
+//	var ex_logK, loc_logK bool = false, false
+	if l.killLogger {return}
 	l.killLogger=true
+	time.Sleep(time.Millisecond * time.Duration(100))
 	if config.DebugLevel>2 {
-		fmt.Println("Debug, KillLogger()")}}
-
-func (l *Logger)delLogger(){
-	fmt.Println("CLOSING LOGGER")
-	l.killLogger=true
+		fmt.Println("Debug, KillLogger()")}
 	l.logLocal.Close()
 	l.logCombined.Close()
-	close(l.localLoggerIN)
-	l=nil}
-	
+	//close(l.localLoggerIN)
+	fmt.Println(l.log_ex)
+	close(l.log_ex)
+	//close(l.localLoggerIN)
+	for{
+		select{
+			case _,ex_logOp = <-l.ex_logIN:
+			case _,loc_logOp = <-l.localLoggerIN:
+			}
+		//break if all channels are closed
+		if ! ( ex_logOp || loc_logOp ) {
+			break
+		}}}
+
 func (l *Logger)messageHandler(){
 	var newS string
 	var m message
@@ -80,16 +91,21 @@ func (l *Logger)messageHandler(){
 	loc_logOk = true
 	for {
 		m=message{}
-		if l.killLogger == true{
+		if l.killLogger {
 			return}
 		select{
 			//incoming messagess from other hosts
 			case m,exOk = <-l.ex_logIN:
+				//skip if received closing message
+				if ! exOk {
+					break}
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
 				if m.logger_message_validate(){
-					newS = fmt.Sprintf("[src: %s][time: %s] %s \n", m.SrcHost, m.Time.String(), m.Argv[0])
-					if config.DebugRawLogging {//debug option, separate in overwriting existing string
+					newS = fmt.Sprintf("[src: %s][time: %s] %s \n",
+						m.SrcHost, m.Time.String(), m.Argv[0])
+					//debug option, separate in overwriting existing string
+					if config.DebugRawLogging {
 						newS = fmt.Sprintf("%+v\n", m)}
 					_,err := l.logCombined.WriteString(newS)
 					if err != nil {
@@ -99,26 +115,34 @@ func (l *Logger)messageHandler(){
 					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
 			//incoming messages from local
 			case m,loc_logOk = <-l.localLoggerIN:
-				//fmt.Printf("local_print [src: %s][time: %s] %s \n", m.SrcHost, m.Time, m.Argv[0])
-				s := fmt.Sprintf("[src: %s][time: %s] %s \n", config.MyHostname, m.Time, m.Argv[0])
+				//skip if received closing message
+				if ! loc_logOk {
+					break}
+				s := fmt.Sprintf("[src: %s][time: %s] %s \n",
+					config.MyHostname, m.Time, m.Argv[0])
 				fmt.Println("local_print",s)
 				//write to local log
 				_,err = l.logLocal.WriteString(s)
 				if err != nil{
-					fmt.Println(err)
-					panic(err)}
+					//don't pannic if file is closed because of killed logger
+					if lg.killLogger {
+						fmt.Println(err)
+					}else{
+						panic(err)}}
 				//write to combined log
 				_,err = l.logCombined.WriteString(s)
 				if err != nil{
-					fmt.Println(err)
-					panic(err)}
-							}
+					//don't pannic if file is closed because of killed logger
+					if lg.killLogger {
+						fmt.Println(err)
+					}else{
+						panic(err)}}}
 		if(config.DebugLogger){
 			fmt.Printf("\n\nD_E_B_U_G ex_log exOk =%b\n\n", exOk)
 			fmt.Printf("\n\nD_E_B_U_G ex_log loc_logOk =%b\n\n", loc_logOk)}
 		if !( exOk || loc_logOk ) {
 			lg.msg("both of the logger channels are closed, deleting logger")
-			l.delLogger()
+			l.KillLogger()
 			return}
 			}}
 
@@ -133,6 +157,9 @@ func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 func (l *Logger)msg(arg string){
 	if l.setupDone == false {
 		fmt.Printf("WARNING Logging before log setup %s\n", arg)
+		return}
+	if l.killLogger {
+		fmt.Printf("Warning logging with killed logger | %s\n", arg)
 		return}
 	lmsg := msgFormat(&arg)
 	lmsg.DestHost=config._MyHostname()

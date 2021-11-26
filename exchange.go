@@ -78,7 +78,7 @@ func NewExchange(	a_brn_ex <-chan message,
 	go e.sorter()
 	go e.heartbeatSender()
 	go e.updateNodeHealthDelta()
-	lg.msg_debug(1, "exchange launched all it's goroutines")
+	lg.msg_debug(2, "exchange launched all it's goroutines")
 	return &e}
 
 func (e *Exchange)updateNodeHealthDelta(){
@@ -121,10 +121,15 @@ func (e *Exchange)reconnectLoop(){
 	for{
 		if e.killExchange { //ugly solution
 			return}
+		fmt.Println("e.killExchange ", e.killExchange)
 		e.rwmux.RLock()
 		for _,n := range *e.nodeList{
-			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
-				lg.msg_debug(1, fmt.Sprintf("attempting to recconect to host %s",n.Hostname))
+			if e.outgoing[n.Hostname] == nil && 
+				n.Hostname != config.MyHostname {
+				
+				lg.msg_debug(1, fmt.Sprintf(
+					"attempting to recconect to host %s",n.Hostname))
+				
 				go e.startConn(n)}}
 		e.rwmux.RUnlock()
 		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
@@ -180,7 +185,10 @@ func (e *Exchange)forwarder(){
 				m=&temp_m
 			}
 		if !( brnOk && logOk && locOk ) { 
-			fmt.Printf("\nbrnOk=%b logOk=%b locOk=%b\n", brnOk, logOk, locOk)}
+			fmt.Printf("\nWARNING, all exchange channels are closed brnOk=%b logOk=%b locOk=%b\n", brnOk, logOk, locOk)
+			fmt.Printf("channels closedr Killing exchange\n")
+			e.KillExchange()
+			return}
 		
 		e.markMessageWithConfigHash(m)
 		
@@ -221,12 +229,16 @@ func (m *message)_check_pass_message_to_logger() bool {
 
 func (e *Exchange)sorter(){
 	var m message
+	var recOpen bool
 	lg.msg_debug(3, "exchange launched sorter()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
 		m = message{}
-		m = <-e.recQueue
+		m,recOpen = <-e.recQueue
+		if ! recOpen {
+			//channel closed, return 
+			return}
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG SORTER received %+v\n", m)}
 		
@@ -313,29 +325,37 @@ func (e *Exchange)printHeartbeatStats(){
 
 func (e *Exchange)KillExchange(){
 	var brnOp, logOp, locOp bool = false, false, false
+	//var brnK, logK, locK bool = false, false, false
+	var brnK, logK bool = false, false
+	if e.killExchange {
+		return}
+	fmt.Println("KillExchange() starts")
 	e.killExchange=true
-	if config.DebugLevel>2 {
-		fmt.Println("Debug, KillExchange()")
+	time.Sleep(time.Millisecond * time.Duration(100))
+//	if config.DebugLevel>2 {
+//		fmt.Println("-=-=-=-=-=-=-=- Debug, KillExchange()")}
 	//cleanup all channnels
-	close(e.loc_ex)
+
+	close(e.recQueue)
 	for{
-	select{
+		select{
 		case _,brnOp = <-e.brn_ex:
+			if ! brnOp && ! brnK {
+				fmt.Println(e.ex_brn)
+				//fmt.Println(e.brn_ex)
+				brnK=true
+				close(e.ex_brn)}
 		case _,logOp = <-e.log_ex:
-		case _,locOp = <-e.loc_ex:
+			if ! logOp && ! logK {
+				fmt.Println(e.ex_log)
+				//fmt.Println(e.log_ex)
+				logK=true
+				close(e.ex_log)}
+		//case _,locOp = <-e.loc_ex:
 		}
-		//placeholder
-		//close channel sending to specific module  
-		if ! brnOp {
-			close(e.ex_brn)}
-		if ! logOp {
-			close(e.ex_log)}
-		//if ! locOp {
-		//	close(e.ex_loc)}
-		//break if all channels are closed
-		if ( brnOp || logOp || locOp ) {
+		if ! ( brnOp || logOp || locOp ) {
 			break
-		}}}}
+		}}}
 
 func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
 	return e.heartbeatLastMsg}
