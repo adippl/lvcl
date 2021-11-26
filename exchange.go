@@ -258,13 +258,6 @@ func (e *Exchange)forwarder(){
 					e.outgoing[n.Hostname].outgoing <- *m }
 					e.rwmux.RUnlock()}}}}
 
-func (m *message)_check_pass_message_to_logger() bool {
-	return 	( m.SrcHost != config._MyHostname() &&
-				m.SrcMod == msgModLoggr &&
-				m.DestMod == msgModLoggr &&
-				m.RpcFunc == 1 &&
-				m.Argc == 1 )}
-
 func (e *Exchange)sorter(){
 	var m message
 	var recOpen bool
@@ -281,30 +274,25 @@ func (e *Exchange)sorter(){
 			fmt.Printf("DEBUG SORTER received %+v\n", m)}
 		
 		// check if message comes with  
-		if ! e.verifyMessageConfigHash(&m) {
+		if ! m.verifyMessageConfigHash() {
 			lg.msg_debug(1,
 				fmt.Sprintf("exchange: validation config hash: %+v", m))
 			lg.msgERR(fmt.Sprintf(
 				"exchange: config hash failed on message from: %+v",m.SrcHost))
 			continue}
-
+		
 		//handle messages about connected unix socket clients
-		if e. msg_handler_cluster_client_disconnect(&m) {continue}
-		if e. msg_handler_cluster_client(&m) {continue}
-		if e. msg_handler_cluster_ask_about_client_node(&m) {continue}
+		if e.msg_handler_cluster_client_disconnect(&m) {continue}
+		if e.msg_handler_cluster_client(&m) {continue}
+		if e.msg_handler_cluster_ask_about_client_node(&m) {continue}
+		//forward client message to "__master__"
+		if e.msg_handle_client_msg_to_master(&m) {continue}
 		
 		//pass Logger messages
-		if	m.logger_message_validate() {
-			if config.DebugNetwork {
-				fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
-			e.ex_log <- m;
-			continue}
+		if e.msg_handler_forward_to_logger(&m) {continue}
 			
-		if	m.validate_Brain() {
-			if config.DebugNetwork {
-				fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
-			e.ex_brn <- m;
-			continue}
+		//pass Brain messages
+		if e.msg_handler_forward_to_brain(&m) {continue}
 		
 		//update heartbeat values from heartbeat messages
 		if m.validate_Heartbeat() {
@@ -322,12 +310,6 @@ func (m *message)validate_Heartbeat() bool {
 		m.SrcMod == msgModExchnHeartbeat &&
 		m.DestMod == msgModExchnHeartbeat &&
 		m.RpcFunc == rpcHeartbeat )}
-
-func (m *message)validate_Brain() bool {
-	return (
-	m.SrcHost != config.MyHostname &&
-	m.SrcMod == msgModBrain &&
-	m.DestMod == msgModBrain )}
 
 func (e *Exchange)dumpAllConnectedHosts(){
 	e.rwmux.RLock()
@@ -401,17 +383,36 @@ func (m *message)verifyMessageConfigHash() bool {
 	}else{
 		return false}}
 
-func (e *Exchange)verifyMessageConfigHash(m *message) bool {
-	if ! e.confHashCheck {
-		return true }
-	if e.confFileHash == m.ConfHash {
-		return true
-	}else{
-		return false }}
+//func (e *Exchange)verifyMessageConfigHash(m *message) bool {
+//	if ! e.confHashCheck {
+//		return true }
+//	if e.confFileHash == m.ConfHash {
+//		return true
+//	}else{
+//		return false }}
 
 func (e *Exchange)markMessageWithConfigHash(m *message){
 	if e.confHashCheck {
 		m.ConfHash = e.confFileHash }}
+
+func (e *Exchange)msg_handler_forward_to_brain(m *message) bool {
+	if	m.SrcHost != config.MyHostname &&
+		m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain {
+		
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
+		e.ex_brn <- *m;
+		return true}
+	return false}
+
+func (e *Exchange)msg_handler_forward_to_logger(m *message) bool {
+	if	m.logger_message_validate() {
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG SORTER passed to logger %+v\n", m)}
+		e.ex_log <- *m;
+		return true}
+	return false}
 
 func (ec *eclient)sendUsockClientID(id uint){
 		var t time.Time = time.Now()
@@ -511,3 +512,27 @@ func (e *Exchange)msg_handler_cluster_ask_about_client_node(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
+	var masterNode string
+	if	m.SrcMod == msgModClient &&
+		m.DestHost == "__master__"{
+		if temp := b.getMasterNodeName(); temp == nil {
+			// cluster has no master
+			lg.msg_debug(2, "couldn't forward message to master, cluster has no master")
+		}else{
+			// cluster has a master
+			masterNode = *temp}
+			
+		if config._MyHostname() == masterNode {
+			e.ex_brn <- *m
+			return true}
+		e.rwmux.RLock()
+		if masterNode != config._MyHostname() &&
+			e.outgoing[masterNode] != nil {
+			if config.DebugNetwork {
+				fmt.Printf("DEBUG forwarder pushing to %s  %+v\n",
+					masterNode, m)}
+			e.outgoing[masterNode].outgoing <- *m }
+			e.rwmux.RUnlock()
+			return true }
+	return false}
