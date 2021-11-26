@@ -211,12 +211,8 @@ func (e *Exchange)forwarder(){
 			for _,n := range config.Nodes{
 				e.rwmux.RLock()
 				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
-					//fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)
 					if config.DebugNetwork {
 						fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)}
-					////making sure one more time, (it could've changed during debug write to console)
-					//if e.outgoing[n.Hostname] != nil {
-					//	e.outgoing[n.Hostname].outgoing <- *m }}
 					e.outgoing[n.Hostname].outgoing <- *m }
 					e.rwmux.RUnlock()}}}}
 
@@ -325,30 +321,22 @@ func (e *Exchange)printHeartbeatStats(){
 
 func (e *Exchange)KillExchange(){
 	var brnOp, logOp, locOp bool = false, false, false
-	//var brnK, logK, locK bool = false, false, false
 	var brnK, logK bool = false, false
 	if e.killExchange {
 		return}
 	fmt.Println("KillExchange() starts")
 	e.killExchange=true
 	time.Sleep(time.Millisecond * time.Duration(100))
-//	if config.DebugLevel>2 {
-//		fmt.Println("-=-=-=-=-=-=-=- Debug, KillExchange()")}
-	//cleanup all channnels
 
 	close(e.recQueue)
 	for{
 		select{
 		case _,brnOp = <-e.brn_ex:
 			if ! brnOp && ! brnK {
-				fmt.Println(e.ex_brn)
-				//fmt.Println(e.brn_ex)
 				brnK=true
 				close(e.ex_brn)}
 		case _,logOp = <-e.log_ex:
 			if ! logOp && ! logK {
-				fmt.Println(e.ex_log)
-				//fmt.Println(e.log_ex)
 				logK=true
 				close(e.ex_log)}
 		//case _,locOp = <-e.loc_ex:
