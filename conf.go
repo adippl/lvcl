@@ -259,7 +259,7 @@ func writeExampleConfig(){
 		ReconnectLoopDelay: 1000,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
-		UnixSocket: "lvcl.sock",
+		UnixSocket: "./lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DebugLevel: 5,

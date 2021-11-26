@@ -21,6 +21,7 @@ import "net"
 import "fmt"
 import "time"
 import "sync"
+import "math/rand"
 
 var e *Exchange
 
@@ -28,8 +29,10 @@ type Exchange struct{
 	nodeList	*[]Node
 	outgoing		map[string]*eclient
 	incoming		map[string]*eclient
+	usocks			map[string]*eclient
 	listenTCP	net.Listener
 	listenUnix	net.Listener
+	clientMap		map[string]string
 	
 	heartbeatLastMsg		map[string]*time.Time
 	heartbeatDelta		map[string]*time.Duration
@@ -43,6 +46,7 @@ type Exchange struct{
 	
 	killExchange	bool // ugly solution
 	rwmux			sync.RWMutex
+	rwmuxUSock		sync.RWMutex
 	
 	confFileHash string `json:"-"`
 	confHashCheck	bool `json:"-"` 
@@ -59,6 +63,7 @@ func NewExchange(	a_brn_ex <-chan message,
 		incoming:		make(map[string]*eclient),
 		heartbeatLastMsg:	make(map[string]*time.Time),
 		heartbeatDelta:	make(map[string]*time.Duration),
+		clientMap:		make(map[string]string),
 		killExchange:	false,
 		recQueue:		make(chan message),
 		loc_ex:			make(chan message),
@@ -67,13 +72,15 @@ func NewExchange(	a_brn_ex <-chan message,
 		log_ex:			a_log_ex,
 		ex_log:			a_ex_log,
 		rwmux:			sync.RWMutex{},
+		rwmuxUSock:		sync.RWMutex{},
 		confFileHash:	config.GetField_string("ConfFileHash"),
 		confHashCheck:	config.GetField_bool("ConfHashCheck"),
 		}
 	// don't log before forwarder is started
 	go e.forwarder()
 	lg.msg_debug(3, "exchange launched forwarder()")
-	go e.initListen()
+	go e.initListenTCP()
+	go e.initListenUnix()
 	go e.reconnectLoop()
 	go e.sorter()
 	go e.heartbeatSender()
@@ -93,18 +100,19 @@ func (e *Exchange)updateNodeHealthDelta(){
 			e.heartbeatDelta[k]=&dt}
 		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
 
-func (e *Exchange)initListen(){
+func (e *Exchange)initListenTCP(){
 	var err error
-	lg.msg_debug(3, "exchange launched initListen()")
+	lg.msg_debug(3, "exchange launched initListenTCP()")
 	e.listenTCP, err = net.Listen("tcp", ":" + config.TCPport)
 	if err != nil {
-		lg.msg(fmt.Sprintf("ERR, net.Listen , %s",err))}
+		lg.err("ERR, Couldn't open TCP Socket",err)
+		panic(err)}
 	for{
 		if e.killExchange { //ugly solution
 			return}
 		conn,err := e.listenTCP.Accept()
 		if err != nil {
-			lg.msg(fmt.Sprintf("ERR, net.Listener.Accept() , %s",err))}
+			lg.err("ERR, net.Listener.Accept() ",err)}
 		
 		raddr := conn.RemoteAddr().String()
 		laddr := conn.LocalAddr().String()
@@ -116,12 +124,51 @@ func (e *Exchange)initListen(){
 			conn:		conn,}
 		go ec.listen()}}
 
+func (e *Exchange)initListenUnix(){
+	var err error
+	var sockId uint
+	var s_usockID string
+	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
+	if err != nil {
+		lg.err("ERR, couldn't open Unix Socket",err)
+		panic(err)}
+	for{
+		if e.killExchange { //ugly solution
+			return}
+		conn,err := e.listenUnix.Accept()
+		if err != nil {
+			lg.err("ERR, net.Listener.Accept() ",err)}
+		sockId = uint(rand.Uint32())
+		s_usockID = fmt.Sprintf("usock_%d", sockId)
+		lg.msg_debug(1, fmt.Sprintf(
+			"Received connection to Unix Socket, asigning sock id=%d", sockId))
+		
+		ec := &eclient{
+			usock:		true,
+			hostname:	s_usockID,
+			incoming:	e.recQueue,
+			outgoing:	make(chan message),
+			exch:		e,
+			conn:		conn,}
+		go ec.listen()
+		go ec.forward()
+		ec.sendUsockClientID(sockId)
+		//mutex
+		e.rwmux.Lock()
+		e.outgoing[ec.hostname]=ec
+		e.clientMap[s_usockID]=config._MyHostname()
+		e.rwmux.Unlock()
+		//mutex
+		e.notifyClusterAboutClient(s_usockID, config._MyHostname())
+		}
+	}
+
 func (e *Exchange)reconnectLoop(){
 	lg.msg_debug(3, "exchange launched reconnectLoop()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
-		fmt.Println("e.killExchange ", e.killExchange)
+		//fmt.Println("e.killExchange ", e.killExchange)
 		e.rwmux.RLock()
 		for _,n := range *e.nodeList{
 			if e.outgoing[n.Hostname] == nil && 
@@ -132,7 +179,8 @@ func (e *Exchange)reconnectLoop(){
 				
 				go e.startConn(n)}}
 		e.rwmux.RUnlock()
-		time.Sleep(time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
+		time.Sleep(
+			time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
 
 func (e *Exchange)startConn(n Node){	//TODO connect to eclient
@@ -157,12 +205,6 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 	e.outgoing[n.Hostname]=&ec
 	e.rwmux.Unlock()
 	}
-
-func (e *Exchange)initListenUnix(){
-	var err error
-	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
-	if err != nil {
-		lg.msg(fmt.Sprintf("ERR, net.Listen %s",err))}}
 
 func (e *Exchange)forwarder(){
 	var m *message
@@ -245,6 +287,11 @@ func (e *Exchange)sorter(){
 			lg.msgERR(fmt.Sprintf(
 				"exchange: config hash failed on message from: %+v",m.SrcHost))
 			continue}
+
+		//handle messages about connected unix socket clients
+		if e. msg_handler_cluster_client_disconnect(&m) {continue}
+		if e. msg_handler_cluster_client(&m) {continue}
+		if e. msg_handler_cluster_ask_about_client_node(&m) {continue}
 		
 		//pass Logger messages
 		if	m.logger_message_validate() {
@@ -365,3 +412,102 @@ func (e *Exchange)verifyMessageConfigHash(m *message) bool {
 func (e *Exchange)markMessageWithConfigHash(m *message){
 	if e.confHashCheck {
 		m.ConfHash = e.confFileHash }}
+
+func (ec *eclient)sendUsockClientID(id uint){
+		var t time.Time = time.Now()
+		m := message{
+			SrcHost:	config._MyHostname(),
+			DestHost:	"__new_client__",
+			SrcMod:		msgModExchn,
+			DestMod:	msgModClient,
+			RpcFunc:	exchangeSendClientID,
+			Time:		t,
+			Argc:		1,
+			Argv:		[]string{ec.hostname},
+			custom1:	id,
+			}
+		ec.outgoing <- m}
+
+func (e *Exchange)notifyClusterAboutClient(id string, hostname string){
+		var t time.Time = time.Now()
+		m := message{
+			SrcHost:	hostname,
+			DestHost:	"__everyone__",
+			SrcMod:		msgModExchn,
+			DestMod:	msgModExchn,
+			RpcFunc:	exchangeNotifyAboutClient,
+			Time:		t,
+			Argc:		2,
+			Argv:		[]string{id,hostname},
+			}
+		ec.outgoing <- m}
+
+func (e *Exchange)msg_handler_cluster_client(m *message) bool {
+	if	m.RpcFunc == exchangeNotifyAboutClient &&
+		config.CheckIfNodeExists(&m.SrcHost) &&
+		m.Argc == 2 &&
+		len(m.Argv) == 2 {
+		
+		//maybe add mutex
+		e.clientMap[m.Argv[0]] = m.Argv[1]
+		return true}
+	return false}
+
+
+func (e *Exchange)notifyClusterAboutClientDisconnect(id string){
+		var t time.Time = time.Now()
+		var l_hostname string = config._MyHostname()
+		m := message{
+			SrcHost:	l_hostname,
+			DestHost:	"__everyone__",
+			SrcMod:		msgModExchn,
+			DestMod:	msgModExchn,
+			RpcFunc:	exchangeNotifyClientDisconnect,
+			Time:		t,
+			Argc:		2,
+			Argv:		[]string{id,l_hostname},
+			}
+		e.loc_ex <- m}
+
+func (e *Exchange)msg_handler_cluster_client_disconnect(m *message) bool {
+	if	m.RpcFunc == exchangeNotifyClientDisconnect &&
+		config.CheckIfNodeExists(&m.SrcHost) &&
+		m.Argc == 2 &&
+		len(m.Argv) == 2 {
+		
+		//maybe add mutex
+		delete(e.clientMap, m.Argv[0])
+		return true}
+	return false}
+
+
+func (e *Exchange)askClusterAboutClientNode(id string){
+		var t time.Time = time.Now()
+		var l_hostname string = config._MyHostname()
+		m := message{
+			SrcHost:	l_hostname,
+			DestHost:	"__everyone__",
+			SrcMod:		msgModExchn,
+			DestMod:	msgModExchn,
+			RpcFunc:	exchangeAskAboutClientNode,
+			Time:		t,
+			Argc:		1,
+			Argv:		[]string{id},
+			}
+		e.loc_ex <- m}
+
+func (e *Exchange)msg_handler_cluster_ask_about_client_node(m *message) bool {
+	var clientNodeName string
+	var ok bool
+	if	m.RpcFunc == exchangeAskAboutClientNode &&
+		config.CheckIfNodeExists(&m.SrcHost) &&
+		m.Argc == 2 &&
+		len(m.Argv) == 2 {
+		
+		//maybe add mutex
+		if clientNodeName, ok = e.clientMap[m.Argv[0]]; ok {
+			//client found in map, sending reply
+			e.notifyClusterAboutClient(m.Argv[0], clientNodeName)}
+		return true}
+	return false}
+

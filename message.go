@@ -32,7 +32,7 @@ const(
 	msgModClient
 	
 	rpcHeartbeat
-	brainRpcElectNominate=iota
+	brainRpcElectNominate
 	brainRpcElectAsk
 	brainRpcAskForMasterNode
 	brainRpcHaveMasterNodeReply
@@ -40,6 +40,10 @@ const(
 	brainRpcSendingStats
 	brianRpcSendingClusterResources
 	brianMasterSendUpdatedResources
+	exchangeAskAboutClientNode
+	exchangeNotifyAboutClient
+	exchangeNotifyClientDisconnect
+	exchangeSendClientID
 	)
 
 type message struct{

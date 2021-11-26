@@ -23,6 +23,7 @@ import "fmt"
 
 type eclient struct{
 	originLocal	bool
+	usock		bool
 	hostname	string
 	outgoing	chan message
 	incoming	chan message
@@ -47,6 +48,12 @@ func (ec *eclient)listen(){
 	ec.conn.Close()
 	if ec.conn != nil{
 		ec.conn = nil}
+	//delete itself from the map if running usock
+	if ec.usock {
+		//ec.exch.outgoing[ec.hostname]=nil}
+		//delete because map usock keys are not reused
+		ec.exch.notifyClusterAboutClientDisconnect(ec.hostname)
+		delete(ec.exch.outgoing, ec.hostname)}
 	ec = nil
 	lg.err("eclient Decoder ", err)}
 
@@ -68,6 +75,10 @@ func (ec *eclient)forward(){
 		ec.conn = nil}
 	//lock exchange writing mutex
 	//ec.exch.rwmux.Lock()
+	//if ! ec.usock {
+	//	ec.exch.outgoing[ec.hostname]=nil
+	//}else{
+	//	ec.exch.outgoing[ec.hostname]=nil
 	ec.exch.outgoing[ec.hostname]=nil
 	//unlock exchange writing mutex 
 	//ec.exch.rwmux.Unlock()
