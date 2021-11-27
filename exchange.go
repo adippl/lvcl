@@ -429,18 +429,22 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 	if	m.SrcMod == msgModLoggr &&
 		m.DestMod == msgModClient {
 		
+		e.rwmuxUSock.RLock()
 		if len(e.cliLogTap) == 0 {
-			lg.msg_debug(2, "no unix socket client listening, stopping forwarding messages to client")
-			lg.forwardToCli = false}
+			e.rwmuxUSock.RUnlock()
+			// TODO DON'T LOG synchronous WITH A LOGGER DURING LOGGER STUFF...
+			go lg.msg_debug(2, "no unix socket client listening, stopping forwarding log messages to clients")
+			// TODO notify logger with message
+			lg.forwardToCli = false
+			return true
+		}else{
+			e.rwmuxUSock.RUnlock()}
 		
 		mod_m = *m
-		//mod_m.SrcHost = config._MyHostname()
 		mod_m.RpcFunc = clientPrintText
 		mod_m.DestMod = msgModClient
 		mod_m.SrcMod = msgModLoggr
 		
-		//fmt.Println("DEBUG tap forwarding logger message to client", 
-		//		mod_m)
 		if config.DebugNetwork {
 			fmt.Println("DEBUG tap forwarding logger message to client", 
 				mod_m)}

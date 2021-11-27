@@ -260,7 +260,7 @@ func writeExampleConfig(){
 		ConfHashCheck: true,
 		ClusterTickInterval: 250,
 		NodeHealthCheckInterval: 1000,
-		ReconnectLoopDelay: 1000,
+		ReconnectLoopDelay: 2500,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
 		UnixSocket: "./lvcl.sock",
