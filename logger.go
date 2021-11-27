@@ -26,14 +26,15 @@ import "runtime"
 var lg *Logger
 
 type Logger struct{
-	setupDone	bool
-	logLocal	*os.File
-	logCombined	*os.File
-	killLogger	bool
+	setupDone		bool
+	logLocal		*os.File
+	logCombined		*os.File
+	killLogger		bool
 	
 	ex_logIN		chan message
 	localLoggerIN	chan message
-	log_ex		chan<- message
+	log_ex			chan<- message
+	forwardToCli	bool
 	}
 
 func NewLoger(lIN chan message, exIN chan<- message) *Logger{
@@ -82,6 +83,14 @@ func (l *Logger)KillLogger(){
 			break
 		}}}
 
+func (l *Logger)message_forward_to_client(m *message){
+	var new_m message
+	if l.forwardToCli {
+		new_m = *m
+		new_m.SrcMod = msgModLoggr
+		new_m.DestMod = msgModClient
+		l.log_ex <- new_m}}
+
 func (l *Logger)messageHandler(){
 	var newS string
 	var m message
@@ -111,6 +120,7 @@ func (l *Logger)messageHandler(){
 					if err != nil {
 						panic(err)}
 					fmt.Println(fmt.Sprintf("remote_print %s", newS))
+					l.message_forward_to_client(&m)
 				}else{
 					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
 			//incoming messages from local
@@ -136,7 +146,8 @@ func (l *Logger)messageHandler(){
 					if lg.killLogger {
 						fmt.Println(err)
 					}else{
-						panic(err)}}}
+						panic(err)}}
+				l.message_forward_to_client(&m)}
 		if(config.DebugLogger){
 			fmt.Printf("\n\nD_E_B_U_G ex_log exOk =%b\n\n", exOk)
 			fmt.Printf("\n\nD_E_B_U_G ex_log loc_logOk =%b\n\n", loc_logOk)}

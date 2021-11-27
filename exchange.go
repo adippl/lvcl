@@ -22,6 +22,7 @@ import "fmt"
 import "time"
 import "sync"
 import "math/rand"
+import "strconv"
 
 var e *Exchange
 
@@ -30,9 +31,11 @@ type Exchange struct{
 	outgoing		map[string]*eclient
 	incoming		map[string]*eclient
 	usocks			map[string]*eclient
-	listenTCP	net.Listener
-	listenUnix	net.Listener
+	listenTCP		net.Listener
+	listenUnix		net.Listener
 	clientMap		map[string]string
+	//list of usock clients listening to cluster logger
+	cliLogTap		map[string]int
 	
 	heartbeatLastMsg		map[string]*time.Time
 	heartbeatDelta		map[string]*time.Duration
@@ -64,6 +67,7 @@ func NewExchange(	a_brn_ex <-chan message,
 		heartbeatLastMsg:	make(map[string]*time.Time),
 		heartbeatDelta:	make(map[string]*time.Duration),
 		clientMap:		make(map[string]string),
+		cliLogTap:		make(map[string]int),
 		killExchange:	false,
 		recQueue:		make(chan message),
 		loc_ex:			make(chan message),
@@ -234,6 +238,9 @@ func (e *Exchange)forwarder(){
 		
 		e.markMessageWithConfigHash(m)
 		
+		// logger messages to listening clients
+		if e.msg_handle_forward_logger_to_client_tap(m) {continue}
+		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
 		e.rwmux.RLock()
@@ -285,6 +292,8 @@ func (e *Exchange)sorter(){
 		if e.msg_handler_cluster_client_disconnect(&m) {continue}
 		if e.msg_handler_cluster_client(&m) {continue}
 		if e.msg_handler_cluster_ask_about_client_node(&m) {continue}
+		if e.msg_handle_client_logger_listen_connect(&m) {continue}
+		
 		//forward client message to "__master__"
 		if e.msg_handle_client_msg_to_master(&m) {continue}
 		
@@ -414,6 +423,34 @@ func (e *Exchange)msg_handler_forward_to_logger(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
+	var mod_m message
+	if	m.SrcMod == msgModLoggr &&
+		m.DestMod == msgModClient {
+		
+		if len(e.cliLogTap) == 0 {
+			lg.msg_debug(2, "no unix socket client listening, stopping forwarding messages to client")
+			lg.forwardToCli = false}
+		
+		mod_m = *m
+		mod_m.SrcHost = config._MyHostname()
+		mod_m.RpcFunc = clientPrintText
+		mod_m.DestMod = msgModClient
+		mod_m.SrcMod = msgModLoggr
+		
+		if config.DebugNetwork {
+			fmt.Println("DEBUG tap forwarding logger message to client", 
+				mod_m)}
+		e.rwmuxUSock.RLock()
+		for k,_ := range e.cliLogTap {
+			mod_m.DestHost = k
+			if config.DebugNetwork {
+				fmt.Printf("DEBUG SORTER passed to client %s %+v\n", k, m)}
+			e.outgoing[k].outgoing <- *m;}
+		e.rwmuxUSock.RUnlock()
+		return true}
+	return false}
+
 func (ec *eclient)sendUsockClientID(id uint){
 		var t time.Time = time.Now()
 		m := message{
@@ -450,7 +487,9 @@ func (e *Exchange)msg_handler_cluster_client(m *message) bool {
 		len(m.Argv) == 2 {
 		
 		//maybe add mutex
+		e.rwmuxUSock.Lock()
 		e.clientMap[m.Argv[0]] = m.Argv[1]
+		e.rwmuxUSock.Unlock()
 		return true}
 	return false}
 
@@ -515,7 +554,7 @@ func (e *Exchange)msg_handler_cluster_ask_about_client_node(m *message) bool {
 func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 	var masterNode string
 	if	m.SrcMod == msgModClient &&
-		m.DestHost == "__master__"{
+		m.DestHost == "__master__" {
 		if temp := b.getMasterNodeName(); temp == nil {
 			// cluster has no master
 			lg.msg_debug(2, "couldn't forward message to master, cluster has no master")
@@ -536,3 +575,30 @@ func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 			e.rwmux.RUnlock()
 			return true }
 	return false}
+
+func (e *Exchange)msg_handle_client_logger_listen_connect(m *message) bool {
+	var loglevel int
+	var err error = nil
+	if	m.SrcMod == msgModClient &&
+		m.RpcFunc == clientListenToClusterLogger &&
+		m.DestHost == "__any__" {
+		
+		//fmt.Println("-=-=-=- DEBUG received client's ask for logger data")
+		loglevel, err = strconv.Atoi(m.Argv[0])
+		if err != nil {
+			lg.err("clientListenToClusterLogger wrong m.Argv[0] ", err)
+			// TODO client should commit suicide
+			return false}
+		e.rwmuxUSock.Lock()
+		e.cliLogTap[m.SrcHost] = loglevel
+		fmt.Println(e.cliLogTap)
+		for k, v := range e.cliLogTap {
+		    fmt.Println(k, "value is", v)}
+		//TODO SEND MESSAGE INSTEAD OF DIRECT WRITE
+		lg.forwardToCli= true
+		e.rwmuxUSock.Unlock()
+		return true}
+	return false}
+
+
+

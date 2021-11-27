@@ -50,10 +50,13 @@ func (ec *eclient)listen(){
 		ec.conn = nil}
 	//delete itself from the map if running usock
 	if ec.usock {
-		//ec.exch.outgoing[ec.hostname]=nil}
-		//delete because map usock keys are not reused
 		ec.exch.notifyClusterAboutClientDisconnect(ec.hostname)
-		delete(ec.exch.outgoing, ec.hostname)}
+		e.rwmuxUSock.Lock()
+		//delete because map usock keys are not reused
+		delete(ec.exch.outgoing, ec.hostname)
+		delete(ec.exch.cliLogTap, ec.hostname)
+		e.rwmuxUSock.Unlock()
+		}
 	ec = nil
 	lg.err("eclient Decoder ", err)}
 
