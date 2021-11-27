@@ -132,6 +132,7 @@ func (e *Exchange)initListenUnix(){
 	var err error
 	var sockId uint
 	var s_usockID string
+	var ec *eclient
 	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
 	if err != nil {
 		lg.err("ERR, couldn't open Unix Socket",err)
@@ -147,7 +148,7 @@ func (e *Exchange)initListenUnix(){
 		lg.msg_debug(1, fmt.Sprintf(
 			"Received connection to Unix Socket, asigning sock id=%d", sockId))
 		
-		ec := &eclient{
+		ec = &eclient{
 			usock:		true,
 			hostname:	s_usockID,
 			incoming:	e.recQueue,
@@ -433,11 +434,13 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 			lg.forwardToCli = false}
 		
 		mod_m = *m
-		mod_m.SrcHost = config._MyHostname()
+		//mod_m.SrcHost = config._MyHostname()
 		mod_m.RpcFunc = clientPrintText
 		mod_m.DestMod = msgModClient
 		mod_m.SrcMod = msgModLoggr
 		
+		//fmt.Println("DEBUG tap forwarding logger message to client", 
+		//		mod_m)
 		if config.DebugNetwork {
 			fmt.Println("DEBUG tap forwarding logger message to client", 
 				mod_m)}
@@ -446,7 +449,7 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 			mod_m.DestHost = k
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to client %s %+v\n", k, m)}
-			e.outgoing[k].outgoing <- *m;}
+			e.outgoing[k].outgoing <- mod_m;}
 		e.rwmuxUSock.RUnlock()
 		return true}
 	return false}
@@ -478,7 +481,7 @@ func (e *Exchange)notifyClusterAboutClient(id string, hostname string){
 			Argc:		2,
 			Argv:		[]string{id,hostname},
 			}
-		ec.outgoing <- m}
+		e.loc_ex <- m}
 
 func (e *Exchange)msg_handler_cluster_client(m *message) bool {
 	if	m.RpcFunc == exchangeNotifyAboutClient &&

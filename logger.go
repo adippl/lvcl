@@ -85,6 +85,7 @@ func (l *Logger)KillLogger(){
 
 func (l *Logger)message_forward_to_client(m *message){
 	var new_m message
+	return
 	if l.forwardToCli {
 		new_m = *m
 		new_m.SrcMod = msgModLoggr
@@ -120,6 +121,8 @@ func (l *Logger)messageHandler(){
 					if err != nil {
 						panic(err)}
 					fmt.Println(fmt.Sprintf("remote_print %s", newS))
+					//if m.SrcHost != config._MyHostname(){
+					//	l.message_forward_to_client(&m)}
 					l.message_forward_to_client(&m)
 				}else{
 					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
@@ -212,8 +215,3 @@ func msgFormat(s *string) *message{
 	
 	return &m}
 
-func (l *Logger)DEBUGmessage(m *message){
-	str := fmt.Sprintf("\nDEBUG logged message: %+v \n", *m)
-	nmsg := msgFormat(&str)
-	l.localLoggerIN <- *nmsg
-	}

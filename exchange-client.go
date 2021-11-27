@@ -64,16 +64,22 @@ func (ec *eclient)forward(){
 	var data message
 	var err error
 	var cleanup_loop bool = true
+	var chanOpen bool = false
 	enc := json.NewEncoder(ec.conn)
 	fmt.Printf("conn Forwarder started for %s\n", ec.hostname)
 	for{
-		data = <-ec.outgoing
+		data, chanOpen = <-ec.outgoing
+		if ! chanOpen {
+			lg.msg_debug(2, fmt.Sprintf("%+v outgoing channel closed",ec))
+			break}
 		if config.DebugNetwork {
 			fmt.Printf("conn Forwarder to %s received %+v\n", ec.hostname,  data)}
 		err = enc.Encode(data)
 		if err != nil{
 			break}}
-	ec.conn.Close()
+	if ! ec.usock {
+		ec.conn.Close()
+		}
 	if ec.conn != nil{
 		ec.conn = nil}
 	//lock exchange writing mutex
@@ -89,7 +95,7 @@ func (ec *eclient)forward(){
 	//read all queued messages 
 	for cleanup_loop {
 		data,cleanup_loop = <-ec.outgoing
-		fmt.Println("CLEANUP LOOP ",data)
+		//fmt.Println("CLEANUP LOOP ",data)
 		}
 	ec = nil
 	lg.err("eclient forwarder serializer ", err)}
