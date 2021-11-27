@@ -424,6 +424,18 @@ func (e *Exchange)msg_handler_forward_to_logger(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)sendLoggerStartForwardToClient(){
+	e.ex_log <- message{
+		SrcMod: msgModExchn,
+		DestMod: msgModLoggr,
+		RpcFunc: loggerForwardMessageToClient}}
+
+func (e *Exchange)sendLoggerStartForwardToClientStop(){
+	e.ex_log <- message{
+		SrcMod: msgModExchn,
+		DestMod: msgModLoggr,
+		RpcFunc: loggerForwardMessageToClientStop}}
+
 func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 	var mod_m message
 	if	m.SrcMod == msgModLoggr &&
@@ -432,10 +444,11 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 		e.rwmuxUSock.RLock()
 		if len(e.cliLogTap) == 0 {
 			e.rwmuxUSock.RUnlock()
-			// TODO DON'T LOG synchronous WITH A LOGGER DURING LOGGER STUFF...
-			go lg.msg_debug(2, "no unix socket client listening, stopping forwarding log messages to clients")
+			// TODO DON'T LOG WITH A LOGGER DURING LOGGER STUFF...
+			//go lg.msg_debug(2, "no unix socket client listening, stopping forwarding log messages to clients")
 			// TODO notify logger with message
-			lg.forwardToCli = false
+			//lg.forwardToCli = false
+			e.sendLoggerStartForwardToClientStop()
 			return true
 		}else{
 			e.rwmuxUSock.RUnlock()}
@@ -602,7 +615,8 @@ func (e *Exchange)msg_handle_client_logger_listen_connect(m *message) bool {
 		for k, v := range e.cliLogTap {
 		    fmt.Println(k, "value is", v)}
 		//TODO SEND MESSAGE INSTEAD OF DIRECT WRITE
-		lg.forwardToCli= true
+		//lg.forwardToCli= true
+		e.sendLoggerStartForwardToClient()
 		e.rwmuxUSock.Unlock()
 		return true}
 	return false}

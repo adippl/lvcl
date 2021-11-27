@@ -48,6 +48,7 @@ const(
 	clientAskAboutStatusReply
 	clientListenToClusterLogger
 	loggerForwardMessageToClient
+	loggerForwardMessageToClientStop
 	clientPrintText
 	)
 
@@ -91,8 +92,4 @@ func (m *message)heartbeatGetTime() *time.Time {
 	if err != nil {
 		lg.err("heartbeatGetTime time.Parse error", err)}
 	return &t}
-	
-	
-	
-	
 

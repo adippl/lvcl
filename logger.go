@@ -111,6 +111,8 @@ func (l *Logger)messageHandler(){
 					break}
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG LOGGER received message %+v\n", m)}
+				if m.logger_handle_ForwardMessageToClientStop(){continue}
+				if m.logger_handle_ForwardMessageToClient(){continue}
 				if m.logger_message_validate(){
 					newS = fmt.Sprintf("[src: %s][time: %s] %s \n",
 						m.SrcHost, m.Time.String(), m.Argv[0])
@@ -165,6 +167,22 @@ func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 		m.DestMod == msgModLoggr &&
 		m.RpcFunc == 1 &&
 		m.Argc == 1 )}
+
+func (m *message)logger_handle_ForwardMessageToClient() bool {
+	if	m.SrcMod == msgModExchn &&
+		m.DestMod == msgModLoggr &&
+		m.RpcFunc == loggerForwardMessageToClient {
+		lg.forwardToCli = true
+		return true}
+	return false}
+ 
+func (m *message)logger_handle_ForwardMessageToClientStop() bool {
+	if	m.SrcMod == msgModExchn &&
+		m.DestMod == msgModLoggr &&
+		m.RpcFunc == loggerForwardMessageToClientStop {
+		lg.forwardToCli = false
+		return true}
+	return false}
  
 func (l *Logger)msg(arg string){
 	if l.setupDone == false {
