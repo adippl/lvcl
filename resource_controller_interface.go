@@ -34,6 +34,9 @@ const(
 	utilization_hw_threads
 	utilization_hw_numaNodes
 	utilization_hw_core_pre_numa
+	utilization_hw_mem
+	utilization_vpcus
+	utilization_vmem
 	utilization_mem_total_kb
 	utilization_mem_free_kb
 	utilization_mem_cached_kb
@@ -68,7 +71,10 @@ type Cluster_resource struct {
 	Name		string
 	Id			int
 	State		int
-	Resource	interface{}
+	Util		[]Cluster_utilization
+	Strs		map[string]string
+	Ints		map[string]int
+	Bools		map[string]bool
 }
 
 

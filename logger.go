@@ -122,7 +122,8 @@ func (l *Logger)messageHandler(){
 					_,err := l.logCombined.WriteString(newS)
 					if err != nil {
 						panic(err)}
-					fmt.Println(fmt.Sprintf("remote_print %s", newS))
+					if config.DaemonLogging {
+						fmt.Println(fmt.Sprintf("remote_print %s", newS))}
 				//	l.message_forward_to_client(&m)
 				}else{
 					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
@@ -133,7 +134,8 @@ func (l *Logger)messageHandler(){
 					break}
 				s := fmt.Sprintf("[src: %s][time: %s] %s \n",
 					config.MyHostname, m.Time, m.Argv[0])
-				fmt.Println("local_print",s)
+				if config.DaemonLogging {
+					fmt.Println("local_print",s)}
 				//write to local log
 				_,err = l.logLocal.WriteString(s)
 				if err != nil{

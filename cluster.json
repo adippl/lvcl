@@ -36,19 +36,6 @@
 			"HwMem": 0
 		}
 	],
-	"VMs": [
-		{
-			"Name": "gh-test",
-			"DomainDefinition": "tests struct embedded in main cluster.conf",
-			"VCpus": 1,
-			"HwCpus": 0,
-			"VMem": 512,
-			"HwMem": 512,
-			"StorageClass": 0,
-			"MigrationTimeout": 180,
-			"MigrateLive": true
-		}
-	],
 	"Quorum": 2,
 	"BalanceMode": 1,
 	"ResStickiness": 50,
@@ -61,16 +48,44 @@
 			"ResourceController_id": 0,
 			"Name": "",
 			"Id": 0,
-			"State": 0,
-			"Resource": {
-				"Name": "gh-test",
-				"DomainDefinition": "tests struct embedded in main cluster.conf",
-				"VCpus": 1,
-				"HwCpus": 0,
-				"VMem": 512,
-				"HwMem": 512,
-				"StorageClass": 0,
-				"MigrationTimeout": 180,
+			"State": 3,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 13,
+					"Value": 1
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwCPUs",
+					"Id": 8,
+					"Value": 1
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 14,
+					"Value": 1024
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwMEM",
+					"Id": 12,
+					"Value": 512
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
 				"MigrateLive": true
 			}
 		}
@@ -93,6 +108,7 @@
 	"ConfHashCheck": true,
 	"LogLocal": "loc.log",
 	"LogCombined": "cmb.log",
+	"DaemonLogging": false,
 	"DebugLevel": 5,
 	"DebugNetwork": false,
 	"DebugLogger": false,

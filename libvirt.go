@@ -160,11 +160,14 @@ func (l *lvd)listDomains(){
 	fmt.Printf("===================\n")}
 	
 
-func (l *lvd)startVM(v *VM) int {
-	file, err := ioutil.ReadFile(v.DomainDefinition)
+func (l *lvd)startVM(v *Cluster_resource) bool {
+	if v.ResourceController_id != resource_controller_id_libvirt {
+		lg.msgERR("lvd.startVM() received Cluster_resouce of incorrect type")
+		return false}
+	file, err := ioutil.ReadFile(v.Strs["DomainXML"])
 	if err != nil {
 		lg.err("startVM", err)
-		return 1}
+		return false}
 	xml := string(file)
 	
 	// start modes TODO later
@@ -174,9 +177,9 @@ func (l *lvd)startVM(v *VM) int {
 	dom,err := l.daemonConneciton.DomainCreateXML(xml, libvirt.DOMAIN_NONE)
 	if err != nil {
 		lg.err("startVM failed", err)
-		return 1}
+		return false}
 	dom.Free()
-	return 0}
+	return true}
 	
 func (l *lvd)updateDomStates(){
 	l.domStates = make(map[string]uint)
@@ -394,14 +397,15 @@ func (l *lvd)Get_utilization() *[]Cluster_utilization {
 	}
 
 func (l *lvd)Start_resource(name string) bool {
-	vm := config.GetVMbyName(&name)
+	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
 		lg.msg("config.GetVMbyName returned null pointer")
 		return false }
-	if(l.startVM(vm)!=0){
-		return(false)
-	}else{
-		return(true)}}
+	//if(l.startVM(vm)!=0){
+	//	return(false)
+	//}else{
+	//	return(true)}}
+	return l.startVM(vm)}
 
 // remember to dom.Free() after you're done using Domain pointer
 func (l *lvd)GetDomainPtr(domain_name string) *libvirt.Domain {
@@ -422,7 +426,7 @@ func (l *lvd)GetDomainPtr(domain_name string) *libvirt.Domain {
 func (l *lvd)Stop_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
-	vm := config.GetVMbyName(&name)
+	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
 		return(false)}
 	dom := l.GetDomainPtr(vm.Name)
@@ -440,7 +444,7 @@ func (l *lvd)Stop_resource(name string) bool {
 func (l *lvd)Nuke_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
-	vm := config.GetVMbyName(&name)
+	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
 		return(false)}
 	dom := l.GetDomainPtr(vm.Name)

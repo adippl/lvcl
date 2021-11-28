@@ -1,11 +1,32 @@
 {
+	"ResourceController_name": "libvirt",
+	"ResourceController_id": 0,
 	"Name": "gh-test2",
-	"DomainDefinition": "/mnt/cephvm/libvirt/domains/gh-test2.xml",
-	"VCpus": 3,
-	"HwCpus": 1,
-	"VMem": 1024,
-	"HwMem": 512,
-	"StorageClass": 0,
-	"MigrationTimeout": 180,
-	"MigrateLive": true
+	"Id": 2,
+	"State": 3,
+	"Util": [
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "VCPUs",
+			"Id": 13,
+			"Value": 1
+		},
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "vMEM",
+			"Id": 14,
+			"Value": 1024
+		}
+	],
+	"Strs": {
+		"DomainXML": "/mnt/cephvm/libvirt/domains/gh-test2.xml"
+	},
+	"Ints": {
+		"MigrationTimeout": 180
+	},
+	"Bools": {
+		"MigrateLive": true
+	}
 }

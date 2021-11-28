@@ -35,7 +35,6 @@ type Conf struct {
 	UUID string
 	DomainDefinitionDir string
 	Nodes []Node
-	VMs []VM
 	Quorum uint
 	BalanceMode uint
 	ResStickiness uint
@@ -70,6 +69,7 @@ type Conf struct {
 	LogLocal string
 	LogCombined string
 	
+	DaemonLogging	bool
 	
 	DebugLevel uint
 	DebugNetwork bool
@@ -140,26 +140,60 @@ func loadAllVMfiles(){
 	for _, f := range f{
 		VMReadFile("domains/"+f.Name())}}
 
+
+
+func VMReadFile(path string) error {
+	fmt.Println("reading "+path)
+	file, err := os.Open(path)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(11)}
+	defer file.Close()
+	fmt.Println("reading "+path )
+	raw, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Println("ERR reading "+path )
+		os.Exit(11);}
+	
+	var res Cluster_resource
+	var tmpres *Cluster_resource
+	json.Unmarshal(raw,&res)
+
+	tmpres=config.GetCluster_resourcebyName(&res.Name)
+	if(tmpres != nil){
+		fmt.Printf("err resource with name %s already exists\n", res.Name)
+		return fmt.Errorf("err resource with name %s already exists", res.Name)}
+
+	if res.ResourceController_id == resource_controller_id_libvirt {
+		xmlfile := res.Strs["DomainXML"]
+		tmpres=config.GetVMbyDomain(&xmlfile)
+		if(tmpres != nil){
+			fmt.Printf("DEBUG err VM with domain file %s already exists\n",
+				xmlfile)
+			return fmt.Errorf("err VM with domain file %s already exists",
+				xmlfile)}}
+	
+	config.rwmux.Lock()
+	config.Resources = append(config.Resources,res)
+	config.rwmux.Unlock()
+	
+	return nil}
+
 func (c *Conf)dumpConfig(){
 	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
 	raw, _ := json.MarshalIndent(&config,"","	")
 	fmt.Println(string(raw))
 	}
 
-func (c *Conf)GetVMbyName(argName *string)(v *VM){
-	c.rwmux.RLock()
-	for _,t:= range c.VMs{
-		if t.Name == *argName{
-			c.rwmux.RUnlock()
-			return &t}}
-	c.rwmux.RUnlock()
-	return nil}
 
-func (c *Conf)GetVMbyDomain(argDomain *string)(v *VM){
+func (c *Conf)GetVMbyDomain(argDomain *string)(v *Cluster_resource){
 	c.rwmux.RLock()
-	for _,t:= range c.VMs{
-		if t.DomainDefinition == *argDomain{
-			return &t}}
+	for _,v:= range c.Resources{
+		if	v.ResourceController_id == resource_controller_id_libvirt &&
+			v.Strs["DomainXML"] == *argDomain{
+			c.rwmux.RUnlock()
+			return &v}}
+	c.rwmux.RUnlock()
 	return nil}
 
 func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
@@ -171,12 +205,13 @@ func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 	c.rwmux.RUnlock()
 	return nil}
 
-//func (c *Conf)GetCluster_resourcebyDomain(argDomain *string)(v *Cluster_resource){
-//	c.rwmux.RLock()
-//	for _,t:= range c.Resources{
-//		if t.DomainDefinition == *argDomain{
-//			return &t}}
-//	return nil}
+func (c *Conf)setResourceState(	
+	name *string,
+	ID int,
+	state *string) bool {
+	
+	return false}
+
 
 func (c *Conf)GetNodebyHostname(argHostname *string) *Node {
 	for _,t:= range c.Nodes{
@@ -213,33 +248,44 @@ func writeExampleConfig(){
 				LibvirtAddress: "10.0.6.16",
 				NodeState: NodePreparing,
 				Weight: 1001}},
-		VMs: []VM{
-			VM{
-				Name: "gh-test",
-				DomainDefinition: "tests struct embedded in main cluster.conf",
-				VCpus: 1,
-				HwCpus: 0,
-				VMem: 512,
-				HwMem: 512,
-				MigrationTimeout: 180,
-				MigrateLive: true},
-				},
 		ResourceControllers: map[string]bool{
 			"libvirt": true},
 		Resources: []Cluster_resource{
 			Cluster_resource{
 				ResourceController_name: "libvirt",
-				ResourceController_id: 0,
+				ResourceController_id: resource_controller_id_libvirt,
 				Id: 0,
-				Resource: VM{
-					Name: "gh-test",
-					DomainDefinition: "tests struct embedded in main cluster.conf",
-					VCpus: 1,
-					HwCpus: 0,
-					VMem: 512,
-					HwMem: 512,
-					MigrationTimeout: 180,
-					MigrateLive: true,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	1,
+						},
+					Cluster_utilization{
+						Name:	"hwCPUs",
+						Id:		utilization_hw_cores,
+						Value:	1,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	1024,
+						},
+					Cluster_utilization{
+						Name:	"hwMEM",
+						Id:		utilization_hw_mem,
+						Value:	512,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+				},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : true, 
 				},
 			},
 		},
@@ -266,6 +312,7 @@ func writeExampleConfig(){
 		UnixSocket: "./lvcl.sock",
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
+		DaemonLogging:	true,
 		DebugLevel: 5,
 		DebugNetwork: false,
 		DebugLogger: false,
