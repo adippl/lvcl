@@ -20,6 +20,7 @@ package main
 import "fmt"
 import "time"
 import "sync"
+import "strings"
 
 const(
 	CLUSTER_TICK = time.Millisecond * 1000 
@@ -44,7 +45,7 @@ type Brain struct{
 	quorum				uint
 	
 	ex_brn					<-chan message
-	brn_ex				chan<- message
+	brn_ex					chan<- message
 	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
 	nodeHealthLastPing		map[string]uint
@@ -109,9 +110,14 @@ func  (b *Brain)messageHandler(){
 		if b.killBrain == true{
 			return}
 		m = <-b.ex_brn
-		//if config.DebugNetwork{
-		//	fmt.Printf("DEBUG BRAIN received message %+v\n", m)}
-		lg.msg_debug(1, fmt.Sprintf("DEBUG BRAIN received message %+v\n", m))
+		if config.DebugNetwork{
+			lg.msg_debug(1, fmt.Sprintf(
+				"DEBUG BRAIN received message %+v\n", m))}
+			//fmt.Printf("DEBUG BRAIN received message %+v\n", m)}}
+		
+		
+		//handle client's requests for status
+		if b.msg_handle_clientAskAboutStatus(&m) {continue}
 		
 		if m.RpcFunc == brainRpcAskForMasterNode && m.SrcHost != config._MyHostname() {
 			b.replyToAskForMasterNode(&m)
@@ -311,26 +317,31 @@ func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
 	m.custom1 = c1
 	b.brn_ex <- *m}
 	
-func (b *Brain)PrintNodeHealth(){
-	fmt.Printf("=== Node Health ===\n")
+func (b *Brain)writeNodeHealth() string {
+	var sb strings.Builder
+	sb.WriteString("\n=== Node Health ===\n")
 	if b.masterNode != nil {
-		fmt.Printf("Master node: %s\n", *b.masterNode)
+		sb.WriteString(fmt.Sprintf("Master node: %s\n", *b.masterNode))
 	}else{
-		fmt.Printf("No master node\n")}
-	fmt.Printf("Quorum: %d\n", b.quorum)
+		sb.WriteString("No master node\n")}
+	sb.WriteString(fmt.Sprintf("Quorum: %d\n", b.quorum))
 	//read lock mutex for nodeHealth maps
 	b.rwmux.RLock()
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
-				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Green",b.nodeHealthLast30Ticks[k])
+				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Green",b.nodeHealthLast30Ticks[k]))
 			case HealthOrange:
-				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Orange",b.nodeHealthLast30Ticks[k])
+				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Orange",b.nodeHealthLast30Ticks[k]))
 			case HealthRed:
-				fmt.Printf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k])}}
+				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k]))}}
 	//unlock mutex for nodeHealth maps
 	b.rwmux.RUnlock()
-	fmt.Printf("===================\n")}
+	sb.WriteString("===================\n")
+	return sb.String()}
+
+func (b *Brain)PrintNodeHealth(){
+	lg.msg(b.writeNodeHealth())}
 
 func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 	var cl_res *[]Cluster_resource
@@ -368,3 +379,18 @@ func (b *Brain)is_this_node_a_master() bool {
 
 func (b *Brain)getMasterNodeName() *string {
 	return b.masterNode }
+
+func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
+	var reply message = *brainNewMessage()
+	if	m.RpcFunc == clientAskAboutStatus &&
+		m.DestMod == msgModBrain {
+		
+		reply.DestHost = m.SrcHost
+		reply.DestMod = msgModClient
+		reply.RpcFunc = clientPrintTextStatus
+		reply.Argv = []string{
+			b.writeNodeHealth(),
+			}
+		b.brn_ex <- reply
+		return true}
+	return false}

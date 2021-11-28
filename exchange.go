@@ -242,6 +242,9 @@ func (e *Exchange)forwarder(){
 		// logger messages to listening clients
 		if e.msg_handle_forward_logger_to_client_tap(m) {continue}
 		
+		// forward brain status message to client
+		if e.msg_handle_clientPrintTextStatus(m) {continue}
+		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
 		e.rwmux.RLock()
@@ -293,7 +296,11 @@ func (e *Exchange)sorter(){
 		if e.msg_handler_cluster_client_disconnect(&m) {continue}
 		if e.msg_handler_cluster_client(&m) {continue}
 		if e.msg_handler_cluster_ask_about_client_node(&m) {continue}
+		
+		//handle client reguest for logger message
 		if e.msg_handle_client_logger_listen_connect(&m) {continue}
+		//handle client reguest for cluster status info
+		if e.msg_handle_clientAskAboutStatus(&m) {continue}
 		
 		//forward client message to "__master__"
 		if e.msg_handle_client_msg_to_master(&m) {continue}
@@ -454,7 +461,7 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 			e.rwmuxUSock.RUnlock()}
 		
 		mod_m = *m
-		mod_m.RpcFunc = clientPrintText
+		mod_m.RpcFunc = clientPrintTextLogger
 		mod_m.DestMod = msgModClient
 		mod_m.SrcMod = msgModLoggr
 		
@@ -621,5 +628,30 @@ func (e *Exchange)msg_handle_client_logger_listen_connect(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)msg_handle_clientAskAboutStatus(m *message) bool{
+	if	m.RpcFunc == clientAskAboutStatus &&
+		m.DestMod == msgModBrain {
+		
+		e.ex_brn <- *m
+		return true}
+	return false}
 
+func (e *Exchange)msg_handle_clientPrintTextStatus(m *message) bool {
+	var mod_m message
+	if	m.RpcFunc == clientPrintTextStatus &&
+		m.DestMod == msgModClient &&
+		m.SrcMod == msgModBrain {
+		
+		if config.DebugNetwork {
+			fmt.Println(
+				"DEBUG exchange forwards cli status from brain to client", 
+				mod_m)}
+		e.rwmux.RLock()
+		e.outgoing[m.DestHost].outgoing <- *m
+			if config.DebugNetwork {
+				fmt.Printf(
+					"DEBUG SORTER passed to client %s %+v\n", m.DestHost, m)}
+		e.rwmux.RUnlock()
+		return true}
+	return false}
 

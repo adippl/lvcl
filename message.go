@@ -51,7 +51,10 @@ const(
 	loggerForwardMessageToClient
 	loggerForwardMessageToClientStop
 	clientPrintText
+	clientPrintTextLogger
+	clientPrintTextStatus
 	clientAskResStateChange
+	clientAskResStateChangeReply
 	)
 
 type message struct{
@@ -94,4 +97,5 @@ func (m *message)heartbeatGetTime() *time.Time {
 	if err != nil {
 		lg.err("heartbeatGetTime time.Parse error", err)}
 	return &t}
+
 

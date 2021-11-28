@@ -24,7 +24,7 @@ import "flag"
 import "os"
 import "runtime"
 import "net"
-//import "math/rand"
+import "math/rand"
 import "time"
 import "crypto/sha256"
 import "io"
@@ -74,8 +74,8 @@ func clientMessageHandler(){
 		m = <-cincoming
 		if m.msg_handle_cluste_assigned_id() {continue}
 		if m.msg_handle_client_print() {continue}
-		fmt.Println(fmt.Sprintf("DEBUG client unhandled message %+v", m))
-		}}
+		if m.msg_handle_clientPrintTextStatus() {continue}
+		clogger(1, fmt.Sprintf("DEBUG client unhandled message %+v", m))}}
 func formatMsg() *message {
 	return &message{
 		SrcHost:	clientID,
@@ -91,9 +91,11 @@ func clusterStatus(delay int){
 	waitForClientID()
 	for{
 		m=formatMsg()
-		m.DestHost = "__master__"
+		m.DestHost = "__any__"
+		m.DestMod = msgModBrain
 		m.RpcFunc = clientAskAboutStatus
 		coutgoing <- *m
+		clogger(3, "send message asking for cluster status")
 		if delay == -1 {
 			exitAfterTextReply = true
 			return
@@ -120,13 +122,23 @@ func (m *message)msg_handle_cluste_assigned_id() bool {
 
 func (m *message)msg_handle_client_print() bool {
 	if	m.ConfHash == confFileHash &&
-		m.RpcFunc == clientPrintText &&
+		m.RpcFunc == clientPrintTextLogger &&
 		m.SrcMod == msgModLoggr &&
 		m.DestMod == msgModClient {
 		
 		fmt.Println(m.SrcHost, m.Time, "\t==> ", m.Argv[0])
 		if exitAfterTextReply {
 			os.Exit(0)}
+		return true}
+	return false}
+
+func (m *message)msg_handle_clientPrintTextStatus() bool {
+	if	m.RpcFunc == clientPrintTextStatus &&
+		m.SrcMod == msgModBrain &&
+		m.DestMod == msgModClient &&
+		m.DestHost == clientID {
+		
+		clogger(0, m.Argv[0])
 		return true}
 	return false}
 
@@ -139,6 +151,8 @@ var resValidStates []string = []string{
 	}
 
 func resourceMod(resName *string, resDesiredState *string) {
+	var callID string = strconv.Itoa(rand.Int())
+	var m message
 	for _,v := range resValidStates{
 		if v == *resDesiredState { 
 			goto success}}
@@ -147,14 +161,13 @@ func resourceMod(resName *string, resDesiredState *string) {
 	
 	success: 
 	waitForClientID()
-	coutgoing <- message{
-		SrcHost:	clientID,
-		DestHost:	"__any__",
-		SrcMod:		msgModClient,
-		DestMod:	msgModConfig,
-		Argv:		[]string{
+	m = *formatMsg()
+	m.DestHost = "__any__"
+	m.DestMod = msgModConfig
+	m.Argv = []string{
 			*resName,
-			*resDesiredState,}}
+			*resDesiredState,
+			callID,}
 	clogger(3, "resourceMod message sent")
 	os.Exit(0)
 	}
@@ -255,7 +268,6 @@ func client(){
 		cerr("failed to connect to socket",err)
 		os.Exit(2)}
 	ec=eclient{
-		//hostname:		fmt.Sprintf("lvcl-client-%d", clientID),
 		hostname:		myHostname,
 		originLocal:	true,
 		outgoing:		coutgoing,
@@ -275,4 +287,5 @@ func client(){
 	clientMessageHandler()
 	time.Sleep(time.Millisecond * time.Duration(1000))
 	}
+
 
