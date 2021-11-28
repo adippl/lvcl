@@ -130,6 +130,36 @@ func (m *message)msg_handle_client_print() bool {
 		return true}
 	return false}
 
+var resValidStates []string = []string{
+	"on",
+	"off",
+	"paused",
+	"reboot",
+	"nuke",
+	}
+
+func resourceMod(resName *string, resDesiredState *string) {
+	for _,v := range resValidStates{
+		if v == *resDesiredState { 
+			goto success}}
+	clogger(0, "-state received wrong argument")
+	os.Exit(3) 
+	
+	success: 
+	waitForClientID()
+	coutgoing <- message{
+		SrcHost:	clientID,
+		DestHost:	"__any__",
+		SrcMod:		msgModClient,
+		DestMod:	msgModConfig,
+		Argv:		[]string{
+			*resName,
+			*resDesiredState,}}
+	clogger(3, "resourceMod message sent")
+	os.Exit(0)
+	}
+
+
 func client(){
 	// cli arguments
 	var resName				string
@@ -143,6 +173,7 @@ func client(){
 	
 	var statusFlag			bool
 	var loggerFlag			bool
+	var resModFlag			bool
 	
 	var unixConn			net.Conn
 	var err					error
@@ -181,6 +212,9 @@ func client(){
 	flag.BoolVar(&loggerFlag, "w", false,
 		"display cluster log")
 
+	flag.BoolVar(&resModFlag, "r", false,
+		"modify resource state")
+
 	flag.IntVar(&statusInterval, "st", 1,
 		"sleep between printing status (-1 displays status once) ")
 	
@@ -189,13 +223,14 @@ func client(){
 	fmt.Println(resName, resUUID, resDesiredState, 
 		clusterOp, socketPath, cliLogLevel)
 	
-	//clogger(1, "lvcl started in client mode")
+	clogger(1, "lvcl started in client mode")
 	clogger(2,fmt.Sprintln("resName", resName))
 	clogger(2,fmt.Sprintln("resUUID", resUUID))
 	clogger(2,fmt.Sprintln("resDesiredState", resDesiredState))
 	clogger(2,fmt.Sprintln("clusterOp", clusterOp))
 	clogger(2,fmt.Sprintln("socketPath", socketPath))
 	clogger(2,fmt.Sprintln("statusFlag", statusFlag))
+	clogger(2,fmt.Sprintln("resModFlag", resModFlag))
 	clogger(2,fmt.Sprintln("statusInterval", statusInterval))
 	
 	
@@ -230,10 +265,13 @@ func client(){
 	go ec.forward()
 	go ec.listen()
 	
-	if statusFlag && ! loggerFlag {
+	if statusFlag && ! loggerFlag && ! resModFlag {
 		go clusterStatus(statusInterval)}
-	if loggerFlag && ! statusFlag {
+	if loggerFlag && ! statusFlag && ! resModFlag {
 		go attachToClusterLogger(clusterLogLevel)}
+	if resModFlag && ! statusFlag && ! loggerFlag  {
+		go resourceMod(&resName, &resDesiredState)}
+		
 	clientMessageHandler()
 	time.Sleep(time.Millisecond * time.Duration(1000))
 	}

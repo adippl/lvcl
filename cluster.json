@@ -108,7 +108,7 @@
 	"ConfHashCheck": true,
 	"LogLocal": "loc.log",
 	"LogCombined": "cmb.log",
-	"DaemonLogging": false,
+	"DaemonLogging": true,
 	"DebugLevel": 5,
 	"DebugNetwork": false,
 	"DebugLogger": false,

@@ -30,6 +30,7 @@ const(
 	msgModExchnHeartbeat
 	msgModBrainController
 	msgModClient
+	msgModConfig
 	
 	rpcHeartbeat
 	brainRpcElectNominate
@@ -50,6 +51,7 @@ const(
 	loggerForwardMessageToClient
 	loggerForwardMessageToClientStop
 	clientPrintText
+	clientAskResStateChange
 	)
 
 type message struct{
