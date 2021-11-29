@@ -83,14 +83,15 @@ func (ec *eclient)forward(){
 	if ec.conn != nil{
 		ec.conn = nil}
 	//lock exchange writing mutex
-	ec.exch.rwmux.Lock()
+	// THIS MUTEX CAUSES ISSUES WITH LOCKUP ON DISCONNECTING CLIENT
+	//ec.exch.rwmux.Lock()
 	//if ! ec.usock {
 	//	ec.exch.outgoing[ec.hostname]=nil
 	//}else{
 	//	ec.exch.outgoing[ec.hostname]=nil
 	ec.exch.outgoing[ec.hostname]=nil
 	//unlock exchange writing mutex 
-	ec.exch.rwmux.Unlock()
+	//ec.exch.rwmux.Unlock()
 	
 	//read all queued messages 
 	for cleanup_loop {

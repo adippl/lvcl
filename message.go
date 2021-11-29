@@ -56,6 +56,9 @@ const(
 	clientAskResStateChange
 	clientAskResStateChangeReply
 	confUpdateResState
+	confNotifAboutEpoch
+	confNotifAboutEpochUpdate
+	confNotifAboutEpochUpdateAsk
 	)
 
 type message struct{
@@ -69,6 +72,7 @@ type message struct{
 	Argc		uint
 	Argv		[]string
 	Cint		int
+	Res			[]Cluster_resource //terrible but quick
 	custom1		interface{}
 	custom2		interface{}
 	custom3		interface{}

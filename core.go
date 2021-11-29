@@ -45,8 +45,8 @@ func daemonSetup(){
 
 	lg.msg("Starting lvcl")
 	mainLoop()
-	e.printHeartbeatStats()
-	e.dumpAllConnectedHosts()
+	//e.printHeartbeatStats()
+	//e.dumpAllConnectedHosts()
 	os.Exit(0)
 	b.KillBrain()
 	lg.KillLogger()

@@ -89,6 +89,7 @@ func NewExchange(	a_brn_ex <-chan message,
 	go e.sorter()
 	go e.heartbeatSender()
 	go e.updateNodeHealthDelta()
+	go e.configEpochSender()
 	lg.msg_debug(2, "exchange launched all it's goroutines")
 	return &e}
 
@@ -102,7 +103,8 @@ func (e *Exchange)updateNodeHealthDelta(){
 		for k,v := range e.heartbeatLastMsg {
 			dt := time.Now().Sub(*v)
 			e.heartbeatDelta[k]=&dt}
-		time.Sleep(time.Millisecond * time.Duration(config.ClusterTickInterval))}}
+		time.Sleep(time.Millisecond *
+			time.Duration(config.ClusterTickInterval))}}
 
 func (e *Exchange)initListenTCP(){
 	var err error
@@ -304,9 +306,14 @@ func (e *Exchange)sorter(){
 		
 		//handle client's request to change resource state
 		if e.msg_handle_msgModConfig(&m) {continue}
-
+		
 		//forward client message to "__master__"
 		if e.msg_handle_client_msg_to_master(&m) {continue}
+		
+		//config message
+		if e.msg_handle_confNotifAboutEpoch(&m) {continue}
+		if e.msg_handle_confNotifAboutEpochUpdateAsk(&m) {continue}
+		if e.msg_handle_confNotifAboutEpochUpdate(&m) {continue}
 		
 		//pass Logger messages
 		if e.msg_handler_forward_to_logger(&m) {continue}
@@ -359,6 +366,30 @@ func (e *Exchange)heartbeatSender(){
 		e.loc_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
+func (e *Exchange)configEpochSender(){
+	var m message
+	var t time.Time
+	lg.msg_debug(3, "exchange launched configEpochSender()")
+	for{
+		if e.killExchange { //ugly solution
+			return}
+		t = time.Now()
+		
+		m = message{
+			SrcHost: config.MyHostname,
+			DestHost: "__everyone__",
+			SrcMod: msgModConfig,
+			DestMod: msgModConfig,
+			RpcFunc: confNotifAboutEpoch,
+			Time: t,
+			Argc: 1,
+			Argv: []string{"epoch"},
+			Cint: config.GetEpoch(),
+			}
+		e.loc_ex <- m
+		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
+
+
 func (e *Exchange)printHeartbeatStats(){
 	if config.DebugHeartbeat {
 		fmt.Printf("\n === Heartbeat info per node === \n")
@@ -402,14 +433,6 @@ func (m *message)verifyMessageConfigHash() bool {
 		return true
 	}else{
 		return false}}
-
-//func (e *Exchange)verifyMessageConfigHash(m *message) bool {
-//	if ! e.confHashCheck {
-//		return true }
-//	if e.confFileHash == m.ConfHash {
-//		return true
-//	}else{
-//		return false }}
 
 func (e *Exchange)markMessageWithConfigHash(m *message){
 	if e.confHashCheck {
@@ -732,15 +755,72 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
+	var bk_epo int = -1
+	if	m.RpcFunc == confNotifAboutEpoch &&
+		m.SrcMod == msgModConfig &&
+		m.DestMod == msgModConfig &&
+		m.SrcHost != config._MyHostname() {
+			
+		if config.isTheirEpochBehind(m.Cint) {
+			// TODO respond by sending them our config
+			m.DestHost = m.SrcHost
+			m.SrcHost = config._MyHostname()
+			m.RpcFunc = confNotifAboutEpochUpdateAsk
+			m.Argv[0] = "requesting config from host with higher epoch"
+			bk_epo = m.Cint
+			m.Cint = config.GetEpoch()
+			e.loc_ex <- *m
+			lg.msg_debug(2, fmt.Sprintf(
+				"found node with higher epoch %s (our %d theirs %d)",
+				m.DestHost, config.GetEpoch(), bk_epo))}
+			return true}
+	return false}
 
-//func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 
-//	waitForClientID()
-//	m = *formatMsg()
-//	m.DestHost = "__any__"
-//	m.DestMod = msgModConfig
-//	m.Argv = []string{
-//			*resName,
-//			*resDesiredState,
-//			callID,}
-//	coutgoing <- m
+func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
+	if	m.RpcFunc == confNotifAboutEpochUpdateAsk &&
+		m.SrcMod == msgModConfig &&
+		m.DestMod == msgModConfig &&
+		m.SrcHost != config._MyHostname() {
+			
+		// TODO maybe check if for epoch
+		//if config.isTheirEpochBehind(m.Cint) {
+		if true {
+			// TODO respond by sending them our config
+			m.DestHost = m.SrcHost
+			m.SrcHost = config._MyHostname()
+			m.RpcFunc = confNotifAboutEpochUpdate
+			m.Argv[0] = "sending config with newer epoch"
+			m.Cint = config.GetEpoch()
+			config.rwmux.RLock()
+			m.Res = config.Resources
+			config.rwmux.RUnlock()
+			e.loc_ex <- *m
+			fmt.Println("ALKWDJLAKWJDLAKJWDLAWD")
+			lg.msg_debug(2, fmt.Sprintf(
+				"sending config to node %s (epoch %d)",
+				m.DestHost, m.Cint))}
+			return true}
+	return false}
+
+func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
+	if	m.RpcFunc == confNotifAboutEpochUpdate &&
+		m.SrcMod == msgModConfig &&
+		m.DestMod == msgModConfig &&
+		m.DestHost == config._MyHostname() {
+			
+		// TODO maybe check if for epoch
+		// check if message arrived with config from higher epoch
+		//if config.isTheirEpochBehind(m.Cint) {
+		if true {
+			config.rwmux.Lock()
+			config.Resources = m.Res
+			config.Epoch = m.Cint
+			config.rwmux.Unlock()
+			lg.msg_debug(2, fmt.Sprintf(
+				"received config from node %s with epoch %d ",
+				m.SrcHost, m.Cint))}
+			return true}
+	return false}
+

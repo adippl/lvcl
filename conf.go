@@ -44,7 +44,7 @@ type Conf struct {
 	Resources []Cluster_resource
 	ResourceControllers map[string]bool
 	rwmux sync.RWMutex `json:"-"`
-	epoch uint `json:"-"`
+	Epoch int `json:"-"`
 	
 	VCpuMax uint
 	HwCpuMax uint
@@ -194,7 +194,7 @@ func (c *Conf)GetVMbyDomain(argDomain *string)(v *Cluster_resource){
 			v.Strs["DomainXML"] == *argDomain{
 			c.rwmux.RUnlock()
 			return &v}}
-	c.rwmux.RUnlock()
+	config.rwmux.RUnlock()
 	return nil}
 
 func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
@@ -203,7 +203,7 @@ func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 		if t.Name == *argName{
 			c.rwmux.RUnlock()
 			return &t}}
-	c.rwmux.RUnlock()
+	config.rwmux.RUnlock()
 	return nil}
 
 func (c *Conf)GetCluster_resourcebyName_RW(argName *string)(v *Cluster_resource){
@@ -212,7 +212,7 @@ func (c *Conf)GetCluster_resourcebyName_RW(argName *string)(v *Cluster_resource)
 		if t.Name == *argName{
 			c.rwmux.RUnlock()
 			return &c.Resources[v]}}
-	c.rwmux.RUnlock()
+	config.rwmux.RUnlock()
 	return nil}
 
 func (c *Conf)setResourceState(	
@@ -454,6 +454,19 @@ func (c *Conf)SetNewResourceState(res *[]Cluster_resource){
 	
 func (c *Conf)IncEpoch() {
 	c.rwmux.Lock()
-	c.epoch++
-	c.rwmux.Unlock()
-	}
+	c.Epoch++
+	c.rwmux.Unlock()}
+
+func (c *Conf)GetEpoch() int {
+	var e int
+	c.rwmux.RLock()
+	e = c.Epoch
+	c.rwmux.RUnlock()
+	return e}
+
+func (c *Conf)isTheirEpochBehind(i int) bool {
+	var b bool
+	c.rwmux.RLock()
+	b = (i > c.Epoch)
+	c.rwmux.RUnlock()
+	return b}
