@@ -245,19 +245,73 @@ func writeExampleConfig(){
 				NodeAddress: "10.0.6.14:6798",
 				LibvirtAddress: "10.0.6.14",
 				NodeState: NodePreparing,
-				Weight: 1003},
+				Weight: 1003,
+				HwStats: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"hwCPUs",
+						Id:		utilization_hw_cores,
+						Value:	8,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	18432,
+						},
+					Cluster_utilization{
+						Name:	"hwMEM",
+						Id:		utilization_hw_mem,
+						Value:	18432,
+						},
+					},
+				},
 			Node{
 				Hostname: "r210II-2",
 				NodeAddress: "10.0.6.15:6798",
 				LibvirtAddress: "10.0.6.15",
 				NodeState: NodePreparing,
-				Weight: 1002},
+				Weight: 1002,
+				HwStats: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"hwCPUs",
+						Id:		utilization_hw_cores,
+						Value:	8,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	10240,
+						},
+					Cluster_utilization{
+						Name:	"hwMEM",
+						Id:		utilization_hw_mem,
+						Value:	10240,
+						},
+					},
+				},
 			Node{
 				Hostname: "r210II-3",
 				NodeAddress: "10.0.6.16:6798",
 				LibvirtAddress: "10.0.6.16",
 				NodeState: NodePreparing,
-				Weight: 1001}},
+				Weight: 1001,
+				HwStats: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"hwCPUs",
+						Id:		utilization_hw_cores,
+						Value:	8,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	6144,
+						},
+					Cluster_utilization{
+						Name:	"hwMEM",
+						Id:		utilization_hw_mem,
+						Value:	6144,
+						},
+					},
+				}},
 		ResourceControllers: map[string]bool{
 			"libvirt": true},
 		Resources: []Cluster_resource{

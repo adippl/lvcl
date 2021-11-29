@@ -34,11 +34,7 @@ type Node struct{
 	NodeState uint //{ NodeOffline, NodePreparing, NodeOnline, NodeEvacuate }
 	Weight	uint
 	
-	VCores	uint
-	HwCores	uint
-	
-	VMem	uint
-	HwMem	uint
+	HwStats			[]Cluster_utilization
 	}
 
 type NodeStats struct{

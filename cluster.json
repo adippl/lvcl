@@ -8,10 +8,29 @@
 			"LibvirtAddress": "10.0.6.14",
 			"NodeState": 1,
 			"Weight": 1003,
-			"VCores": 0,
-			"HwCores": 0,
-			"VMem": 0,
-			"HwMem": 0
+			"HwStats": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwCPUs",
+					"Id": 10,
+					"Value": 8
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 16,
+					"Value": 18432
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwMEM",
+					"Id": 14,
+					"Value": 18432
+				}
+			]
 		},
 		{
 			"Hostname": "r210II-2",
@@ -19,10 +38,29 @@
 			"LibvirtAddress": "10.0.6.15",
 			"NodeState": 1,
 			"Weight": 1002,
-			"VCores": 0,
-			"HwCores": 0,
-			"VMem": 0,
-			"HwMem": 0
+			"HwStats": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwCPUs",
+					"Id": 10,
+					"Value": 8
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 16,
+					"Value": 10240
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwMEM",
+					"Id": 14,
+					"Value": 10240
+				}
+			]
 		},
 		{
 			"Hostname": "r210II-3",
@@ -30,10 +68,29 @@
 			"LibvirtAddress": "10.0.6.16",
 			"NodeState": 1,
 			"Weight": 1001,
-			"VCores": 0,
-			"HwCores": 0,
-			"VMem": 0,
-			"HwMem": 0
+			"HwStats": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwCPUs",
+					"Id": 10,
+					"Value": 8
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 16,
+					"Value": 6144
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "hwMEM",
+					"Id": 14,
+					"Value": 6144
+				}
+			]
 		}
 	],
 	"Quorum": 2,
