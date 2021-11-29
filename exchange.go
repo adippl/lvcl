@@ -302,6 +302,9 @@ func (e *Exchange)sorter(){
 		//handle client reguest for cluster status info
 		if e.msg_handle_clientAskAboutStatus(&m) {continue}
 		
+		//handle client's request to change resource state
+		if e.msg_handle_msgModConfig(&m) {continue}
+
 		//forward client message to "__master__"
 		if e.msg_handle_client_msg_to_master(&m) {continue}
 		
@@ -655,3 +658,89 @@ func (e *Exchange)msg_handle_clientPrintTextStatus(m *message) bool {
 		return true}
 	return false}
 
+func (e *Exchange)replyToUsock(m *message) {
+	e.rwmuxUSock.RLock()
+	e.outgoing[m.DestHost].outgoing <- *m
+	e.rwmuxUSock.RUnlock()
+	}
+	
+
+func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
+	var res *Cluster_resource = nil
+	var newState int
+	var reply message
+	
+	if	m.RpcFunc == clientAskResStateChange &&
+		m.SrcMod == msgModClient &&
+		m.DestMod == msgModConfig {
+		
+		//prepare reply message
+		reply.SrcMod = msgModConfig
+		reply.DestMod = msgModClient
+		reply.DestHost = m.SrcHost
+		reply.RpcFunc = clientAskResStateChangeReply
+		reply.Argv = m.Argv
+		
+		if validateStateFlag(&m.Argv[1]) == false {
+			//message arrived with wrong 
+			reply.Cint=11
+			reply.Argv = append(reply.Argv, "error wrong state requested")
+			lg.msgERR("error wrong state requested")
+			e.replyToUsock(&reply)
+			return true}
+		
+		switch m.Argv[1] {
+		case "on":
+			newState = resource_state_running
+		case "off":
+			newState = resource_state_stopped
+		case "pause":
+			newState = resource_state_paused
+		case "reboot":
+			newState = resource_state_reboot
+		case "nuke":
+			newState = resource_state_nuked
+		default:
+			//reply with error
+			reply.Cint=12
+			reply.Argv = append(reply.Argv, "error wrong state requested 2")
+			lg.msgERR("error wrong state requested 2")
+			e.replyToUsock(&reply)
+			return true}
+		
+		
+		res = config.GetCluster_resourcebyName_RW(&m.Argv[0])
+		if res == nil {
+			// resource doesn't exists
+			reply.Cint=13
+			reply.Argv = append(reply.Argv, "couldn't find resource")
+			lg.msgERR("couldn't find resource")
+			e.replyToUsock(&reply)
+			return true}
+		//mutex
+		config.rwmux.Lock()
+		res.State = newState
+		config.rwmux.Unlock()
+		//end of mutex
+		config.IncEpoch() //TODO this function uses the mutex again
+		lg.msg_debug(2, fmt.Sprintf("resource %s changing state to %s",
+			res.Name, res.StateString()))
+		//positive reply
+		reply.Cint=0
+		reply.Argv = append(reply.Argv, "resource changed state")
+		e.replyToUsock(&reply)
+		return true}
+	return false}
+
+
+//func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
+
+//	waitForClientID()
+//	m = *formatMsg()
+//	m.DestHost = "__any__"
+//	m.DestMod = msgModConfig
+//	m.Argv = []string{
+//			*resName,
+//			*resDesiredState,
+//			callID,}
+//	coutgoing <- m

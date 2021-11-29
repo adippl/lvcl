@@ -337,6 +337,14 @@ func (b *Brain)writeNodeHealth() string {
 				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k]))}}
 	//unlock mutex for nodeHealth maps
 	b.rwmux.RUnlock()
+	
+	sb.WriteString("===-- Cluster Resources --===\n")
+	config.rwmux.RLock()
+	for _,v := range config.Resources {
+		sb.WriteString(fmt.Sprintf("Id %d\tdesState %s\tName %s\n", 
+			v.Id, v.StateString(), v.Name))}
+	config.rwmux.RUnlock()
+
 	sb.WriteString("===================\n")
 	return sb.String()}
 

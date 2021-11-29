@@ -75,6 +75,7 @@ func clientMessageHandler(){
 		if m.msg_handle_cluste_assigned_id() {continue}
 		if m.msg_handle_client_print() {continue}
 		if m.msg_handle_clientPrintTextStatus() {continue}
+		if m.msg_handle_clientAskResStateChangeReply() {continue}
 		clogger(1, fmt.Sprintf("DEBUG client unhandled message %+v", m))}}
 func formatMsg() *message {
 	return &message{
@@ -142,36 +143,56 @@ func (m *message)msg_handle_clientPrintTextStatus() bool {
 		return true}
 	return false}
 
+
 var resValidStates []string = []string{
 	"on",
 	"off",
-	"paused",
+	"pause",
 	"reboot",
 	"nuke",
 	}
 
+func validateStateFlag(s *string) bool {
+	for _,v := range resValidStates{
+		if v == *s { 
+			return true}}
+	return false}
+
 func resourceMod(resName *string, resDesiredState *string) {
 	var callID string = strconv.Itoa(rand.Int())
 	var m message
-	for _,v := range resValidStates{
-		if v == *resDesiredState { 
-			goto success}}
-	clogger(0, "-state received wrong argument")
-	os.Exit(3) 
+
+	if validateStateFlag(resDesiredState) == false {
+		clogger(0, "-state received wrong argument")
+		os.Exit(3) 
+		}
 	
-	success: 
 	waitForClientID()
 	m = *formatMsg()
 	m.DestHost = "__any__"
 	m.DestMod = msgModConfig
+	m.RpcFunc = clientAskResStateChange
 	m.Argv = []string{
 			*resName,
 			*resDesiredState,
 			callID,}
+	coutgoing <- m
 	clogger(3, "resourceMod message sent")
+	time.Sleep(time.Second)
 	os.Exit(0)
 	}
 
+
+func (m *message)msg_handle_clientAskResStateChangeReply() bool {
+	if	m.SrcMod == msgModConfig &&
+		m.DestMod == msgModClient &&
+		m.DestHost == clientID &&
+		m.RpcFunc == clientAskResStateChangeReply {
+		
+		clogger(0, m.Argv[3])
+		os.Exit(m.Cint)
+		return true}
+	return false}
 
 func client(){
 	// cli arguments

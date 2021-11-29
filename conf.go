@@ -44,6 +44,7 @@ type Conf struct {
 	Resources []Cluster_resource
 	ResourceControllers map[string]bool
 	rwmux sync.RWMutex `json:"-"`
+	epoch uint `json:"-"`
 	
 	VCpuMax uint
 	HwCpuMax uint
@@ -205,6 +206,15 @@ func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 	c.rwmux.RUnlock()
 	return nil}
 
+func (c *Conf)GetCluster_resourcebyName_RW(argName *string)(v *Cluster_resource){
+	c.rwmux.RLock()
+	for v,t:= range c.Resources{
+		if t.Name == *argName{
+			c.rwmux.RUnlock()
+			return &c.Resources[v]}}
+	c.rwmux.RUnlock()
+	return nil}
+
 func (c *Conf)setResourceState(	
 	name *string,
 	ID int,
@@ -254,6 +264,7 @@ func writeExampleConfig(){
 			Cluster_resource{
 				ResourceController_name: "libvirt",
 				ResourceController_id: resource_controller_id_libvirt,
+				Name: "basicResource",
 				Id: 0,
 				State: resource_state_running,
 				Util: []Cluster_utilization{
@@ -387,3 +398,8 @@ func (c *Conf)SetNewResourceState(res *[]Cluster_resource){
 	c.Resources = *res
 	c.rwmux.Unlock()}
 	
+func (c *Conf)IncEpoch() {
+	c.rwmux.Lock()
+	c.epoch++
+	c.rwmux.Unlock()
+	}

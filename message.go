@@ -55,6 +55,7 @@ const(
 	clientPrintTextStatus
 	clientAskResStateChange
 	clientAskResStateChangeReply
+	confUpdateResState
 	)
 
 type message struct{
@@ -62,12 +63,12 @@ type message struct{
 	DestHost        string
 	SrcMod		uint
 	DestMod		uint
-	ClientID	uint
 	ConfHash	string
 	Time		time.Time
 	RpcFunc		uint
 	Argc		uint
 	Argv		[]string
+	Cint		int
 	custom1		interface{}
 	custom2		interface{}
 	custom3		interface{}
