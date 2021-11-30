@@ -51,10 +51,10 @@ type Brain struct{
 	nodeHealthLastPing		map[string]uint
 	rwmux					sync.RWMutex
 	
-	resourceControllers		map[uint]interface{}
+	//resourceControllers		map[uint]interface{}
 	resCtl_lvd				*lvd
-	resourcePlacementAndState	map[string]Cluster_resource
-//	_vote_delay	chan int
+	resCtl_Dummy				*Dummy_rctl
+	resourcePlacementAndState	[]Cluster_resource
 	}
 
 
@@ -76,7 +76,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		nodeHealthLast30Ticks:	make(map[string][]uint),
 		nodeHealthLastPing:		make(map[string]uint),
 		
-		resourceControllers:	make(map[uint]interface{}),
+		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
@@ -84,10 +84,16 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 //		b.resourceControllers[resource_controller_id_libvirt] = NewLVD()
 //		if b.resourceControllers[resource_controller_id_libvirt] == nil {
 //			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
-	if config.enabledResourceControllers[resource_controller_id_libvirt] {
+	if config.EnabledResourceControllers[resource_controller_id_libvirt] {
 		b.resCtl_lvd = NewLVD()
 		if b.resCtl_lvd == nil {
 			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
+
+
+	if config.EnabledResourceControllers[resource_controller_id_dummy] {
+		b.resCtl_Dummy = NewDummy()
+		if b.resCtl_Dummy == nil {
+			lg.msg("ERROR, NewDummy dummy resource controller failed to start")}}
 		
 	go b.messageHandler()
 	lg.msg_debug(3, "brain started messageHandler()")

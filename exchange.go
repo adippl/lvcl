@@ -812,8 +812,8 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 			
 		// TODO maybe check if for epoch
 		// check if message arrived with config from higher epoch
-		//if config.isTheirEpochBehind(m.Cint) {
-		if true {
+		if config.isTheirEpochAhead(m.Cint) {
+		//if true {
 			config.rwmux.Lock()
 			config.Resources = m.Res
 			config.Epoch = m.Cint

@@ -13,21 +13,21 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 10,
+					"Id": 11,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 16,
+					"Id": 17,
 					"Value": 18432
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 14,
+					"Id": 15,
 					"Value": 18432
 				}
 			]
@@ -43,21 +43,21 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 10,
+					"Id": 11,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 16,
+					"Id": 17,
 					"Value": 10240
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 14,
+					"Id": 15,
 					"Value": 10240
 				}
 			]
@@ -73,21 +73,21 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 10,
+					"Id": 11,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 16,
+					"Id": 17,
 					"Value": 6144
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 14,
+					"Id": 15,
 					"Value": 6144
 				}
 			]
@@ -103,36 +103,36 @@
 		{
 			"ResourceController_name": "libvirt",
 			"ResourceController_id": 0,
-			"Name": "basicResource",
-			"Id": 0,
-			"State": 3,
+			"Name": "basicResource 1",
+			"Id": 10,
+			"State": 4,
 			"Util": [
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "VCPUs",
-					"Id": 15,
+					"Id": 16,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 10,
+					"Id": 11,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 16,
+					"Id": 17,
 					"Value": 1024
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 14,
+					"Id": 15,
 					"Value": 512
 				}
 			],
@@ -144,6 +144,198 @@
 			},
 			"Bools": {
 				"MigrateLive": true
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "basicResource 2 HIGH mem",
+			"Id": 11,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 16,
+					"Value": 1
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 1024
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": true
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "dummy resource 3 Very High mem",
+			"Id": 12,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 16,
+					"Value": 1
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 99999
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": false
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "dummy resource 4 too high cpu",
+			"Id": 13,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vCPUs",
+					"Id": 11,
+					"Value": 1
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 1024
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": false
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "dummy resource 5 high cpu",
+			"Id": 14,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 16,
+					"Value": 3
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 512
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": false
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "dummy resource 6 high cpu",
+			"Id": 15,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 16,
+					"Value": 3
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 512
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": false
+			}
+		},
+		{
+			"ResourceController_name": "dummy",
+			"ResourceController_id": 2,
+			"Name": "dummy resource 7 high mem",
+			"Id": 16,
+			"State": 4,
+			"Util": [
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "VCPUs",
+					"Id": 16,
+					"Value": 2
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
+					"Name": "vMEM",
+					"Id": 17,
+					"Value": 10240
+				}
+			],
+			"Strs": {
+				"DomainXML": "tests struct embedded in main cluster.conf"
+			},
+			"Ints": {
+				"MigrationTimeout": 180
+			},
+			"Bools": {
+				"MigrateLive": false
 			}
 		}
 	],
@@ -160,6 +352,10 @@
 	"NodeHealthCheckInterval": 1000,
 	"ReconnectLoopDelay": 2500,
 	"HeartbeatTimeFormat": "2006-01-02 15:04:05",
+	"EnabledResourceControllers": {
+		"0": true,
+		"2": true
+	},
 	"TCPport": "6798",
 	"UnixSocket": "./lvcl.sock",
 	"ConfHashCheck": true,

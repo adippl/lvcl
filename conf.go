@@ -58,7 +58,7 @@ type Conf struct {
 	ReconnectLoopDelay uint
 	HeartbeatTimeFormat string
 	
-	enabledResourceControllers map[uint]bool
+	EnabledResourceControllers map[uint]bool
 	
 	TCPport string
 	UnixSocket string
@@ -318,8 +318,8 @@ func writeExampleConfig(){
 			Cluster_resource{
 				ResourceController_name: "libvirt",
 				ResourceController_id: resource_controller_id_libvirt,
-				Name: "basicResource",
-				Id: 0,
+				Name: "basicResource 1",
+				Id: 10,
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
@@ -353,6 +353,174 @@ func writeExampleConfig(){
 					"MigrateLive" : true, 
 				},
 			},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "basicResource 2 HIGH mem",
+				Id: 11,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	1,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	1024,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+				},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : true, 
+				},
+			},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "dummy resource 3 Very High mem",
+				Id: 12,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	1,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	99999,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+					},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : false, 
+					},
+				},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "dummy resource 4 too high cpu",
+				Id: 13,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"vCPUs",
+						Id:		utilization_hw_cores,
+						Value:	1,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	1024,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+					},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : false, 
+					},
+				},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "dummy resource 5 high cpu",
+				Id: 14,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	3,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	512,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+					},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : false, 
+					},
+				},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "dummy resource 6 high cpu",
+				Id: 15,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	3,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	512,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+					},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : false, 
+					},
+				},
+			Cluster_resource{
+				ResourceController_name: "dummy",
+				ResourceController_id: resource_controller_id_dummy,
+				Name: "dummy resource 7 high mem",
+				Id: 16,
+				State: resource_state_running,
+				Util: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"VCPUs",
+						Id:		utilization_vpcus,
+						Value:	2,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	10240,
+						},
+					},
+				Strs: map[string]string{
+					"DomainXML": "tests struct embedded in main cluster.conf",
+					},
+				Ints: map[string]int{
+					"MigrationTimeout" : 180, 
+					},
+				Bools: map[string]bool{
+					"MigrateLive" : false, 
+					},
+				},
 		},
 		BalanceMode: Cpus,
 		ResStickiness:50,
@@ -364,8 +532,10 @@ func writeExampleConfig(){
 		VMemMax: 8192,
 		HwMemMax: 8192,
 		Quorum: 2,
-		enabledResourceControllers: map[uint]bool{
-			resource_controller_id_libvirt: true},
+		EnabledResourceControllers: map[uint]bool{
+			resource_controller_id_libvirt: true,
+			resource_controller_id_dummy:  true,
+			},
 		HeartbeatInterval: 1000,
 		ClusterTick: 1000,
 		ConfHashCheck: true,
@@ -468,5 +638,12 @@ func (c *Conf)isTheirEpochBehind(i int) bool {
 	var b bool
 	c.rwmux.RLock()
 	b = (i > c.Epoch)
+	c.rwmux.RUnlock()
+	return b}
+
+func (c *Conf)isTheirEpochAhead(i int) bool {
+	var b bool
+	c.rwmux.RLock()
+	b = (i < c.Epoch)
 	c.rwmux.RUnlock()
 	return b}
