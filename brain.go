@@ -52,9 +52,13 @@ type Brain struct{
 	rwmux					sync.RWMutex
 	
 	//resourceControllers		map[uint]interface{}
-	resCtl_lvd				*lvd
+	resCtl_lvd					*lvd
 	resCtl_Dummy				*Dummy_rctl
-	resourcePlacementAndState	[]Cluster_resource
+	desired_resourcePlacement	[]Cluster_resource
+	current_resourcePlacement	[]Cluster_resource
+	local_resourcePlacement		[]Cluster_resource
+	expectedResourceUsage		[]Node
+	lastPickedNode				string
 	}
 
 
@@ -101,6 +105,8 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	lg.msg_debug(3, "brain started updateNodeHealth()")
 	go b.getMasterNode()
 	lg.msg_debug(3, "brain started getMasterNode()")
+
+	go b.LogBrainStatus()
 //	go b.resourceBalancer()
 	return &b}
 
@@ -408,4 +414,130 @@ func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
 			}
 		b.brn_ex <- reply
 		return true}
+	return false}
+
+func (b *Brain)LogBrainStatus(){
+	for{
+		lg.msg(*b.writeBrainStatus())
+		time.Sleep(time.Duration(5) * time.Second)}}
+
+func (b *Brain)writeBrainStatus() *string {
+	var sb strings.Builder
+	var retString string
+	sb.WriteString("\n====== desired resource placement ======\n")
+	for _,v:=range b.desired_resourcePlacement {
+		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
+			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+	sb.WriteString("========================================\n")
+	
+	sb.WriteString("\n====== current resource placement ======\n")
+	for _,v:=range b.current_resourcePlacement {
+		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
+			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+	sb.WriteString("========================================\n")
+		
+	sb.WriteString("\n======= local resource placement =======\n")
+	for _,v:=range b.local_resourcePlacement {
+		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
+			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+	sb.WriteString("========================================\n")
+		
+	retString = sb.String()
+	return &retString}
+
+func (b *Brain)basicBalancer(){
+	//copy node utilization
+	config.rwmux.RLock()
+	b.expectedResourceUsage = config.Nodes
+	config.rwmux.RUnlock()
+	}
+
+//func (b *Brain)findNodeWithMostSpace(r *Cluster_resource) string {
+//	//TODO find node, return node name
+//	//for k,_:= b.
+//	return "nil"}
+
+
+//HwStats			[]Cluster_utilization
+//Usage			[]Cluster_utilization
+func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
+	var hwFits bool = false
+	var usageFits bool = false
+	var hw uint64 = 0
+	var usage uint64 = 0
+
+	for k,_:=range n.HwStats {
+		if	u.Id == n.HwStats[k].Id {
+			if u.Value < n.HwStats[k].Value {
+				hwFits = true
+				hw = n.HwStats[k].Value
+				break}}}
+			
+	for k,_:=range n.Usage {
+		if	u.Id == n.Usage[k].Id {
+			if u.Value < ( n.HwStats[k].Value - n.Usage[k].Value ) {
+				usageFits = true
+				usage = n.Usage[k].Value
+				break}}}
+	return hwFits, usageFits, float32(usage/hw)}
+
+
+func (n *Node)doesResourceFitsOnNode(r *Cluster_resource) bool {
+	//var does_util_fits	map[int]bool = make(map[int]bool)
+	for _,v:=range r.Util {
+		//if _,does_util_fits[v.Id],_ = n.doesUtilFitsOnNode(&v) 
+		if _,does_fit,_ := n.doesUtilFitsOnNode(&v); does_fit == false {
+			return false}}
+	return true}
+
+func (b *Brain)update_expectedResourceUsage(){
+	// TOOD update expectedResourceUsage by nalizing running resources
+	fmt.Println("lol")
+	}
+
+//TODO
+//func (b *Brian)_place_single_resource
+
+func (b *Brian)basic_placeResources(){
+	var lastNode int = 0
+	var nodeArrSize int = 0
+	var nodesChecked int = 0
+	config.rwmux.RLock()
+	nodeArrSize = len(config.Nodes)
+	for k,_:=range config.Resources {
+		nodesChecked = 0
+		//TODO move into separate function
+		for config.Nodes[ lastNode ].doesResourceFitsOnNode(
+			config.Resources[k]) == false {
+			nodesChecked++
+			if nodesChecked >=nodeArrSize {
+				//res placement check failed on all nodes
+				//return false from function, break or goto
+			}
+			//TODO place resource on the node
+		}
+	config.rwmux.RUnlock()
+	}
+
+
+func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
+	for k,_:=range b.desired_resourcePlacement {
+		if	b.desired_resourcePlacement[k].Name == r.Name &&
+			b.desired_resourcePlacement[k].Id == r.Id {
+			return true}}
+	return false}
+
+
+func (b *Brain)checkIfResourceIsCurrentlyPlaced(r *Cluster_resource) bool {
+	for k,_:=range b.current_resourcePlacement {
+		if	b.current_resourcePlacement[k].Name == r.Name &&
+			b.current_resourcePlacement[k].Id == r.Id {
+			return true}}
+	return false}
+
+func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
+	for k,_:=range b.local_resourcePlacement {
+		if	b.local_resourcePlacement[k].Name == r.Name &&
+			b.local_resourcePlacement[k].Id == r.Id {
+			return true}}
 	return false}

@@ -80,6 +80,7 @@ type Cluster_resource struct {
 	Strs		map[string]string
 	Ints		map[string]int
 	Bools		map[string]bool
+	placement	string
 }
 
 
@@ -110,6 +111,17 @@ func (c *Cluster_resource)StateString() string {
 //		return "migrating"
 	case resource_state_other:
 		return "other  "
+	default:
+		return "other  "}}
+
+func (c *Cluster_resource)CtlString() string {
+	switch c.State {
+	case resource_controller_id_libvirt:
+		return "libvirt"
+	case resource_controller_id_docker:
+		return "docker"
+	case resource_controller_id_dummy:
+		return "dummy "
 	default:
 		return "other  "}}
 

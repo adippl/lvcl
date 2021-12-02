@@ -647,3 +647,4 @@ func (c *Conf)isTheirEpochAhead(i int) bool {
 	b = (i < c.Epoch)
 	c.rwmux.RUnlock()
 	return b}
+

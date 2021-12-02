@@ -30,7 +30,8 @@
 					"Id": 15,
 					"Value": 18432
 				}
-			]
+			],
+			"Usage": null
 		},
 		{
 			"Hostname": "r210II-2",
@@ -60,7 +61,8 @@
 					"Id": 15,
 					"Value": 10240
 				}
-			]
+			],
+			"Usage": null
 		},
 		{
 			"Hostname": "r210II-3",
@@ -90,7 +92,8 @@
 					"Id": 15,
 					"Value": 6144
 				}
-			]
+			],
+			"Usage": null
 		}
 	],
 	"Quorum": 2,
