@@ -130,8 +130,8 @@ func confLoad(){
 	loadAllVMfiles()
 	
 	
+	config.dumpConfig()
 	//config.rwmux.Unlock()
-	//dumpConfig()
 	}
 
 func loadAllVMfiles(){
@@ -248,6 +248,11 @@ func writeExampleConfig(){
 				Weight: 1003,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
+						Name:	"vCPUs",
+						Id:		utilization_vpcus,
+						Value:	80,
+						},
+					Cluster_utilization{
 						Name:	"hwCPUs",
 						Id:		utilization_hw_cores,
 						Value:	8,
@@ -272,6 +277,11 @@ func writeExampleConfig(){
 				Weight: 1002,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
+						Name:	"vCPUs",
+						Id:		utilization_vpcus,
+						Value:	80,
+						},
+					Cluster_utilization{
 						Name:	"hwCPUs",
 						Id:		utilization_hw_cores,
 						Value:	8,
@@ -295,6 +305,11 @@ func writeExampleConfig(){
 				NodeState: NodePreparing,
 				Weight: 1001,
 				HwStats: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"vCPUs",
+						Id:		utilization_vpcus,
+						Value:	80,
+						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
 						Id:		utilization_hw_cores,

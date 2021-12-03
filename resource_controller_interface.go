@@ -125,3 +125,10 @@ func (c *Cluster_resource)CtlString() string {
 	default:
 		return "other  "}}
 
+
+func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
+	if u.Id != arg.Id || u.Name != arg.Name {
+		// resources of the wrong type
+		return false}
+	u.Value += arg.Value
+	return true}

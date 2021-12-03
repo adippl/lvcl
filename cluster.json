@@ -12,6 +12,13 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
+					"Name": "vCPUs",
+					"Id": 16,
+					"Value": 80
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 11,
 					"Value": 8
@@ -30,8 +37,7 @@
 					"Id": 15,
 					"Value": 18432
 				}
-			],
-			"Usage": null
+			]
 		},
 		{
 			"Hostname": "r210II-2",
@@ -43,6 +49,13 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
+					"Name": "vCPUs",
+					"Id": 16,
+					"Value": 80
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 11,
 					"Value": 8
@@ -61,8 +74,7 @@
 					"Id": 15,
 					"Value": 10240
 				}
-			],
-			"Usage": null
+			]
 		},
 		{
 			"Hostname": "r210II-3",
@@ -74,6 +86,13 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
+					"Name": "vCPUs",
+					"Id": 16,
+					"Value": 80
+				},
+				{
+					"ResourceController_name": "",
+					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 11,
 					"Value": 8
@@ -92,8 +111,7 @@
 					"Id": 15,
 					"Value": 6144
 				}
-			],
-			"Usage": null
+			]
 		}
 	],
 	"Quorum": 2,

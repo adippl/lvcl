@@ -35,7 +35,7 @@ type Node struct{
 	Weight	uint
 	
 	HwStats			[]Cluster_utilization
-	Usage			[]Cluster_utilization
+	Usage			[]Cluster_utilization `json:"-"`
 	}
 
 type NodeStats struct{

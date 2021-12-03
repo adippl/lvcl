@@ -57,7 +57,7 @@ type Brain struct{
 	desired_resourcePlacement	[]Cluster_resource
 	current_resourcePlacement	[]Cluster_resource
 	local_resourcePlacement		[]Cluster_resource
-	expectedResourceUsage		[]Node
+	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
 
@@ -107,7 +107,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	lg.msg_debug(3, "brain started getMasterNode()")
 
 	go b.LogBrainStatus()
-//	go b.resourceBalancer()
+	go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){
@@ -379,15 +379,18 @@ func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 	}
 
 func (b *Brain)resourceBalancer(){
+	//time.Sleep(time.Duration(5) *time.Second)
 	for{
 		if(b.killBrain){
 			return}
 		
-		b.reportControllerResourceState(b.resCtl_lvd)
-		
+		//b.reportControllerResourceState(b.resCtl_lvd)
+		b.update_expectedResUtil()
+		//b.basic_placeResources()
 		if(b.isMaster){
 			// TODO
 			// get resource states
+			b.basic_placeResources()
 			
 			// generate resource placement plan
 			
@@ -445,26 +448,12 @@ func (b *Brain)writeBrainStatus() *string {
 	retString = sb.String()
 	return &retString}
 
-func (b *Brain)basicBalancer(){
-	//copy node utilization
-	config.rwmux.RLock()
-	b.expectedResourceUsage = config.Nodes
-	config.rwmux.RUnlock()
-	}
-
-//func (b *Brain)findNodeWithMostSpace(r *Cluster_resource) string {
-//	//TODO find node, return node name
-//	//for k,_:= b.
-//	return "nil"}
-
-
-//HwStats			[]Cluster_utilization
-//Usage			[]Cluster_utilization
 func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 	var hwFits bool = false
 	var usageFits bool = false
 	var hw uint64 = 0
 	var usage uint64 = 0
+	var usagePerc float32 = 0
 
 	for k,_:=range n.HwStats {
 		if	u.Id == n.HwStats[k].Id {
@@ -472,50 +461,123 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 				hwFits = true
 				hw = n.HwStats[k].Value
 				break}}}
-			
-	for k,_:=range n.Usage {
-		if	u.Id == n.Usage[k].Id {
-			if u.Value < ( n.HwStats[k].Value - n.Usage[k].Value ) {
-				usageFits = true
-				usage = n.Usage[k].Value
-				break}}}
-	return hwFits, usageFits, float32(usage/hw)}
-
+	if hwFits {
+		for k,_:=range n.Usage {
+			if	u.Id == n.Usage[k].Id {
+				if u.Value < ( hw - n.Usage[k].Value ) {
+					usageFits = true
+					usage = n.Usage[k].Value
+					break}}}}
+	if hw != 0 {
+		usagePerc = float32(usage/hw)
+	}else{
+		usagePerc = -1.0}
+	return hwFits, usageFits, usagePerc}
 
 func (n *Node)doesResourceFitsOnNode(r *Cluster_resource) bool {
-	//var does_util_fits	map[int]bool = make(map[int]bool)
 	for _,v:=range r.Util {
-		//if _,does_util_fits[v.Id],_ = n.doesUtilFitsOnNode(&v) 
 		if _,does_fit,_ := n.doesUtilFitsOnNode(&v); does_fit == false {
 			return false}}
 	return true}
 
-func (b *Brain)update_expectedResourceUsage(){
-	// TOOD update expectedResourceUsage by nalizing running resources
-	fmt.Println("lol")
-	}
+func (b *Brain)update_expectedResUtil(){
+	var node *Node = nil
+	var util *Cluster_utilization = nil
+	config.rwmux.RLock()
+	//create copy, it's safer* (* not really)
+	b.expectedResUtil = config.Nodes
+	
+	config.rwmux.RUnlock()
+	for k,_:=range b.expectedResUtil {
+		
+		//deep copy 
+		b.expectedResUtil[k].Usage = make([]Cluster_utilization, 0,
+			len(b.expectedResUtil[k].HwStats))
+		for kk,_:=range b.expectedResUtil[k].HwStats {
+			b.expectedResUtil[k].Usage = append(
+				b.expectedResUtil[k].Usage,
+				b.expectedResUtil[k].HwStats[kk])}
+		
+		//zero all resource usage
+		for kk,_:=range b.expectedResUtil[k].Usage {
+			b.expectedResUtil[k].Usage[kk].Value = 0}}
+	
+	for x,_:=range b.desired_resourcePlacement {
+		//get ptr to node
+		node = b.getPtrToNode(&b.desired_resourcePlacement[x].placement)
+		for y,_:=range b.desired_resourcePlacement[x].Util {
+			//get ptr to Cluster_utilization if exists on this node
+			util = node.getPtrToUtil(b.desired_resourcePlacement[x].Util[y].Id)
+			if ! util.UtilAdd(&b.desired_resourcePlacement[x].Util[y]) {
+				continue}}}}
 
-//TODO
-//func (b *Brian)_place_single_resource
+func (n *Node)getPtrToUtil(id int) *Cluster_utilization {
+	for k,_:=range n.Usage {
+		if n.Usage[k].Id == id {
+			return &n.Usage[k]}}
+	return nil}
 
-func (b *Brian)basic_placeResources(){
-	var lastNode int = 0
+func (b *Brain)getPtrToNode(name *string) *Node {
+	for k,_:=range b.expectedResUtil {
+		if b.expectedResUtil[k].Hostname == *name {
+			return &b.expectedResUtil[k]}}
+	return nil}
+
+// modifies value of *lastNode
+func (b *Brain)_place_single_resource(
+	lastNode *int, res *Cluster_resource) bool {
+	
 	var nodeArrSize int = 0
 	var nodesChecked int = 0
-	config.rwmux.RLock()
+	var resCopy Cluster_resource
+	
 	nodeArrSize = len(config.Nodes)
+	//increment lastNode to avoild placing in the same node as last resource
+	*lastNode++
+	if *lastNode >= nodeArrSize-1 {
+		//reset nodeArray index to 0, we want to loop over this array
+		*lastNode = 0}
+	
+	//for config.Nodes[ *lastNode ].doesResourceFitsOnNode( res ) == false {
+	for b.expectedResUtil[ *lastNode ].doesResourceFitsOnNode( res ) == false {
+		//checked on all nodes?
+		nodesChecked++
+		if nodesChecked >= nodeArrSize {
+			// all nodes checked, res coulsn't be placed
+			return false}
+		if *lastNode >= nodeArrSize-1 {
+			//reset nodeArray index to 0, we want to loop over this array
+			*lastNode = 0
+			continue}
+		*lastNode++}
+	//found fitting node, placing
+	//copy because we need to modify struct modify
+	resCopy = *res
+	resCopy.placement = config.Nodes[ *lastNode ].Hostname
+	b.desired_resourcePlacement = append(b.desired_resourcePlacement, 
+	resCopy)
+	//resource placed in desired resources
+	return true}
+		
+	
+
+func (b *Brain)basic_placeResources(){
+	var lastNode int = 0
+	config.rwmux.RLock()
 	for k,_:=range config.Resources {
-		nodesChecked = 0
-		//TODO move into separate function
-		for config.Nodes[ lastNode ].doesResourceFitsOnNode(
-			config.Resources[k]) == false {
-			nodesChecked++
-			if nodesChecked >=nodeArrSize {
-				//res placement check failed on all nodes
-				//return false from function, break or goto
-			}
-			//TODO place resource on the node
-		}
+		//nodesChecked = 0
+		if config.Resources[k].State != resource_state_running {
+			// skip if resource turned off in config
+			continue}
+		if b.checkIfResourceHasPlacement(&config.Resources[k]) {
+			continue}
+				
+		if b._place_single_resource(&lastNode, &config.Resources[k]){
+			continue
+		}else{
+			lg.msg_debug(2, fmt.Sprintf(
+				"resource %s couldn't be placed on any node",
+				config.Resources[k].Name))}}
 	config.rwmux.RUnlock()
 	}
 
