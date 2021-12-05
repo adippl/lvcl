@@ -143,4 +143,4 @@ func (c *Cluster_resource)SaveToFile(){
 	confser, err = json.MarshalIndent(c, "", "	")
 	if err != nil {
 		lg.err("Can't serislize resource", err)}
-	ioutil.WriteFile("./cluster.json",confser,0644)}
+	ioutil.WriteFile(c.confFile, confser, 0644)}
