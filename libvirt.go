@@ -162,7 +162,7 @@ func (l *lvd)listDomains(){
 
 func (l *lvd)startVM(v *Cluster_resource) bool {
 	if v.ResourceController_id != resource_controller_id_libvirt {
-		lg.msgERR("lvd.startVM() received Cluster_resouce of incorrect type")
+		lg.msgERR("lvd.startVM() received Cluster_resource of incorrect type")
 		return false}
 	file, err := ioutil.ReadFile(v.Strs["DomainXML"])
 	if err != nil {

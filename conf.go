@@ -129,7 +129,6 @@ func confLoad(){
 	
 	loadAllVMfiles()
 	
-	
 	config.dumpConfig()
 	//config.rwmux.Unlock()
 	}
@@ -144,6 +143,9 @@ func loadAllVMfiles(){
 
 
 func VMReadFile(path string) error {
+	var res Cluster_resource
+	var tmpres *Cluster_resource
+	
 	fmt.Println("reading "+path)
 	file, err := os.Open(path)
 	if err != nil {
@@ -156,15 +158,15 @@ func VMReadFile(path string) error {
 		fmt.Println("ERR reading "+path )
 		os.Exit(11);}
 	
-	var res Cluster_resource
-	var tmpres *Cluster_resource
 	json.Unmarshal(raw,&res)
+	res.confFile = path
 
 	tmpres=config.GetCluster_resourcebyName(&res.Name)
 	if(tmpres != nil){
 		fmt.Printf("err resource with name %s already exists\n", res.Name)
 		return fmt.Errorf("err resource with name %s already exists", res.Name)}
 
+	//make sure there are no duplicated libvirt resources
 	if res.ResourceController_id == resource_controller_id_libvirt {
 		xmlfile := res.Strs["DomainXML"]
 		tmpres=config.GetVMbyDomain(&xmlfile)
@@ -179,6 +181,7 @@ func VMReadFile(path string) error {
 	config.rwmux.Unlock()
 	
 	return nil}
+
 
 func (c *Conf)dumpConfig(){
 	fmt.Printf("\n\n\n\n LOADED CONFIG\n\n\n\n")
@@ -663,3 +666,8 @@ func (c *Conf)isTheirEpochAhead(i int) bool {
 	c.rwmux.RUnlock()
 	return b}
 
+func (c *Conf)saveAllResources(){
+	c.rwmux.RLock()
+	for k,_:=range c.Resources {
+		c.Resources[k].SaveToFile()}
+	c.rwmux.RUnlock()}

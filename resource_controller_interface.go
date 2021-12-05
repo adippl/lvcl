@@ -18,6 +18,9 @@
  */
 package main
 
+import "encoding/json"
+import "io/ioutil"
+
 const(
 	resource_controller_id_libvirt=iota
 	resource_controller_id_docker
@@ -80,7 +83,8 @@ type Cluster_resource struct {
 	Strs		map[string]string
 	Ints		map[string]int
 	Bools		map[string]bool
-	placement	string
+	placement	string `json:"-"`
+	confFile	string `json:"-"`
 }
 
 
@@ -132,3 +136,11 @@ func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
 		return false}
 	u.Value += arg.Value
 	return true}
+
+func (c *Cluster_resource)SaveToFile(){
+	var confser []byte 
+	var err error
+	confser, err = json.MarshalIndent(c, "", "	")
+	if err != nil {
+		lg.err("Can't serislize resource", err)}
+	ioutil.WriteFile("./cluster.json",confser,0644)}

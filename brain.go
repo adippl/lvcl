@@ -91,13 +91,15 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	if config.EnabledResourceControllers[resource_controller_id_libvirt] {
 		b.resCtl_lvd = NewLVD()
 		if b.resCtl_lvd == nil {
-			lg.msg("ERROR, NewLVD libvirt resource controller failed to start")}}
+			lg.msg(
+				"ERROR, NewLVD libvirt resource controller failed to start")}}
 
 
 	if config.EnabledResourceControllers[resource_controller_id_dummy] {
 		b.resCtl_Dummy = NewDummy()
 		if b.resCtl_Dummy == nil {
-			lg.msg("ERROR, NewDummy dummy resource controller failed to start")}}
+			lg.msg(
+				"ERROR, NewDummy dummy resource controller failed to start")}}
 		
 	go b.messageHandler()
 	lg.msg_debug(3, "brain started messageHandler()")
@@ -342,11 +344,26 @@ func (b *Brain)writeNodeHealth() string {
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
-				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Green",b.nodeHealthLast30Ticks[k]))
+				sb.WriteString(fmt.Sprintf(
+					"node: %s, last_msg: %dms, health: %s %+v\n",
+					k,
+					b.nodeHealthLastPing[k],
+					"Green",
+					b.nodeHealthLast30Ticks[k]))
 			case HealthOrange:
-				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Orange",b.nodeHealthLast30Ticks[k]))
+				sb.WriteString(fmt.Sprintf(
+					"node: %s, last_msg: %dms, health: %s %+v\n",
+					k,
+					b.nodeHealthLastPing[k],
+					"Orange",
+					b.nodeHealthLast30Ticks[k]))
 			case HealthRed:
-				sb.WriteString(fmt.Sprintf("node: %s, last_msg: %dms, health: %s %+v\n",k,b.nodeHealthLastPing[k],"Red",b.nodeHealthLast30Ticks[k]))}}
+				sb.WriteString(fmt.Sprintf(
+					"node: %s, last_msg: %dms, health: %s %+v\n",
+					k,
+					b.nodeHealthLastPing[k],
+					"Red",
+					b.nodeHealthLast30Ticks[k]))}}
 	//unlock mutex for nodeHealth maps
 	b.rwmux.RUnlock()
 	
@@ -369,13 +386,23 @@ func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 	var cl_utl *[]Cluster_utilization
 	cl_res = ctl.Get_running_resources()
 		if cl_res == nil {
-			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
-	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending Cluster_resources to Master node", *cl_res)
+			lg.msg(
+				"ERROR ,BRAIN, get_running_resources returned NULL pointer")}
+	b.SendMsgINT(
+		"__master__",
+		brianRpcSendingClusterResources,
+		"sending Cluster_resources to Master node",
+		*cl_res)
 	
 	cl_utl = ctl.Get_utilization()
 		if cl_utl == nil {
-			lg.msg("ERROR ,BRAIN, get_running_resources returned NULL pointer")}
-	b.SendMsgINT("__master__", brianRpcSendingClusterResources, "sending clsuter_utilization to Master node", *cl_utl)
+			lg.msg(
+				"ERROR ,BRAIN, get_running_resources returned NULL pointer")}
+	b.SendMsgINT(
+		"__master__", 
+		brianRpcSendingClusterResources,
+		"sending clsuter_utilization to Master node",
+		*cl_utl)
 	}
 
 func (b *Brain)resourceBalancer(){
@@ -386,11 +413,11 @@ func (b *Brain)resourceBalancer(){
 		
 		//b.reportControllerResourceState(b.resCtl_lvd)
 		b.update_expectedResUtil()
-		//b.basic_placeResources()
+		b.basic_placeResources()
 		if(b.isMaster){
 			// TODO
 			// get resource states
-			b.basic_placeResources()
+			//b.basic_placeResources()
 			
 			// generate resource placement plan
 			
