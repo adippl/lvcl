@@ -109,7 +109,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	lg.msg_debug(3, "brain started getMasterNode()")
 
 	go b.LogBrainStatus()
-	go b.resourceBalancer()
+	//go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){
@@ -279,8 +279,9 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			b.isMaster = false}
 		//unlock writing mutex 
 		b.rwmux.Unlock()
-		time.Sleep(time.Millisecond * time.Duration(config.NodeHealthCheckInterval))}
-		}
+		time.Sleep(
+			time.Millisecond * time.Duration(
+				config.NodeHealthCheckInterval))}}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
@@ -407,17 +408,24 @@ func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 
 func (b *Brain)resourceBalancer(){
 	//time.Sleep(time.Duration(5) *time.Second)
+	//debug on local machine
+	var debug_local bool = false
+
+	if config._MyHostname() == "x270" {
+		debug_local = true}
 	for{
 		if(b.killBrain){
 			return}
 		
 		//b.reportControllerResourceState(b.resCtl_lvd)
 		b.update_expectedResUtil()
-		b.basic_placeResources()
+		if debug_local {
+			b.basic_placeResources()}
 		if(b.isMaster){
 			// TODO
 			// get resource states
-			//b.basic_placeResources()
+			if ! debug_local {
+				b.basic_placeResources()}
 			
 			// generate resource placement plan
 			

@@ -129,7 +129,7 @@ func confLoad(){
 	
 	loadAllVMfiles()
 	
-	config.dumpConfig()
+	//config.dumpConfig()
 	//config.rwmux.Unlock()
 	}
 
@@ -159,7 +159,7 @@ func VMReadFile(path string) error {
 		os.Exit(11);}
 	
 	json.Unmarshal(raw,&res)
-	res.confFile = path
+	res.ConfFile = path
 
 	tmpres=config.GetCluster_resourcebyName(&res.Name)
 	if(tmpres != nil){
@@ -632,9 +632,6 @@ func (c *Conf)SetField_bool(field string, value bool){
 	c.rwmux.Unlock()}
 
 
-//func (b *Brain)is_this_node_a_master() bool {
-//func (b *Brain)getMasterNodeName() *string {
-
 func (c *Conf)SetNewResourceState(res *[]Cluster_resource){
 	c.rwmux.Lock()
 	c.Resources = *res
@@ -655,19 +652,17 @@ func (c *Conf)GetEpoch() int {
 func (c *Conf)isTheirEpochBehind(i int) bool {
 	var b bool
 	c.rwmux.RLock()
-	b = (i > c.Epoch)
+	b = (i < c.Epoch)
 	c.rwmux.RUnlock()
 	return b}
 
 func (c *Conf)isTheirEpochAhead(i int) bool {
 	var b bool
 	c.rwmux.RLock()
-	b = (i < c.Epoch)
+	b = (i > c.Epoch)
 	c.rwmux.RUnlock()
 	return b}
 
-func (c *Conf)saveAllResources(){
-	c.rwmux.RLock()
+func (c *Conf)_saveAllResources(){
 	for k,_:=range c.Resources {
-		c.Resources[k].SaveToFile()}
-	c.rwmux.RUnlock()}
+		c.Resources[k].SaveToFile()}}

@@ -1,0 +1,43 @@
+{
+	"ResourceController_name": "dummy",
+	"ResourceController_id": 2,
+	"Name": "dummy0",
+	"Id": 1,
+	"State": 4,
+	"Util": [
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "VCPUs",
+			"Id": 13,
+			"Value": 1
+		},
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "hwCPUs",
+			"Id": 8,
+			"Value": 1
+		},
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "vMEM",
+			"Id": 14,
+			"Value": 1024
+		},
+		{
+			"ResourceController_name": "",
+			"ResourceController_id": 0,
+			"Name": "hwMEM",
+			"Id": 12,
+			"Value": 512
+		}
+	],
+	"Ints": {
+		"MigrationTimeout": 180
+	},
+	"Bools": {
+		"MigrateLive": true
+	}
+}

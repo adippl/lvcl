@@ -84,12 +84,12 @@ func NewExchange(	a_brn_ex <-chan message,
 	go e.forwarder()
 	lg.msg_debug(3, "exchange launched forwarder()")
 	go e.initListenTCP()
-	go e.initListenUnix()
 	go e.reconnectLoop()
 	go e.sorter()
 	go e.heartbeatSender()
 	go e.updateNodeHealthDelta()
 	go e.configEpochSender()
+	go e.initListenUnix()
 	lg.msg_debug(2, "exchange launched all it's goroutines")
 	return &e}
 
@@ -636,7 +636,6 @@ func (e *Exchange)msg_handle_client_logger_listen_connect(m *message) bool {
 		m.RpcFunc == clientListenToClusterLogger &&
 		m.DestHost == "__any__" {
 		
-		//fmt.Println("-=-=-=- DEBUG received client's ask for logger data")
 		loglevel, err = strconv.Atoi(m.Argv[0])
 		if err != nil {
 			lg.err("clientListenToClusterLogger wrong m.Argv[0] ", err)
@@ -743,6 +742,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		//mutex
 		config.rwmux.Lock()
 		res.State = newState
+		res.SaveToFile()
 		config.rwmux.Unlock()
 		//end of mutex
 		config.IncEpoch() //TODO this function uses the mutex again
@@ -762,8 +762,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochBehind(m.Cint) {
-			// TODO respond by sending them our config
+		if config.isTheirEpochAhead(m.Cint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdateAsk
@@ -784,10 +783,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		// TODO maybe check if for epoch
-		//if config.isTheirEpochBehind(m.Cint) {
-		if true {
-			// TODO respond by sending them our config
+		if config.isTheirEpochBehind(m.Cint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdate
@@ -797,10 +793,10 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 			m.Res = config.Resources
 			config.rwmux.RUnlock()
 			e.loc_ex <- *m
-			fmt.Println("ALKWDJLAKWJDLAKJWDLAWD")
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending config to node %s (epoch %d)",
-				m.DestHost, m.Cint))}
+				m.DestHost,
+				m.Cint))}
 			return true}
 	return false}
 
@@ -810,13 +806,11 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.DestHost == config._MyHostname() {
 			
-		// TODO maybe check if for epoch
-		// check if message arrived with config from higher epoch
 		if config.isTheirEpochAhead(m.Cint) {
-		//if true {
 			config.rwmux.Lock()
 			config.Resources = m.Res
 			config.Epoch = m.Cint
+			config._saveAllResources()
 			config.rwmux.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(
 				"received config from node %s with epoch %d ",
