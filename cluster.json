@@ -131,7 +131,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 1
 				},
@@ -178,7 +178,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 1
 				},
@@ -211,7 +211,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 1
 				},
@@ -277,7 +277,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 3
 				},
@@ -310,7 +310,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 3
 				},
@@ -343,7 +343,7 @@
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
-					"Name": "VCPUs",
+					"Name": "vCPUs",
 					"Id": 16,
 					"Value": 2
 				},

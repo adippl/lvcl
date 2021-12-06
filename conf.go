@@ -341,7 +341,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	1,
 						},
@@ -379,7 +379,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	1,
 						},
@@ -407,7 +407,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	1,
 						},
@@ -463,7 +463,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	3,
 						},
@@ -491,7 +491,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	3,
 						},
@@ -519,7 +519,7 @@ func writeExampleConfig(){
 				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
-						Name:	"VCPUs",
+						Name:	"vCPUs",
 						Id:		utilization_vpcus,
 						Value:	2,
 						},

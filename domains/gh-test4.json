@@ -8,7 +8,7 @@
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
-			"Name": "VCPUs",
+			"Name": "vCPUs",
 			"Id": 16,
 			"Value": 1
 		},

@@ -143,7 +143,10 @@ func (c *Cluster_utilization)NameString() string {
 		return "other "}}
 
 func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
-	if u.Id != arg.Id || u.Name != arg.Name {
+	// maybe this function shouldn't check for string name
+	// less error prone in config and it should be faster
+	//if u.Id != arg.Id || u.Name != arg.Name {
+	if u.Id != arg.Id {
 		// resources of the wrong type
 		return false}
 	u.Value += arg.Value
