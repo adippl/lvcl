@@ -109,7 +109,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	lg.msg_debug(3, "brain started getMasterNode()")
 
 	go b.LogBrainStatus()
-	//go b.resourceBalancer()
+	go b.resourceBalancer()
 	return &b}
 
 func (b *Brain)KillBrain(){
@@ -424,10 +424,10 @@ func (b *Brain)resourceBalancer(){
 		if(b.isMaster){
 			// TODO
 			// get resource states
-			if ! debug_local {
-				b.basic_placeResources()}
 			
 			// generate resource placement plan
+			if ! debug_local {
+				b.basic_placeResources()}
 			
 			// change resource states on nodes
 			}
@@ -479,6 +479,7 @@ func (b *Brain)writeBrainStatus() *string {
 		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
 			v.CtlString(), v.StateString(), v.placement, v.Name ))}
 	sb.WriteString("========================================\n")
+	sb.WriteString(*b.writeSum_expectedResUtil())
 		
 	retString = sb.String()
 	return &retString}
@@ -507,6 +508,15 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 		usagePerc = float32(usage/hw)
 	}else{
 		usagePerc = -1.0}
+//	if ! (hwFits || usageFits) {
+//		fmt.Printf("res DOES NOT FIT ON THE NODE %b %b|%s|%s|%s|%d|%+v\n",
+//			hwFits,
+//			usageFits,
+//			n.Hostname,
+//			u.Name,
+//			u.NameString(),
+//			u.Value,
+//			u)}
 	return hwFits, usageFits, usagePerc}
 
 func (n *Node)doesResourceFitsOnNode(r *Cluster_resource) bool {
@@ -569,7 +579,7 @@ func (b *Brain)_place_single_resource(
 	nodeArrSize = len(config.Nodes)
 	//increment lastNode to avoild placing in the same node as last resource
 	*lastNode++
-	if *lastNode >= nodeArrSize-1 {
+	if *lastNode > nodeArrSize-1 {
 		//reset nodeArray index to 0, we want to loop over this array
 		*lastNode = 0}
 	
@@ -579,6 +589,7 @@ func (b *Brain)_place_single_resource(
 		nodesChecked++
 		if nodesChecked >= nodeArrSize {
 			// all nodes checked, res coulsn't be placed
+//			lg.msg_debug(5, fmt.Sprintf( "_place_single_resource looped, (%d >= %d) = %b", nodesChecked, nodeArrSize, nodesChecked >= nodeArrSize))
 			return false}
 		if *lastNode >= nodeArrSize-1 {
 			//reset nodeArray index to 0, we want to loop over this array
@@ -638,3 +649,24 @@ func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
 			b.local_resourcePlacement[k].Id == r.Id {
 			return true}}
 	return false}
+
+func (b *Brain)writeSum_expectedResUtil() *string {
+	var sb strings.Builder
+	var retStr string
+	sb.WriteString("\n=== Node Util ===\n")
+
+	for k,_:=range b.expectedResUtil {
+		sb.WriteString(fmt.Sprintf("== node %s ==\n",
+			b.expectedResUtil[k].Hostname))
+		//assuming that Node.Util[] is the same order and length as
+		//node.HwStats
+		//IT SHOULD BE
+		for kk,_:=range b.expectedResUtil[k].Usage {
+			sb.WriteString(fmt.Sprintf("node %s\t%d\t/\t%d\n",
+				b.expectedResUtil[k].Usage[kk].NameString(),
+				b.expectedResUtil[k].Usage[kk].Value,
+				b.expectedResUtil[k].HwStats[kk].Value))}}
+	sb.WriteString("\n=================\n")
+	retStr = sb.String()
+	return &retStr}
+

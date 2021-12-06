@@ -129,6 +129,18 @@ func (c *Cluster_resource)CtlString() string {
 	default:
 		return "other  "}}
 
+func (c *Cluster_utilization)NameString() string {
+	switch c.Id {
+	case utilization_vpcus:
+		return "vCPUs "
+	case utilization_hw_cores:
+		return "hwCPUs"
+	case utilization_hw_mem:
+		return "hwMEM "
+	case utilization_vmem:
+		return "vMEM  "
+	default:
+		return "other "}}
 
 func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
 	if u.Id != arg.Id || u.Name != arg.Name {

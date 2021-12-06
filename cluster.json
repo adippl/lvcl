@@ -165,7 +165,8 @@
 			},
 			"Bools": {
 				"MigrateLive": true
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
@@ -197,12 +198,13 @@
 			},
 			"Bools": {
 				"MigrateLive": true
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
 			"ResourceController_id": 2,
-			"Name": "dummy resource 3 Very High mem",
+			"Name": "dummy resource 3 Too High mem",
 			"Id": 12,
 			"State": 4,
 			"Util": [
@@ -229,7 +231,8 @@
 			},
 			"Bools": {
 				"MigrateLive": false
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
@@ -242,8 +245,8 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 11,
-					"Value": 1
+					"Id": 16,
+					"Value": 100
 				},
 				{
 					"ResourceController_name": "",
@@ -261,7 +264,8 @@
 			},
 			"Bools": {
 				"MigrateLive": false
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
@@ -293,7 +297,8 @@
 			},
 			"Bools": {
 				"MigrateLive": false
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
@@ -325,7 +330,8 @@
 			},
 			"Bools": {
 				"MigrateLive": false
-			}
+			},
+			"ConfFile": ""
 		},
 		{
 			"ResourceController_name": "dummy",
@@ -357,7 +363,8 @@
 			},
 			"Bools": {
 				"MigrateLive": false
-			}
+			},
+			"ConfFile": ""
 		}
 	],
 	"ResourceControllers": {

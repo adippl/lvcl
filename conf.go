@@ -402,7 +402,7 @@ func writeExampleConfig(){
 			Cluster_resource{
 				ResourceController_name: "dummy",
 				ResourceController_id: resource_controller_id_dummy,
-				Name: "dummy resource 3 Very High mem",
+				Name: "dummy resource 3 Too High mem",
 				Id: 12,
 				State: resource_state_running,
 				Util: []Cluster_utilization{
@@ -436,8 +436,8 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_hw_cores,
-						Value:	1,
+						Id:		utilization_vpcus,
+						Value:	100,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
