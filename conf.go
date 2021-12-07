@@ -44,7 +44,7 @@ type Conf struct {
 	Resources []Cluster_resource
 	ResourceControllers map[string]bool
 	rwmux sync.RWMutex `json:"-"`
-	Epoch int `json:"-"`
+	Epoch uint64 `json:"-"`
 	
 	VCpuMax uint
 	HwCpuMax uint
@@ -642,21 +642,21 @@ func (c *Conf)IncEpoch() {
 	c.Epoch++
 	c.rwmux.Unlock()}
 
-func (c *Conf)GetEpoch() int {
-	var e int
+func (c *Conf)GetEpoch() uint64 {
+	var e uint64
 	c.rwmux.RLock()
 	e = c.Epoch
 	c.rwmux.RUnlock()
 	return e}
 
-func (c *Conf)isTheirEpochBehind(i int) bool {
+func (c *Conf)isTheirEpochBehind(i uint64) bool {
 	var b bool
 	c.rwmux.RLock()
 	b = (i < c.Epoch)
 	c.rwmux.RUnlock()
 	return b}
 
-func (c *Conf)isTheirEpochAhead(i int) bool {
+func (c *Conf)isTheirEpochAhead(i uint64) bool {
 	var b bool
 	c.rwmux.RLock()
 	b = (i > c.Epoch)

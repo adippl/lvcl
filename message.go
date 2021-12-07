@@ -59,6 +59,9 @@ const(
 	confNotifAboutEpoch
 	confNotifAboutEpochUpdate
 	confNotifAboutEpochUpdateAsk
+	brainNotifAboutEpoch
+	brainNotifAboutEpochUpdate
+	brainNotifAboutEpochUpdateAsk
 	)
 
 type message struct{
@@ -72,6 +75,7 @@ type message struct{
 	Argc		uint
 	Argv		[]string
 	Cint		int
+	Cuint		uint64
 	Res			[]Cluster_resource //terrible but quick
 	custom1		interface{}
 	custom2		interface{}

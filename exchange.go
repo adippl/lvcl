@@ -384,7 +384,7 @@ func (e *Exchange)configEpochSender(){
 			Time: t,
 			Argc: 1,
 			Argv: []string{"epoch"},
-			Cint: config.GetEpoch(),
+			Cuint: config.GetEpoch(),
 			}
 		e.loc_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
@@ -756,19 +756,19 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 	return false}
 
 func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
-	var bk_epo int = -1
+	var bk_epo uint64 = 0
 	if	m.RpcFunc == confNotifAboutEpoch &&
 		m.SrcMod == msgModConfig &&
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Cint) {
+		if config.isTheirEpochAhead(m.Cuint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdateAsk
 			m.Argv[0] = "requesting config from host with higher epoch"
-			bk_epo = m.Cint
-			m.Cint = config.GetEpoch()
+			bk_epo = m.Cuint
+			m.Cuint = config.GetEpoch()
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"found node with higher epoch %s (our %d theirs %d)",
@@ -783,12 +783,12 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochBehind(m.Cint) {
+		if config.isTheirEpochBehind(m.Cuint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdate
 			m.Argv[0] = "sending config with newer epoch"
-			m.Cint = config.GetEpoch()
+			m.Cuint = config.GetEpoch()
 			config.rwmux.RLock()
 			m.Res = config.Resources
 			config.rwmux.RUnlock()
@@ -806,10 +806,10 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.DestHost == config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Cint) {
+		if config.isTheirEpochAhead(m.Cuint) {
 			config.rwmux.Lock()
 			config.Resources = m.Res
-			config.Epoch = m.Cint
+			config.Epoch = m.Cuint
 			config._saveAllResources()
 			config.rwmux.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(

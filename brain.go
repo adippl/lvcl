@@ -54,10 +54,12 @@ type Brain struct{
 	//resourceControllers		map[uint]interface{}
 	resCtl_lvd					*lvd
 	resCtl_Dummy				*Dummy_rctl
+	Epoch						uint64
 	desired_resourcePlacement	[]Cluster_resource
 	current_resourcePlacement	[]Cluster_resource
 	local_resourcePlacement		[]Cluster_resource
 	rwmux_locP					sync.RWMutex
+	rwmux_curPlacement			sync.RWMutex
 	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
@@ -77,6 +79,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		
 		ex_brn:					a_ex_brn,
 		brn_ex:					a_brn_ex,
+		Epoch:			0,
 		nodeHealth:				make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
 		nodeHealthLastPing:		make(map[string]uint),
@@ -85,7 +88,8 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		
 		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
-		rwmux_locP:					sync.RWMutex{},
+		rwmux_locP:				sync.RWMutex{},
+		rwmux_curPlacement:		sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -702,3 +706,55 @@ func (b *Brain)update__local_resourcePlacement(){
 	b.rwmux_locP.Lock()
 	b.local_resourcePlacement = retRes
 	b.rwmux_locP.Unlock()}
+
+
+func (b *Brain)IncEpoch() {
+	b.rwmux.Lock()
+	b.Epoch++
+	b.rwmux.Unlock()}
+
+func (b *Brain)GetEpoch() uint64 {
+	var e uint64
+	b.rwmux.RLock()
+	e = b.Epoch
+	b.rwmux.RUnlock()
+	return e}
+
+func (b *Brain)isTheirEpochBehind(i uint64) bool {
+	var r bool
+	b.rwmux.RLock()
+	r = (i < b.Epoch)
+	b.rwmux.RUnlock()
+	return r}
+
+func (b *Brain)isTheirEpochAhead(i uint64) bool {
+	var r bool
+	b.rwmux.RLock()
+	r = (i > b.Epoch)
+	b.rwmux.RUnlock()
+	return r}
+
+
+func (b *Brain)epochSender(){
+	var m message
+	var t time.Time
+	lg.msg_debug(3, "exchange launched configEpochSender()")
+	for{
+		if b.killBrain { //ugly solution
+			return}
+		t = time.Now()
+		
+		m = message{
+			SrcHost: config.MyHostname,
+			DestHost: "__everyone__",
+			SrcMod: msgModBrain,
+			DestMod: msgModBrain,
+			RpcFunc: brainNotifAboutEpoch,
+			Time: t,
+			Argc: 1,
+			Argv: []string{"epoch"},
+			Cuint: b.GetEpoch(),
+			}
+		b.brn_ex <- m
+		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
+
