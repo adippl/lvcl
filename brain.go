@@ -57,6 +57,7 @@ type Brain struct{
 	desired_resourcePlacement	[]Cluster_resource
 	current_resourcePlacement	[]Cluster_resource
 	local_resourcePlacement		[]Cluster_resource
+	rwmux_locP					sync.RWMutex
 	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
@@ -79,9 +80,12 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		nodeHealth:				make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
 		nodeHealthLastPing:		make(map[string]uint),
+		resCtl_lvd:				nil,
+		resCtl_Dummy:			nil,
 		
 		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
+		rwmux_locP:					sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -191,12 +195,19 @@ func (b *Brain)countVotes(){
 	config.ClusterTick_sleep()
 	var sum uint = 0
 	for k,v := range b.nominatedBy {
-		lg.msg(fmt.Sprintf("this node (%s) nominated by %s %t",config.MyHostname,k,v))
+		lg.msg(fmt.Sprintf(
+			"this node (%s) nominated by %s %t",
+			config.MyHostname,k,v))
 		if v {
 			sum++}}
 	// to get quorum host needs quorum-1 votes (it doesn't need it's own vote )
 	if sum >= config.Quorum-1 {
-		fmt.Printf("this host won elections with %d votes (quorum==%d) of votes",sum,config.Quorum)
+		lg.msg_debug(
+			2,
+			fmt.Sprintf(
+				"this host won elections with %d votes (quorum==%d) of votes",
+				sum,
+				config.Quorum))
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
 		b.nominatedBy = make(map[string]bool)
@@ -232,8 +243,9 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		b.nodeHealth = make(map[string]int)
 		b.nodeHealth[config.MyHostname]=HealthGreen
 		for k,v := range e.GetHeartbeat() {
-			//get absolute value of time.
-			//in this simple implemetation time can be negative due to time differences on host
+			// get absolute value of time.
+			// in this simple implemetation time can be negative due to time 
+			// differences on host
 			dt := time.Now().Sub(*v)
 			//get absolute value
 			if dt < 0 {
@@ -418,6 +430,7 @@ func (b *Brain)resourceBalancer(){
 			return}
 		
 		//b.reportControllerResourceState(b.resCtl_lvd)
+		b.update__local_resourcePlacement()
 		b.update_expectedResUtil()
 		if debug_local {
 			b.basic_placeResources()}
@@ -669,4 +682,23 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 	sb.WriteString("\n=================\n")
 	retStr = sb.String()
 	return &retStr}
-
+	
+func (b *Brain)update__local_resourcePlacement(){
+	var r_arr []Cluster_resource
+	var retRes []Cluster_resource = make([]Cluster_resource,0)
+	
+	if b.resCtl_lvd != nil {
+		r_arr = *b.resCtl_lvd.Get_running_resources()
+		if r_arr != nil {
+			for k,_:=range r_arr {
+				retRes = append(retRes, r_arr[k])}}}
+	if b.resCtl_Dummy != nil {
+		//TODO handle lvd
+		r_arr = *b.resCtl_Dummy.Get_running_resources()
+		if r_arr != nil {
+			for k,_:=range r_arr {
+				retRes = append(retRes, r_arr[k])}}}
+	
+	b.rwmux_locP.Lock()
+	b.local_resourcePlacement = retRes
+	b.rwmux_locP.Unlock()}
