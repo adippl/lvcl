@@ -116,6 +116,8 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	go b.getMasterNode()
 	lg.msg_debug(3, "brain started getMasterNode()")
 
+	
+	go b.epochSender()
 	go b.LogBrainStatus()
 	go b.resourceBalancer()
 	return &b}
@@ -140,8 +142,16 @@ func  (b *Brain)messageHandler(){
 		
 		//handle client's requests for status
 		if b.msg_handle_clientAskAboutStatus(&m) {continue}
+
+		//message updating desired config
+//		if e.msg_handle_brainNotifAboutEpoch(&m) {continue}
+//		if e.msg_handle_brainNotifAboutEpochUpdateAsk(&m) {continue}
+//		if e.msg_handle_brainNotifAboutEpochUpdate(&m) {continue}
+
 		
-		if m.RpcFunc == brainRpcAskForMasterNode && m.SrcHost != config._MyHostname() {
+		if m.RpcFunc == brainRpcAskForMasterNode &&
+			m.SrcHost != config._MyHostname() {
+			
 			b.replyToAskForMasterNode(&m)
 			continue
 		
@@ -149,7 +159,10 @@ func  (b *Brain)messageHandler(){
 		}else if b.isMaster &&
 				(m.RpcFunc == brainRpcElectAsk ||
 				 m.RpcFunc == brainRpcElectNominate) {
-				b.SendMsg(m.SrcHost, brainRpcHaveMasterNodeReply, config.MyHostname)
+				b.SendMsg(
+					m.SrcHost,
+					brainRpcHaveMasterNodeReply,
+					config.MyHostname)
 				continue
 		// respond to message with info about master node
 		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
@@ -738,7 +751,7 @@ func (b *Brain)isTheirEpochAhead(i uint64) bool {
 func (b *Brain)epochSender(){
 	var m message
 	var t time.Time
-	lg.msg_debug(3, "exchange launched configEpochSender()")
+	lg.msg_debug(3, "brain launched epochSender()")
 	for{
 		if b.killBrain { //ugly solution
 			return}

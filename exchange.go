@@ -796,7 +796,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending config to node %s (epoch %d)",
 				m.DestHost,
-				m.Cint))}
+				m.Cuint))}
 			return true}
 	return false}
 
@@ -814,7 +814,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 			config.rwmux.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(
 				"received config from node %s with epoch %d ",
-				m.SrcHost, m.Cint))}
+				m.SrcHost, m.Cuint))}
 			return true}
 	return false}
 
