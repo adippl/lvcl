@@ -60,6 +60,7 @@ type Brain struct{
 	local_resourcePlacement		[]Cluster_resource
 	rwmux_locP					sync.RWMutex
 	rwmux_curPlacement			sync.RWMutex
+	rwmux_dp			sync.RWMutex
 	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
@@ -90,6 +91,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		rwmux:					sync.RWMutex{},
 		rwmux_locP:				sync.RWMutex{},
 		rwmux_curPlacement:		sync.RWMutex{},
+		rwmux_dp:				sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -144,9 +146,9 @@ func  (b *Brain)messageHandler(){
 		if b.msg_handle_clientAskAboutStatus(&m) {continue}
 
 		//message updating desired config
-//		if e.msg_handle_brainNotifAboutEpoch(&m) {continue}
-//		if e.msg_handle_brainNotifAboutEpochUpdateAsk(&m) {continue}
-//		if e.msg_handle_brainNotifAboutEpochUpdate(&m) {continue}
+		if b.msg_handle_brainNotifAboutEpoch(&m) {continue}
+		if b.msg_handle_brainNotifAboutEpochUpdateAsk(&m) {continue}
+		if b.msg_handle_brainNotifAboutEpochUpdate(&m) {continue}
 
 		
 		if m.RpcFunc == brainRpcAskForMasterNode &&
@@ -190,7 +192,9 @@ func  (b *Brain)messageHandler(){
 				b.nominatedBy[m.SrcHost]=true
 				//go b.countVotes()}}}}
 				fmt.Println("DEBUG ",m)
-				go b.countVotes()}}}}
+				go b.countVotes()}}
+
+		lg.msg_debug(2, fmt.Sprintf("brain received message which failed all validation functions: %+v",m))}}
 
 func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
@@ -448,8 +452,14 @@ func (b *Brain)resourceBalancer(){
 		
 		//b.reportControllerResourceState(b.resCtl_lvd)
 		b.update__local_resourcePlacement()
+		// function moved into Master IF
+		// it shouldn't be needed on other nodes
+		// client may possibly want to see that info, 
+		// it would probably require excahnge code to forward client
+		// messages to client (and backwards
 		b.update_expectedResUtil()
 		if debug_local {
+		//	b.update_expectedResUtil()
 			b.basic_placeResources()}
 		if(b.isMaster){
 			// TODO
@@ -457,6 +467,7 @@ func (b *Brain)resourceBalancer(){
 			
 			// generate resource placement plan
 			if ! debug_local {
+		//		b.update_expectedResUtil()
 				b.basic_placeResources()}
 			
 			// change resource states on nodes
@@ -493,21 +504,22 @@ func (b *Brain)writeBrainStatus() *string {
 	var sb strings.Builder
 	var retString string
 	sb.WriteString("\n====== desired resource placement ======\n")
+	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
 	for _,v:=range b.desired_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 	
 	sb.WriteString("\n====== current resource placement ======\n")
 	for _,v:=range b.current_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 		
 	sb.WriteString("\n======= local resource placement =======\n")
 	for _,v:=range b.local_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.placement, v.Name ))}
+			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 	sb.WriteString(*b.writeSum_expectedResUtil())
 		
@@ -558,11 +570,14 @@ func (n *Node)doesResourceFitsOnNode(r *Cluster_resource) bool {
 func (b *Brain)update_expectedResUtil(){
 	var node *Node = nil
 	var util *Cluster_utilization = nil
+
+	b.rwmux_dp.Lock()
 	config.rwmux.RLock()
 	//create copy, it's safer* (* not really)
 	b.expectedResUtil = config.Nodes
 	
-	config.rwmux.RUnlock()
+	b.rwmux_dp.Unlock()
+	b.rwmux_dp.RLock()
 	for k,_:=range b.expectedResUtil {
 		
 		//deep copy 
@@ -576,20 +591,31 @@ func (b *Brain)update_expectedResUtil(){
 		//zero all resource usage
 		for kk,_:=range b.expectedResUtil[k].Usage {
 			b.expectedResUtil[k].Usage[kk].Value = 0}}
-	
 	for x,_:=range b.desired_resourcePlacement {
 		//get ptr to node
-		node = b.getPtrToNode(&b.desired_resourcePlacement[x].placement)
+		node = b.getPtrToNode(&b.desired_resourcePlacement[x].Placement)
+
+		if node == nil {
+			fmt.Printf("ASDASDASDASDASD %+v\n", node)
+			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement[x].Placement)
+			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement)
+			}
 		for y,_:=range b.desired_resourcePlacement[x].Util {
 			//get ptr to Cluster_utilization if exists on this node
+//			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement[x].Util[y].Id)
 			util = node.getPtrToUtil(b.desired_resourcePlacement[x].Util[y].Id)
 			if ! util.UtilAdd(&b.desired_resourcePlacement[x].Util[y]) {
-				continue}}}}
+				continue}}}
+	config.rwmux.RUnlock()
+	b.rwmux_dp.RUnlock()
+	}
 
 func (n *Node)getPtrToUtil(id int) *Cluster_utilization {
-	for k,_:=range n.Usage {
-		if n.Usage[k].Id == id {
-			return &n.Usage[k]}}
+	//if n != nil {
+		for k,_:=range n.Usage {
+			if n.Usage[k].Id == id {
+				return &n.Usage[k]}}
+	//}
 	return nil}
 
 func (b *Brain)getPtrToNode(name *string) *Node {
@@ -629,7 +655,7 @@ func (b *Brain)_place_single_resource(
 	//found fitting node, placing
 	//copy because we need to modify struct modify
 	resCopy = *res
-	resCopy.placement = config.Nodes[ *lastNode ].Hostname
+	resCopy.Placement = config.Nodes[ *lastNode ].Hostname
 	b.desired_resourcePlacement = append(b.desired_resourcePlacement, 
 	resCopy)
 	//resource placed in desired resources
@@ -639,7 +665,9 @@ func (b *Brain)_place_single_resource(
 
 func (b *Brain)basic_placeResources(){
 	var lastNode int = 0
+	var has_changed bool = false
 	config.rwmux.RLock()
+	b.rwmux_dp.Lock()
 	for k,_:=range config.Resources {
 		//nodesChecked = 0
 		if config.Resources[k].State != resource_state_running {
@@ -649,13 +677,16 @@ func (b *Brain)basic_placeResources(){
 			continue}
 				
 		if b._place_single_resource(&lastNode, &config.Resources[k]){
+			has_changed = true
 			continue
 		}else{
 			lg.msg_debug(2, fmt.Sprintf(
 				"resource %s couldn't be placed on any node",
 				config.Resources[k].Name))}}
+	b.rwmux_dp.Unlock()
 	config.rwmux.RUnlock()
-	}
+	if has_changed {
+		b.IncEpoch()}}
 
 
 func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
@@ -765,9 +796,77 @@ func (b *Brain)epochSender(){
 			RpcFunc: brainNotifAboutEpoch,
 			Time: t,
 			Argc: 1,
-			Argv: []string{"epoch"},
+			Argv: []string{"brain dest_placement epoch advertisment"},
 			Cuint: b.GetEpoch(),
 			}
 		b.brn_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
 
+
+
+func (b *Brain)msg_handle_brainNotifAboutEpoch(m *message) bool {
+	var bk_epo uint64 = 0
+	if	m.RpcFunc == brainNotifAboutEpoch &&
+		m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain &&
+		m.SrcHost != config._MyHostname() {
+			
+		if b.isTheirEpochAhead(m.Cuint) {
+			m.DestHost = m.SrcHost
+			m.SrcHost = config._MyHostname()
+			m.RpcFunc = brainNotifAboutEpochUpdateAsk
+			m.Argv[0] = "requesting desired_placement from host with higher epoch"
+			bk_epo = m.Cuint
+			m.Cuint = b.GetEpoch()
+			b.brn_ex <- *m
+			lg.msg_debug(2, fmt.Sprintf(
+				"found node with higher Brain epoch %s (our %d theirs %d)",
+				m.DestHost, config.GetEpoch(), bk_epo))}
+			return true}
+	return false}
+
+
+func (b *Brain)msg_handle_brainNotifAboutEpochUpdateAsk(m *message) bool {
+	if	m.RpcFunc == brainNotifAboutEpochUpdateAsk &&
+		m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain &&
+		m.SrcHost != config._MyHostname() {
+			
+		if b.isTheirEpochBehind(m.Cuint) {
+			m.DestHost = m.SrcHost
+			m.SrcHost = config._MyHostname()
+			m.RpcFunc = brainNotifAboutEpochUpdate
+			m.Argv[0] = "sending desired_placement with newer epoch"
+			m.Cuint = b.GetEpoch()
+			b.rwmux_dp.RLock()
+			m.Res = b.desired_resourcePlacement
+			fmt.Printf("== ASDF %+v\n", b.desired_resourcePlacement)
+			fmt.Printf("== ASDF %+v\n", m.Res)
+			b.rwmux_dp.RUnlock()
+			b.brn_ex <- *m
+			lg.msg_debug(2, fmt.Sprintf(
+				"sending desired_placement to node %s (epoch %d)",
+				m.DestHost,
+				m.Cuint))}
+			return true}
+	return false}
+
+func (b *Brain)msg_handle_brainNotifAboutEpochUpdate(m *message) bool {
+	if	m.RpcFunc == brainNotifAboutEpochUpdate &&
+		m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain &&
+		m.DestHost == config._MyHostname() {
+			
+		if b.isTheirEpochAhead(m.Cuint) {
+			b.rwmux_dp.Lock()
+			b.desired_resourcePlacement = m.Res
+			b.Epoch = m.Cuint
+			lg.msg_debug(2, fmt.Sprintf(
+				"received desired_placement from node %s with epoch %d %+v",
+				m.SrcHost, m.Cuint, m.Res))
+			b.rwmux_dp.Unlock()
+			lg.msg_debug(2, fmt.Sprintf(
+				"received desired_placement from node %s with epoch %d ",
+				m.SrcHost, m.Cuint))}
+			return true}
+	return false}

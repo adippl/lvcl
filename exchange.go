@@ -327,7 +327,7 @@ func (e *Exchange)sorter(){
 				timeCopy := m.Time
 				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}
 			continue}
-		lg.msg_debug(1, fmt.Sprintf("exchange received message which failed all validation functions: %+v",m))}}
+		lg.msg_debug(2, fmt.Sprintf("exchange received message which failed all validation functions: %+v",m))}}
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
@@ -817,4 +817,3 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 				m.SrcHost, m.Cuint))}
 			return true}
 	return false}
-

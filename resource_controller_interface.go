@@ -83,7 +83,7 @@ type Cluster_resource struct {
 	Strs		map[string]string
 	Ints		map[string]int
 	Bools		map[string]bool
-	placement	string `json:"-"`
+	Placement	string
 	ConfFile	string
 }
 
@@ -155,6 +155,7 @@ func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
 func (c *Cluster_resource)SaveToFile(){
 	var confser []byte 
 	var err error
+	c.Placement = ""
 	confser, err = json.MarshalIndent(c, "", "	")
 	if err != nil {
 		lg.err("Can't serislize resource", err)}
