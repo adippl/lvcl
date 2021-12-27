@@ -123,10 +123,11 @@ func (l *Logger)messageHandler(){
 					if err != nil {
 						panic(err)}
 					if config.DaemonLogging {
-						fmt.Println(fmt.Sprintf("remote_print %s", newS))}
+						fmt.Println("remote_print %s" + newS)}
 				//	l.message_forward_to_client(&m)
 				}else{
-					l.msg("ERR message failed to validate: \"" + m.Argv[0] + "\"\n")}
+					l.msg("ERR message failed to validate: \"" + 
+						m.Argv[0] + "\"\n")}
 			//incoming messages from local
 			case m,loc_logOk = <-l.localLoggerIN:
 				//skip if received closing message
@@ -200,9 +201,8 @@ func (l *Logger)msg(arg string){
 		msg := msgFormat(&arg)
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG LOGGER Sending message %+v\n", *msg)}
-		l.log_ex <- *msg}
-	}
-
+		l.log_ex <- *msg}}
+ 
 func (l *Logger)msgERR(s string){
 	l.msg(fmt.Sprintf("ERR %s - %s", s))}
 

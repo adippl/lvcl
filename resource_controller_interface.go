@@ -31,7 +31,7 @@ const(
 	resource_state_stopping
 	resource_state_stopped
 	resource_state_paused
-//	resource_state_migrating
+	resource_state_migrating
 	resource_state_other
 	
 	resource_state_nuked

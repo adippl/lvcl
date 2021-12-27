@@ -298,8 +298,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		sum=0
 		for _,v := range b.nodeHealth {
 			if v <= HealthOrange {
-				sum++}
-			}
+				sum++}}
 		b.quorum = sum
 		// remove master node if quorum falls below config
 		if b.quorum < config.Quorum {
@@ -472,6 +471,7 @@ func (b *Brain)resourceBalancer(){
 			
 			// change resource states on nodes
 			}
+		//b.applyResourcePlacement()
 		config.ClusterTick_sleep()}}
 
 func (b *Brain)is_this_node_a_master() bool {
@@ -660,8 +660,6 @@ func (b *Brain)_place_single_resource(
 	resCopy)
 	//resource placed in desired resources
 	return true}
-		
-	
 
 func (b *Brain)basic_placeResources(){
 	var lastNode int = 0
@@ -671,7 +669,8 @@ func (b *Brain)basic_placeResources(){
 	for k,_:=range config.Resources {
 		//nodesChecked = 0
 		if config.Resources[k].State != resource_state_running {
-			// skip if resource turned off in config
+			// check if resouce was placed previously
+			b.stop_if_placed(&config.Resources[k])
 			continue}
 		if b.checkIfResourceHasPlacement(&config.Resources[k]) {
 			continue}
@@ -687,6 +686,26 @@ func (b *Brain)basic_placeResources(){
 	config.rwmux.RUnlock()
 	if has_changed {
 		b.IncEpoch()}}
+
+
+func remove(s []Cluster_resource, i int) []Cluster_resource {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+func (b *Brain)stop_if_placed(c *Cluster_resource){
+	fmt.Printf("-=-=-=-=-=-=-\n\n %+v removed \n\n-=-=-=-=-\n\n",len(b.desired_resourcePlacement))
+	for k,_:=range b.desired_resourcePlacement {
+		if b.desired_resourcePlacement[k].Name == c.Name &&
+			b.desired_resourcePlacement[k].State != resource_state_stopped &&
+			c.State == resource_state_stopped {
+			
+			fmt.Printf("-=-=-=-=-=-=-=-\n\n %+v removed \n\n\n-=-=-=-=-=-\n",c)
+			b.desired_resourcePlacement = remove(b.desired_resourcePlacement,
+				k)
+			b.IncEpoch_NO_LOCK()
+			return}}}
+
 
 
 func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
@@ -751,6 +770,9 @@ func (b *Brain)update__local_resourcePlacement(){
 	b.local_resourcePlacement = retRes
 	b.rwmux_locP.Unlock()}
 
+
+func (b *Brain)IncEpoch_NO_LOCK() {
+	b.Epoch++}
 
 func (b *Brain)IncEpoch() {
 	b.rwmux.Lock()
