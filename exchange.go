@@ -636,8 +636,8 @@ func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 				//lg.msg_debug(5,
 				//	fmt.sprintf("debug forwarder pushing to %s  %+v\n",
 				//	masternode, m))
-				//fmt.sprintf("debug forwarder pushing to %s  %+v\n",
-				//	masternode, m)
+				fmt.Printf("debug forwarder pushing to %s  %+v\n",
+					masterNode, m)
 				}
 			e.outgoing[masterNode].outgoing <- *m }
 			//e.rwmux.RUnlock()

@@ -390,6 +390,7 @@
 		"0": true,
 		"2": true
 	},
+	"ClusterBalancerDelay": 3,
 	"TCPport": "6798",
 	"UnixSocket": "./lvcl.sock",
 	"ConfHashCheck": true,
