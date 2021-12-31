@@ -160,8 +160,7 @@ func (l *Logger)messageHandler(){
 		if !( exOk || loc_logOk ) {
 			lg.msg("both of the logger channels are closed, deleting logger")
 			l.KillLogger()
-			return}
-			}}
+			return}}}
 
 func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 	return (

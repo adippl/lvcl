@@ -56,18 +56,17 @@ type Brain struct{
 	resCtl_Dummy				*Dummy_rctl
 	Epoch						uint64
 	desired_resourcePlacement	[]Cluster_resource
-	current_resourcePlacement	[]Cluster_resource
+	current_resourcePlacement	map[string][]Cluster_resource
 	local_resourcePlacement		[]Cluster_resource
+	failureMap					map[string][]string
 	rwmux_locP					sync.RWMutex
 	rwmux_curPlacement			sync.RWMutex
-	rwmux_dp			sync.RWMutex
+	rwmux_dp					sync.RWMutex
 	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
 
-
 var b *Brain
-
 
 func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	b := Brain{
@@ -86,6 +85,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		nodeHealthLastPing:		make(map[string]uint),
 		resCtl_lvd:				nil,
 		resCtl_Dummy:			nil,
+		current_resourcePlacement:	make(map[string][]Cluster_resource),
 		
 		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
@@ -110,6 +110,13 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		if b.resCtl_Dummy == nil {
 			lg.msg(
 				"ERROR, NewDummy dummy resource controller failed to start")}}
+	
+	//debug single 
+	if config._debug_one_node_cluster {
+		b.isMaster = true
+		b.masterNode = &config.MyHostname}
+		b.zeroFailureMap()
+	fmt.Printf("-=-=-=- brain: %+v\n",b)
 		
 	go b.messageHandler()
 	lg.msg_debug(3, "brain started messageHandler()")
@@ -137,64 +144,71 @@ func  (b *Brain)messageHandler(){
 			return}
 		m = <-b.ex_brn
 		if config.DebugNetwork{
-			lg.msg_debug(1, fmt.Sprintf(
+			lg.msg_debug(5, fmt.Sprintf(
 				"DEBUG BRAIN received message %+v\n", m))}
-			//fmt.Printf("DEBUG BRAIN received message %+v\n", m)}}
-		
 		
 		//handle client's requests for status
 		if b.msg_handle_clientAskAboutStatus(&m) {continue}
-
-		//message updating desired config
-		if b.msg_handle_brainNotifAboutEpoch(&m) {continue}
-		if b.msg_handle_brainNotifAboutEpochUpdateAsk(&m) {continue}
-		if b.msg_handle_brainNotifAboutEpochUpdate(&m) {continue}
-
 		
-		if m.RpcFunc == brainRpcAskForMasterNode &&
-			m.SrcHost != config._MyHostname() {
-			
-			b.replyToAskForMasterNode(&m)
-			continue
+		//message updating desired config
+		if b.msg_handle_brainNotifyAboutEpoch(&m) {continue}
+		if b.msg_handle_brainNotifyAboutEpochUpdateAsk(&m) {continue}
+		if b.msg_handle_brainNotifyAboutEpochUpdate(&m) {continue}
+		
+		if b.msg_handle_brainRpcAskForMasterNode(&m) {continue}
+
+		// handle resource failure messages
+		if b.msg_handle__brainNotifyMasterResourceFailure(&m) {continue}
+		
+//		if m.RpcFunc == brainRpcAskForMasterNode &&
+//			m.SrcHost != config._MyHostname() {
+//			
+//			b.replyToAskForMasterNode(&m)
+//			continue
 		
 		// Master node only replies
-		}else if b.isMaster &&
-				(m.RpcFunc == brainRpcElectAsk ||
-				 m.RpcFunc == brainRpcElectNominate) {
-				b.SendMsg(
-					m.SrcHost,
-					brainRpcHaveMasterNodeReply,
-					config.MyHostname)
-				continue
+		if b.msg_handle_brainRpcElectAsk_Nominate(&m) {continue}
+//		if b.isMaster &&
+//				(m.RpcFunc == brainRpcElectAsk ||
+//				 m.RpcFunc == brainRpcElectNominate) {
+//				b.SendMsg(
+//					m.SrcHost,
+//					brainRpcHaveMasterNodeReply,
+//					config.MyHostname)
+//				continue}
 		// respond to message with info about master node
-		}else if m.RpcFunc == brainRpcHaveMasterNodeReply {
-			// TODO remove, it's only for debug function using fmt.Printf
-			// makes a copy of this string
-			// I had some strange problems with fmt.Printf without creating string copy
-			str := m.Argv[0]
-			b.masterNode=&str
-			//b.masterNode=&m.Argv[0]
-			lg.msg(fmt.Sprintf("got master node %s from host %s",m.Argv[0],m.SrcHost))
+		if b.msg_handle_brainRpcHaveMasterNodeReply(&m) {continue}
+//		if m.RpcFunc == brainRpcHaveMasterNodeReply {
+//			// TODO remove, it's only for debug function using fmt.Printf
+//			// makes a copy of this string
+//			// I had some strange problems with fmt.Printf without creating string copy
+//			str := m.Argv[0]
+//			b.masterNode=&str
+//			//b.masterNode=&m.Argv[0]
+//			lg.msg(fmt.Sprintf("got master node %s from host %s", 
+//				m.Argv[0], m.SrcHost))}
 		// respond to brainRpcHaveMasterNodeReplyNil
-		}else if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
-			b.masterNode = nil
-			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
-			continue
+		if b.msg_handle_brainRpcHaveMasterNodeReplyNil(&m) {continue}
+//		if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
+//			b.masterNode = nil
+//			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
+//			continue}
 		// respond to request for elections
-		}else if m.RpcFunc == brainRpcElectAsk {
+		if m.RpcFunc == brainRpcElectAsk {
 			b.vote()
-			continue
+			continue}
 		// respond to master node nomination
-		}else if m.RpcFunc == brainRpcElectNominate && 
-				m.SrcHost != config._MyHostname() {
-			if config.MyHostname == m.Argv[0] {
-				//this node got nominated
-				b.nominatedBy[m.SrcHost]=true
-				//go b.countVotes()}}}}
-				fmt.Println("DEBUG ",m)
-				go b.countVotes()}}
-
-		lg.msg_debug(2, fmt.Sprintf("brain received message which failed all validation functions: %+v",m))}}
+		if b.msg_handle_brainRpcElectNominate(&m) {continue}
+//		if m.RpcFunc == brainRpcElectNominate && 
+//				m.SrcHost != config._MyHostname() {
+//			if config.MyHostname == m.Argv[0] {
+//				//this node got nominated
+//				b.nominatedBy[m.SrcHost]=true
+//				lg.msg_debug(5, fmt.Sprintf(
+//					"Node received nomination message %+v\n",m)
+//				go b.countVotes()}}
+		lg.msg_debug(4, fmt.Sprintf(
+			"brain received message which failed all validation functions: %+v",m))}}
 
 func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
@@ -232,13 +246,19 @@ func (b *Brain)countVotes(){
 		b.isMaster = true
 		b.masterNode = &config.MyHostname
 		b.nominatedBy = make(map[string]bool)
-		//fmt.Println("DEBUG WON ", b.isMaster, *b.masterNode, b.nominatedBy)
+		b.zeroFailureMap()
+		lg.msg_debug(2, 
+			fmt.Sprintf("This node won elections with nominations: %+v\n",
+			b.nominatedBy))
 	}else{
 		lg.msg(fmt.Sprintf(
 			"elections failed, not enough votes (votes=%d) (quorum==%d), %+v",
 			sum,config.Quorum,b.nominatedBy))}
 	b.nominatedBy = make(map[string]bool)
 	b.voteCounterExists = false}
+
+func (b *Brain)zeroFailureMap(){
+	b.failureMap = make(map[string][]string)}
 
 func (b *Brain)replyToAskForMasterNode(m *message){
 	if b.isMaster && *b.masterNode == config.MyHostname {
@@ -274,9 +294,9 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			//set last ping value
 			b.nodeHealthLastPing[k]=uint(dt / time.Millisecond)
 			//add health value to list
-			if dt> (time.Millisecond * time.Duration(config.NodeHealthCheckInterval * 2)){
+			if dt> (time.Millisecond * time.Duration(config.HeartbeatInterval * 2)){
 				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthRed)
-			}else if dt > (time.Millisecond * time.Duration(config.NodeHealthCheckInterval)) {
+			}else if dt > (time.Millisecond * time.Duration(config.HeartbeatInterval)) {
 				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthOrange)
 			}else {
 				b.nodeHealthLast30Ticks[k] = append(b.nodeHealthLast30Ticks[k], HealthGreen)
@@ -294,6 +314,12 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			//remove last position if slice size gets over 29
 			if len(b.nodeHealthLast30Ticks[k]) > 29 {
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
+		//SKIP HEALTH CHECK ON SINGLE NODE CLUSTER
+		if config._debug_one_node_cluster {
+			b.rwmux.Unlock()
+			config.ClusterHeartbeat_sleep()
+			continue}
+		//SKIP HEALTH CHECK ON SINGLE NODE CLUSTER
 		// updating quorum stats
 		sum=0
 		for _,v := range b.nodeHealth {
@@ -311,9 +337,10 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			b.isMaster = false}
 		//unlock writing mutex 
 		b.rwmux.Unlock()
-		time.Sleep(
-			time.Millisecond * time.Duration(
-				config.NodeHealthCheckInterval))}}
+		config.ClusterHeartbeat_sleep()}}
+//		time.Sleep(
+//			time.Millisecond * time.Duration(
+//				config.NodeHealthCheckInterval))}}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
@@ -351,9 +378,9 @@ func (b *Brain)getMasterNode(){
 
 func (b *Brain)SendMsg(host string, rpc uint, str string){
 	var m *message = brainNewMessage()
-	m.DestHost=host
-	m.RpcFunc=rpc
-	m.Argv = []string{str}
+		m.DestHost=host
+		m.RpcFunc=rpc
+		m.Argv = []string{str}
 	b.brn_ex <- *m}
 	
 func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
@@ -361,7 +388,7 @@ func (b *Brain)SendMsgINT(host string, rpc uint, str string, c1 interface{}){
 	m.DestHost=host
 	m.RpcFunc=rpc
 	m.Argv = []string{str}
-	m.custom1 = c1
+	m.Custom1 = c1
 	b.brn_ex <- *m}
 	
 func (b *Brain)writeNodeHealth() string {
@@ -435,44 +462,115 @@ func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 		"__master__", 
 		brianRpcSendingClusterResources,
 		"sending clsuter_utilization to Master node",
-		*cl_utl)
-	}
+		*cl_utl)}
+
+func (b *Brain)checkResourceInFailureMap(r_name *string) *[]string {
+	var ret []string
+	if _, ok := b.failureMap[*r_name]; ok {
+		ret = b.failureMap[*r_name]
+//		fmt.Println("AW:DAKWD:AWLKDA:LKD:AKD:AKDW:AWKD",
+//			fmt.Sprintf("name '%s', map %+v, %+v, RET %+v, len %d",
+//				*r_name,
+//				b.failureMap,
+//				b.failureMap[*r_name],
+//				ret[0],
+//				len(ret)))
+		return &ret
+	}else{
+	return nil }}
 
 func (b *Brain)resourceBalancer(){
-	//time.Sleep(time.Duration(5) *time.Second)
-	//debug on local machine
-	var debug_local bool = false
-
-	if config._MyHostname() == "x270" {
-		debug_local = true}
 	for{
 		if(b.killBrain){
 			return}
 		
 		//b.reportControllerResourceState(b.resCtl_lvd)
-		b.update__local_resourcePlacement()
+		//b.update__local_resourcePlacement()
+		b.updateLocalResources()
 		// function moved into Master IF
 		// it shouldn't be needed on other nodes
 		// client may possibly want to see that info, 
 		// it would probably require excahnge code to forward client
 		// messages to client (and backwards
 		b.update_expectedResUtil()
-		if debug_local {
-		//	b.update_expectedResUtil()
-			b.basic_placeResources()}
 		if(b.isMaster){
 			// TODO
 			// get resource states
 			
 			// generate resource placement plan
-			if ! debug_local {
-		//		b.update_expectedResUtil()
-				b.basic_placeResources()}
+			//b.update_expectedResUtil()
+			b.basic_placeResources()
 			
 			// change resource states on nodes
 			}
-		//b.applyResourcePlacement()
+		
+		//b.send_localResourcesToMaster()
+		b.applyResourcePlacement()
 		config.ClusterTick_sleep()}}
+
+func (b *Brain)updateLocalResources(){
+	var lr *[]Cluster_resource = nil
+	var new_placement []Cluster_resource = make([]Cluster_resource,0)
+	
+	lr = b.resCtl_lvd.Get_running_resources()
+	if lr != nil {
+		new_placement = append(new_placement, *lr...)}
+
+	lr = b.resCtl_Dummy.Get_running_resources()
+	if lr != nil {
+		new_placement = append(new_placement, *lr...)}
+	b.rwmux_locP.Lock()
+	b.local_resourcePlacement = new_placement
+	b.rwmux_locP.Unlock()}
+
+func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
+	var lr *Cluster_resource = nil
+	var rc bool = false
+	for k,_:=range b.local_resourcePlacement { 
+		rc = false
+		lr = &b.local_resourcePlacement[k]
+		// actions on locally running resources
+		if lr.Name == r.Name {
+			// skip if already running with desired state
+			if lr.State == r.State {
+				return true}
+			// turn off if running locally
+			if r.State == resource_state_running &&
+				lr.State != resource_state_stopped {
+				return c.Stop_resource(r.Name)}
+			// nuke if not stopped
+			if r.State == resource_state_nuked &&
+				lr.State != resource_state_stopped {
+				return c.Nuke_resource(r.Name)}}}
+	// actions for resources not in b.local_resourcePlacement
+	//
+	// start resource
+	if r.State == resource_state_running {
+		rc = c.Start_resource(r.Name)
+		if rc == false {
+			//TODO send message about failure
+			//func (b *Brain)sendMsg_resFailure(r *Cluster_resource, action string, id int){
+			b.sendMsg_resFailure(r, "start", resouce_failure_unknown)}
+		return rc}
+
+	// return false by default
+	return false }
+
+
+func (b *Brain)applyResourcePlacement(){
+	//var r bool
+	var res *Cluster_resource = nil
+	
+	for k,_:=range b.desired_resourcePlacement {
+		//r = false
+		res = &b.desired_resourcePlacement[k]
+		
+		switch res.ResourceController_id {
+		case resource_controller_id_libvirt:
+			b._applyResource(b.resCtl_lvd, res)
+		case resource_controller_id_dummy:
+			b._applyResource(b.resCtl_Dummy, res)}}}
+
 
 func (b *Brain)is_this_node_a_master() bool {
 	return b.isMaster }
@@ -480,25 +578,11 @@ func (b *Brain)is_this_node_a_master() bool {
 func (b *Brain)getMasterNodeName() *string {
 	return b.masterNode }
 
-func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
-	var reply message = *brainNewMessage()
-	if	m.RpcFunc == clientAskAboutStatus &&
-		m.DestMod == msgModBrain {
-		
-		reply.DestHost = m.SrcHost
-		reply.DestMod = msgModClient
-		reply.RpcFunc = clientPrintTextStatus
-		reply.Argv = []string{
-			b.writeNodeHealth(),
-			}
-		b.brn_ex <- reply
-		return true}
-	return false}
-
 func (b *Brain)LogBrainStatus(){
 	for{
 		lg.msg(*b.writeBrainStatus())
-		time.Sleep(time.Duration(5) * time.Second)}}
+		//time.Sleep(time.Duration(2) * time.Second)}}
+		config.ClusterTick_sleep()}}
 
 func (b *Brain)writeBrainStatus() *string {
 	var sb strings.Builder
@@ -506,22 +590,26 @@ func (b *Brain)writeBrainStatus() *string {
 	sb.WriteString("\n====== desired resource placement ======\n")
 	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
 	for _,v:=range b.desired_resourcePlacement {
-		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
+		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
 			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 	
 	sb.WriteString("\n====== current resource placement ======\n")
-	for _,v:=range b.current_resourcePlacement {
-		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
+	for k,v:=range b.current_resourcePlacement {
+		sb.WriteString(fmt.Sprintf(" == node %s ==\n", k)) 
+		for _,v2:=range v {
+			sb.WriteString(fmt.Sprintf(
+				"\tctl %-10s\tstate %-10s\tnode %s\tname %s\n",
+				v2.CtlString(), v2.StateString(), v2.Placement, v2.Name ))}}
 	sb.WriteString("========================================\n")
 		
 	sb.WriteString("\n======= local resource placement =======\n")
 	for _,v:=range b.local_resourcePlacement {
-		sb.WriteString(fmt.Sprintf("ctl %s\tstate %s\tnode %s\tname %s\n",
+		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
 			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 	sb.WriteString(*b.writeSum_expectedResUtil())
+	sb.WriteString(*b.write_info_failureMap())
 		
 	retString = sb.String()
 	return &retString}
@@ -561,10 +649,17 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 //			u)}
 	return hwFits, usageFits, usagePerc}
 
-func (n *Node)doesResourceFitsOnNode(r *Cluster_resource) bool {
-	for _,v:=range r.Util {
-		if _,does_fit,_ := n.doesUtilFitsOnNode(&v); does_fit == false {
+func (n *Node)doesResourceFitsOnNode(r *Cluster_resource, fmap *[]string) bool {
+	for k,_:=range r.Util {
+		if _,does_fit,_ := n.doesUtilFitsOnNode(&r.Util[k]); does_fit == false {
 			return false}}
+	//not sure which part takes more time. checking strings in fmap
+	//should take longer
+	if fmap == nil {
+		return true}
+	for k,_:=range *fmap {
+		if n.Hostname == (*fmap)[k] {
+			return false }}
 	return true}
 
 func (b *Brain)update_expectedResUtil(){
@@ -626,21 +721,22 @@ func (b *Brain)getPtrToNode(name *string) *Node {
 
 // modifies value of *lastNode
 func (b *Brain)_place_single_resource(
-	lastNode *int, res *Cluster_resource) bool {
+	lastNode *int,
+	res *Cluster_resource,
+	fmap *[]string) bool {
 	
 	var nodeArrSize int = 0
 	var nodesChecked int = 0
 	var resCopy Cluster_resource
 	
-	nodeArrSize = len(config.Nodes)
+	nodeArrSize = config.numberOfNodes
 	//increment lastNode to avoild placing in the same node as last resource
 	*lastNode++
 	if *lastNode > nodeArrSize-1 {
 		//reset nodeArray index to 0, we want to loop over this array
 		*lastNode = 0}
 	
-	//for config.Nodes[ *lastNode ].doesResourceFitsOnNode( res ) == false {
-	for b.expectedResUtil[ *lastNode ].doesResourceFitsOnNode( res ) == false {
+	for b.expectedResUtil[ *lastNode ].doesResourceFitsOnNode( res, fmap ) == false {
 		//checked on all nodes?
 		nodesChecked++
 		if nodesChecked >= nodeArrSize {
@@ -664,9 +760,21 @@ func (b *Brain)_place_single_resource(
 func (b *Brain)basic_placeResources(){
 	var lastNode int = 0
 	var has_changed bool = false
+	var fmap *[]string = nil
 	config.rwmux.RLock()
 	b.rwmux_dp.Lock()
 	for k,_:=range config.Resources {
+		fmap = nil
+		fmap = b.checkResourceInFailureMap(&config.Resources[k].Name)
+
+		if fmap != nil && len(*fmap) >= config.numberOfNodes {
+			// resource failed on all nodes
+			// stop if placed somewhere
+			config.Resources[k].State = resource_state_stopped
+			b.stop_if_placed(&config.Resources[k])
+			//skip this resource
+			continue}
+		
 		//nodesChecked = 0
 		if config.Resources[k].State != resource_state_running {
 			// check if resouce was placed previously
@@ -674,14 +782,16 @@ func (b *Brain)basic_placeResources(){
 			continue}
 		if b.checkIfResourceHasPlacement(&config.Resources[k]) {
 			continue}
-				
-		if b._place_single_resource(&lastNode, &config.Resources[k]){
+			
+			
+		if b._place_single_resource(&lastNode, &config.Resources[k], fmap){
 			has_changed = true
 			continue
 		}else{
-			lg.msg_debug(2, fmt.Sprintf(
-				"resource %s couldn't be placed on any node",
-				config.Resources[k].Name))}}
+			//lg.msg_debug(2, fmt.Sprintf(
+			//	"resource %s couldn't be placed on any node",
+			//	config.Resources[k].Name))
+				}}
 	b.rwmux_dp.Unlock()
 	config.rwmux.RUnlock()
 	if has_changed {
@@ -690,23 +800,21 @@ func (b *Brain)basic_placeResources(){
 
 func remove(s []Cluster_resource, i int) []Cluster_resource {
 	s[i] = s[len(s)-1]
-	return s[:len(s)-1]
-}
+	return s[:len(s)-1]}
 
+//resrouce has to had resource_state_stopped for this function to work
 func (b *Brain)stop_if_placed(c *Cluster_resource){
-	fmt.Printf("-=-=-=-=-=-=-\n\n %+v removed \n\n-=-=-=-=-\n\n",len(b.desired_resourcePlacement))
 	for k,_:=range b.desired_resourcePlacement {
 		if b.desired_resourcePlacement[k].Name == c.Name &&
 			b.desired_resourcePlacement[k].State != resource_state_stopped &&
 			c.State == resource_state_stopped {
 			
-			fmt.Printf("-=-=-=-=-=-=-=-\n\n %+v removed \n\n\n-=-=-=-=-=-\n",c)
+			lg.msg_debug(1, fmt.Sprintf(
+				"resource '%s' was removed from placement",c.Name))
 			b.desired_resourcePlacement = remove(b.desired_resourcePlacement,
 				k)
 			b.IncEpoch_NO_LOCK()
 			return}}}
-
-
 
 func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
 	for k,_:=range b.desired_resourcePlacement {
@@ -715,12 +823,15 @@ func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
 			return true}}
 	return false}
 
-
 func (b *Brain)checkIfResourceIsCurrentlyPlaced(r *Cluster_resource) bool {
-	for k,_:=range b.current_resourcePlacement {
-		if	b.current_resourcePlacement[k].Name == r.Name &&
-			b.current_resourcePlacement[k].Id == r.Id {
-			return true}}
+	//b.rwmux_curPlacement.RLock()
+	for _,v:=range b.current_resourcePlacement {
+		for k,_:=range v {
+			if	v[k].Name == r.Name &&
+				v[k].Id == r.Id {
+				//b.rwmux_curPlacement.RUnlock()
+				return true}}}
+	//b.rwmux_curPlacement.RUnlock()
 	return false}
 
 func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
@@ -729,6 +840,24 @@ func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
 			b.local_resourcePlacement[k].Id == r.Id {
 			return true}}
 	return false}
+
+
+func (b *Brain)write_info_failureMap() *string {
+	var sb strings.Builder
+	var retStr string
+	sb.WriteString("\n=== failure map ===\n")
+
+	for k,v:=range b.failureMap {
+		//sb.WriteString(fmt.Sprintf("== resource '%s' ==\n", k))
+		// TODO searching for resource in config takes time,
+		// maybe store that info in failure map
+		sb.WriteString(fmt.Sprintf("== ctl %s, resource '%s' ==\n",
+			config.GetCluster_resourcebyName(&k).CtlString(), k))
+		sb.WriteString(fmt.Sprintf("\tnodes %+v", v))}
+	sb.WriteString("\n=================\n")
+	retStr = sb.String()
+	return &retStr}
+	
 
 func (b *Brain)writeSum_expectedResUtil() *string {
 	var sb strings.Builder
@@ -742,7 +871,7 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 		//node.HwStats
 		//IT SHOULD BE
 		for kk,_:=range b.expectedResUtil[k].Usage {
-			sb.WriteString(fmt.Sprintf("node %s\t%d\t/\t%d\n",
+			sb.WriteString(fmt.Sprintf("\tres %-10s\t%8d / %-8d\n",
 				b.expectedResUtil[k].Usage[kk].NameString(),
 				b.expectedResUtil[k].Usage[kk].Value,
 				b.expectedResUtil[k].HwStats[kk].Value))}}
@@ -750,25 +879,25 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 	retStr = sb.String()
 	return &retStr}
 	
-func (b *Brain)update__local_resourcePlacement(){
-	var r_arr []Cluster_resource
-	var retRes []Cluster_resource = make([]Cluster_resource,0)
-	
-	if b.resCtl_lvd != nil {
-		r_arr = *b.resCtl_lvd.Get_running_resources()
-		if r_arr != nil {
-			for k,_:=range r_arr {
-				retRes = append(retRes, r_arr[k])}}}
-	if b.resCtl_Dummy != nil {
-		//TODO handle lvd
-		r_arr = *b.resCtl_Dummy.Get_running_resources()
-		if r_arr != nil {
-			for k,_:=range r_arr {
-				retRes = append(retRes, r_arr[k])}}}
-	
-	b.rwmux_locP.Lock()
-	b.local_resourcePlacement = retRes
-	b.rwmux_locP.Unlock()}
+//func (b *Brain)update__local_resourcePlacement(){
+//	var r_arr []Cluster_resource
+//	var retRes []Cluster_resource = make([]Cluster_resource,0)
+//	
+//	if b.resCtl_lvd != nil {
+//		r_arr = *b.resCtl_lvd.Get_running_resources()
+//		if r_arr != nil {
+//			for k,_:=range r_arr {
+//				retRes = append(retRes, r_arr[k])}}}
+//	if b.resCtl_Dummy != nil {
+//		//TODO handle lvd
+//		r_arr = *b.resCtl_Dummy.Get_running_resources()
+//		if r_arr != nil {
+//			for k,_:=range r_arr {
+//				retRes = append(retRes, r_arr[k])}}}
+//	
+//	b.rwmux_locP.Lock()
+//	b.local_resourcePlacement = retRes
+//	b.rwmux_locP.Unlock()}
 
 
 func (b *Brain)IncEpoch_NO_LOCK() {
@@ -815,20 +944,19 @@ func (b *Brain)epochSender(){
 			DestHost: "__everyone__",
 			SrcMod: msgModBrain,
 			DestMod: msgModBrain,
-			RpcFunc: brainNotifAboutEpoch,
+			RpcFunc: brainNotifyAboutEpoch,
 			Time: t,
 			Argc: 1,
 			Argv: []string{"brain dest_placement epoch advertisment"},
 			Cuint: b.GetEpoch(),
 			}
 		b.brn_ex <- m
-		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
+		config.ClusterHeartbeat_sleep()}}
 
 
-
-func (b *Brain)msg_handle_brainNotifAboutEpoch(m *message) bool {
+func (b *Brain)msg_handle_brainNotifyAboutEpoch(m *message) bool {
 	var bk_epo uint64 = 0
-	if	m.RpcFunc == brainNotifAboutEpoch &&
+	if	m.RpcFunc == brainNotifyAboutEpoch &&
 		m.SrcMod == msgModBrain &&
 		m.DestMod == msgModBrain &&
 		m.SrcHost != config._MyHostname() {
@@ -836,7 +964,7 @@ func (b *Brain)msg_handle_brainNotifAboutEpoch(m *message) bool {
 		if b.isTheirEpochAhead(m.Cuint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
-			m.RpcFunc = brainNotifAboutEpochUpdateAsk
+			m.RpcFunc = brainNotifyAboutEpochUpdateAsk
 			m.Argv[0] = "requesting desired_placement from host with higher epoch"
 			bk_epo = m.Cuint
 			m.Cuint = b.GetEpoch()
@@ -848,8 +976,8 @@ func (b *Brain)msg_handle_brainNotifAboutEpoch(m *message) bool {
 	return false}
 
 
-func (b *Brain)msg_handle_brainNotifAboutEpochUpdateAsk(m *message) bool {
-	if	m.RpcFunc == brainNotifAboutEpochUpdateAsk &&
+func (b *Brain)msg_handle_brainNotifyAboutEpochUpdateAsk(m *message) bool {
+	if	m.RpcFunc == brainNotifyAboutEpochUpdateAsk &&
 		m.SrcMod == msgModBrain &&
 		m.DestMod == msgModBrain &&
 		m.SrcHost != config._MyHostname() {
@@ -857,7 +985,7 @@ func (b *Brain)msg_handle_brainNotifAboutEpochUpdateAsk(m *message) bool {
 		if b.isTheirEpochBehind(m.Cuint) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
-			m.RpcFunc = brainNotifAboutEpochUpdate
+			m.RpcFunc = brainNotifyAboutEpochUpdate
 			m.Argv[0] = "sending desired_placement with newer epoch"
 			m.Cuint = b.GetEpoch()
 			b.rwmux_dp.RLock()
@@ -873,8 +1001,8 @@ func (b *Brain)msg_handle_brainNotifAboutEpochUpdateAsk(m *message) bool {
 			return true}
 	return false}
 
-func (b *Brain)msg_handle_brainNotifAboutEpochUpdate(m *message) bool {
-	if	m.RpcFunc == brainNotifAboutEpochUpdate &&
+func (b *Brain)msg_handle_brainNotifyAboutEpochUpdate(m *message) bool {
+	if	m.RpcFunc == brainNotifyAboutEpochUpdate &&
 		m.SrcMod == msgModBrain &&
 		m.DestMod == msgModBrain &&
 		m.DestHost == config._MyHostname() {
@@ -892,3 +1020,110 @@ func (b *Brain)msg_handle_brainNotifAboutEpochUpdate(m *message) bool {
 				m.SrcHost, m.Cuint))}
 			return true}
 	return false}
+
+func (b *Brain)msg_handle_brainRpcAskForMasterNode(m *message) bool {
+	if m.RpcFunc == brainRpcAskForMasterNode && 
+		m.SrcHost != config._MyHostname() {
+		
+		b.replyToAskForMasterNode(m)
+		return true}
+	return false}
+
+func (b *Brain)msg_handle_brainRpcElectAsk_Nominate(m *message) bool {
+	if b.isMaster &&
+		(m.RpcFunc == brainRpcElectAsk ||
+		 m.RpcFunc == brainRpcElectNominate) {
+		
+		b.SendMsg(
+			m.SrcHost,
+			brainRpcHaveMasterNodeReply,
+			config.MyHostname)
+		return true}
+	return false}
+
+func (b *Brain)msg_handle_brainRpcHaveMasterNodeReply(m *message) bool {
+	if m.RpcFunc == brainRpcHaveMasterNodeReply {
+		// TODO remove, it's only for debug function using fmt.Printf
+		// makes a copy of this string
+		// I had some strange problems with fmt.Printf without creating string copy
+		str := m.Argv[0]
+		b.masterNode=&str
+		//b.masterNode=&m.Argv[0]
+		lg.msg_debug(1, fmt.Sprintf("got master node %s from host %s", 
+			m.Argv[0], m.SrcHost))
+		return true}
+	return false}
+
+
+
+func (b *Brain)msg_handle_brainRpcHaveMasterNodeReplyNil(m *message) bool {
+	if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
+		b.masterNode = nil
+		b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
+		return true}
+	return false}
+
+func (b *Brain)msg_handle_brainRpcElectNominate(m *message) bool {
+	if m.RpcFunc == brainRpcElectNominate && 
+			m.SrcHost != config._MyHostname() {
+		if config.MyHostname == m.Argv[0] {
+			//this node got nominated
+			b.nominatedBy[m.SrcHost]=true
+			lg.msg_debug(5, fmt.Sprintf(
+				"Node received nomination message %+v\n",m))
+			go b.countVotes()}
+		return true}
+	return false}
+
+func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
+	var reply message = *brainNewMessage()
+	if	m.RpcFunc == clientAskAboutStatus &&
+		m.DestMod == msgModBrain {
+		
+		reply.DestHost = m.SrcHost
+		reply.DestMod = msgModClient
+		reply.RpcFunc = clientPrintTextStatus
+		reply.Argv = []string{
+			b.writeNodeHealth(),
+			}
+		b.brn_ex <- reply
+		return true}
+	return false}
+
+func (b *Brain)sendMsg_resFailure(r *Cluster_resource, action string, id int){
+	var m *message = brainNewMessage()
+		m.DestHost="__master__"
+		m.RpcFunc=brainNotifyMasterAboutResourceFailure
+		m.Argv = []string{r.Name, r.ResourceController_name, action}
+	m.Custom1 = r.ResourceController_id
+	m.Custom2 = id
+	b.brn_ex <- *m}
+
+func (b *Brain)msg_handle__brainNotifyMasterResourceFailure(m *message) bool{
+	var r_name string = m.Argv[0]
+	if m.RpcFunc == brainNotifyMasterAboutResourceFailure {
+		if _, ok := b.failureMap[r_name]; ok {
+
+			for k,_:=range b.failureMap[r_name] {
+				if m.SrcHost == b.failureMap[r_name][k] {
+					// skip if hostname already in failuremap
+					return true}}
+			b.failureMap[r_name] = append(b.failureMap[r_name], m.SrcHost)
+		}else{
+			//make has value 3 because most common cluster size will be 3
+			b.failureMap[r_name] = make([]string, 0, 3)
+			b.failureMap[r_name] = append(b.failureMap[r_name], m.SrcHost)}
+			
+		return true}
+	return false}
+
+func (b *Brain)send_localResourcesToMaster(){
+	var m *message = brainNewMessage()
+		m.DestHost="__master__"
+		m.RpcFunc=brainNotifyMasterAboutLocalResources
+		//m.Argv = []string{str}
+		b.rwmux_locP.RLock()
+		m.Custom1 = b.local_resourcePlacement
+		b.rwmux_locP.RUnlock()
+	b.brn_ex <- *m}
+ 

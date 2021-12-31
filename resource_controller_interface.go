@@ -60,6 +60,9 @@ const(
 	utilization_cpu_time_user
 	utilization_cpu_time_io
 	utilization_cpu_time_idle
+
+
+	resouce_failure_unknown
 	)
 
 // generalized HARDWARE resource
@@ -119,15 +122,15 @@ func (c *Cluster_resource)StateString() string {
 		return "other  "}}
 
 func (c *Cluster_resource)CtlString() string {
-	switch c.State {
-	case resource_controller_id_libvirt:
-		return "libvirt"
-	case resource_controller_id_docker:
-		return "docker"
-	case resource_controller_id_dummy:
-		return "dummy "
-	default:
-		return "other  "}}
+	switch c.ResourceController_id {
+		case resource_controller_id_libvirt:
+			return "libvirt"
+		case resource_controller_id_docker:
+			return "docker"
+		case resource_controller_id_dummy:
+			return "dummy "
+		default:
+			return "other "}}
 
 func (c *Cluster_utilization)NameString() string {
 	switch c.Id {

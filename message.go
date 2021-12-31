@@ -59,9 +59,11 @@ const(
 	confNotifAboutEpoch
 	confNotifAboutEpochUpdate
 	confNotifAboutEpochUpdateAsk
-	brainNotifAboutEpoch
-	brainNotifAboutEpochUpdate
-	brainNotifAboutEpochUpdateAsk
+	brainNotifyAboutEpoch
+	brainNotifyAboutEpochUpdate
+	brainNotifyAboutEpochUpdateAsk
+	brainNotifyMasterAboutResourceFailure
+	brainNotifyMasterAboutLocalResources
 	)
 
 type message struct{
@@ -77,9 +79,9 @@ type message struct{
 	Cint		int
 	Cuint		uint64
 	Res			[]Cluster_resource //terrible but quick
-	custom1		interface{}
-	custom2		interface{}
-	custom3		interface{}
+	Custom1		interface{}
+	Custom2		interface{}
+	Custom3		interface{}
 	}
 
 

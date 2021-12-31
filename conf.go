@@ -45,6 +45,7 @@ type Conf struct {
 	ResourceControllers map[string]bool
 	rwmux sync.RWMutex `json:"-"`
 	Epoch uint64 `json:"-"`
+	numberOfNodes int `json:"-"`
 	
 	VCpuMax uint
 	HwCpuMax uint
@@ -54,7 +55,7 @@ type Conf struct {
 	HeartbeatInterval uint
 	ClusterTick uint
 	ClusterTickInterval uint
-	NodeHealthCheckInterval uint
+	//NodeHealthCheckInterval uint
 	ReconnectLoopDelay uint
 	HeartbeatTimeFormat string
 	
@@ -80,6 +81,7 @@ type Conf struct {
 	DebugHeartbeat bool
 	DebugLibvirtShowDomStates bool
 	debugRunOnAnyHost			bool
+	_debug_one_node_cluster bool `json:"-"`
 	}
 
 var config Conf
@@ -128,9 +130,20 @@ func confLoad(){
 	
 	
 	loadAllVMfiles()
+	config._fix_resource_ISs()
 	
 	//config.dumpConfig()
 	//config.rwmux.Unlock()
+	
+	config.numberOfNodes = len(config.Nodes)
+	
+	if config.MyHostname == "x270" {
+		config._debug_one_node_cluster = true
+		config.Quorum = 1
+		config.numberOfNodes = 1
+	}else{
+		config._debug_one_node_cluster = false
+		}
 	}
 
 func loadAllVMfiles(){
@@ -555,10 +568,10 @@ func writeExampleConfig(){
 			resource_controller_id_dummy:  true,
 			},
 		HeartbeatInterval: 1000,
-		ClusterTick: 1000,
+		ClusterTick: 5000,
 		ConfHashCheck: true,
 		ClusterTickInterval: 250,
-		NodeHealthCheckInterval: 1000,
+		//NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 2500,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
@@ -588,6 +601,9 @@ func (c *Conf)_MyHostname()(hostname string){
 
 func (c *Conf)ClusterTick_sleep(){
 	time.Sleep( time.Duration(c.ClusterTick) * time.Millisecond )}
+
+func (c *Conf)ClusterHeartbeat_sleep(){
+	time.Sleep( time.Duration(c.HeartbeatInterval) * time.Millisecond )}
 
 func (c *Conf)GetField_uint(field string) (uint) {
 	c.rwmux.RLock()
@@ -666,3 +682,19 @@ func (c *Conf)isTheirEpochAhead(i uint64) bool {
 func (c *Conf)_saveAllResources(){
 	for k,_:=range c.Resources {
 		c.Resources[k].SaveToFile()}}
+
+func (r *Cluster_resource)_fix_IDs() {
+	switch r.ResourceController_name {
+		case "libvirt":
+			r.ResourceController_id = resource_controller_id_libvirt
+		case "dummy":
+			r.ResourceController_id = resource_controller_id_dummy
+		default:
+			fmt.Printf("ERROR Couldn't fix ID on resoutce %s %+v\n",
+				r.Name, r)}}
+	
+
+
+func (c *Conf)_fix_resource_ISs(){
+	for k,_:=range c.Resources {
+		c.Resources[k]._fix_IDs()}}

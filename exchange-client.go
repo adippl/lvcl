@@ -56,6 +56,7 @@ func (ec *eclient)listen(){
 		delete(ec.exch.outgoing, ec.hostname)
 		delete(ec.exch.cliLogTap, ec.hostname)
 		e.rwmuxUSock.Unlock()
+		close(ec.outgoing)
 		}
 	ec = nil
 	lg.err("eclient Decoder ", err)}

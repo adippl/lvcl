@@ -240,6 +240,9 @@ func (e *Exchange)forwarder(){
 			return}
 		
 		e.markMessageWithConfigHash(m)
+
+		//forward client message to "__master__"
+		if e.msg_handle_client_msg_to_master(m) {continue}
 		
 		// logger messages to listening clients
 		if e.msg_handle_forward_logger_to_client_tap(m) {continue}
@@ -515,7 +518,7 @@ func (ec *eclient)sendUsockClientID(id uint){
 			Time:		t,
 			Argc:		1,
 			Argv:		[]string{ec.hostname},
-			custom1:	id,
+			Custom1:	id,
 			}
 		ec.outgoing <- m}
 
@@ -606,11 +609,17 @@ func (e *Exchange)msg_handler_cluster_ask_about_client_node(m *message) bool {
 
 func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 	var masterNode string
-	if	m.SrcMod == msgModClient &&
+	if	( m.SrcMod == msgModClient || m.SrcMod == msgModBrain ) &&
 		m.DestHost == "__master__" {
+		
 		if temp := b.getMasterNodeName(); temp == nil {
 			// cluster has no master
-			lg.msg_debug(2, "couldn't forward message to master, cluster has no master")
+			//lg.msg_debug(2,
+			//	"couldn't forward message to master, cluster has no master")
+			//do not log with logger in forwarder function
+			fmt.Println(
+				"couldn't forward message to master, cluster has no master")
+			return true
 		}else{
 			// cluster has a master
 			masterNode = *temp}
@@ -618,14 +627,20 @@ func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 		if config._MyHostname() == masterNode {
 			e.ex_brn <- *m
 			return true}
-		e.rwmux.RLock()
 		if masterNode != config._MyHostname() &&
 			e.outgoing[masterNode] != nil {
+			
+			//e.rwmux.RLock()
 			if config.DebugNetwork {
-				fmt.Printf("DEBUG forwarder pushing to %s  %+v\n",
-					masterNode, m)}
+				//do not log with logger in forwarder function
+				//lg.msg_debug(5,
+				//	fmt.sprintf("debug forwarder pushing to %s  %+v\n",
+				//	masternode, m))
+				//fmt.sprintf("debug forwarder pushing to %s  %+v\n",
+				//	masternode, m)
+				}
 			e.outgoing[masterNode].outgoing <- *m }
-			e.rwmux.RUnlock()
+			//e.rwmux.RUnlock()
 			return true }
 	return false}
 

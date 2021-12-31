@@ -166,7 +166,7 @@ func (l *lvd)startVM(v *Cluster_resource) bool {
 		return false}
 	file, err := ioutil.ReadFile(v.Strs["DomainXML"])
 	if err != nil {
-		lg.err("startVM", err)
+		lg.err(fmt.Sprintf("startVM %s", v.Name), err)
 		return false}
 	xml := string(file)
 	
