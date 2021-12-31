@@ -142,36 +142,36 @@ func confLoad(){
 		config._debug_one_node_cluster = true
 		config.Quorum = 1
 		config.numberOfNodes = 1
-//		config.Nodes = append(config.Nodes,
-//			Node{
-//				Hostname: "x270",
-//				NodeAddress: "127.0.0.1:6798",
-//				LibvirtAddress: "127.0.0.1",
-//				NodeState: NodePreparing,
-//				Weight: 1004,
-//				HwStats: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						Id:		utilization_vpcus,
-//						Value:	20,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwCPUs",
-//						Id:		utilization_hw_cores,
-//						Value:	8,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						Id:		utilization_vmem,
-//						Value:	18432,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwMEM",
-//						Id:		utilization_hw_mem,
-//						Value:	18432,
-//						},
-//					},
-//				})
+		config.Nodes = append(config.Nodes,
+			Node{
+				Hostname: "x270",
+				NodeAddress: "127.0.0.1:6798",
+				LibvirtAddress: "127.0.0.1",
+				NodeState: NodePreparing,
+				Weight: 1004,
+				HwStats: []Cluster_utilization{
+					Cluster_utilization{
+						Name:	"vCPUs",
+						Id:		utilization_vpcus,
+						Value:	20,
+						},
+					Cluster_utilization{
+						Name:	"hwCPUs",
+						Id:		utilization_hw_cores,
+						Value:	8,
+						},
+					Cluster_utilization{
+						Name:	"vMEM",
+						Id:		utilization_vmem,
+						Value:	18432,
+						},
+					Cluster_utilization{
+						Name:	"hwMEM",
+						Id:		utilization_hw_mem,
+						Value:	18432,
+						},
+					},
+				})
 	}else{
 		config._debug_one_node_cluster = false
 		}

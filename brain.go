@@ -63,6 +63,7 @@ type Brain struct{
 	rwmux_locP					sync.RWMutex
 	rwmux_curPlacement			sync.RWMutex
 	rwmux_dp					sync.RWMutex
+	rwmux_expUtl				sync.RWMutex
 	expectedResUtil				[]Node
 	lastPickedNode				string
 	}
@@ -94,6 +95,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		rwmux_locP:				sync.RWMutex{},
 		rwmux_curPlacement:		sync.RWMutex{},
 		rwmux_dp:				sync.RWMutex{},
+		rwmux_expUtl:			sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -639,6 +641,7 @@ func (b *Brain)update_expectedResUtil(){
 	b.rwmux_dp.Lock()
 	config.rwmux.RLock()
 	//create copy, it's safer* (* not really)
+	b.rwmux_expUtl.Lock()
 	b.expectedResUtil = config.Nodes
 	
 	b.rwmux_dp.Unlock()
@@ -659,7 +662,6 @@ func (b *Brain)update_expectedResUtil(){
 	for x,_:=range b.desired_resourcePlacement {
 		//get ptr to node
 		node = b.getPtrToNode(&b.desired_resourcePlacement[x].Placement)
-
 		if node == nil {
 			fmt.Printf("ASDASDASDASDASD %+v\n", node)
 			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement[x].Placement)
@@ -671,6 +673,7 @@ func (b *Brain)update_expectedResUtil(){
 			util = node.getPtrToUtil(b.desired_resourcePlacement[x].Util[y].Id)
 			if ! util.UtilAdd(&b.desired_resourcePlacement[x].Util[y]) {
 				continue}}}
+	b.rwmux_expUtl.Unlock()
 	config.rwmux.RUnlock()
 	b.rwmux_dp.RUnlock()
 	}
@@ -762,9 +765,9 @@ func (b *Brain)basic_placeResources(){
 			has_changed = true
 			continue
 		}else{
-			//lg.msg_debug(2, fmt.Sprintf(
-			//	"resource %s couldn't be placed on any node",
-			//	resource.Name))
+			lg.msg_debug(2, fmt.Sprintf(
+				"resource %s couldn't be placed on any node",
+				resource.Name))
 				}}
 	b.rwmux_dp.Unlock()
 	config.rwmux.RUnlock()
@@ -840,7 +843,8 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 	var sb strings.Builder
 	var retStr string
 	sb.WriteString("\n=== Node Util ===\n")
-
+	
+	b.rwmux_expUtl.RLock()
 	for k,_:=range b.expectedResUtil {
 		sb.WriteString(fmt.Sprintf("== node %s ==\n",
 			b.expectedResUtil[k].Hostname))
@@ -852,6 +856,7 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 				b.expectedResUtil[k].Usage[kk].NameString(),
 				b.expectedResUtil[k].Usage[kk].Value,
 				b.expectedResUtil[k].HwStats[kk].Value))}}
+	b.rwmux_expUtl.RUnlock()
 	sb.WriteString("\n=================\n")
 	retStr = sb.String()
 	return &retStr}
