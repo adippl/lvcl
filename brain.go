@@ -156,59 +156,29 @@ func  (b *Brain)messageHandler(){
 		if b.msg_handle_brainNotifyAboutEpochUpdate(&m) {continue}
 		
 		if b.msg_handle_brainRpcAskForMasterNode(&m) {continue}
-
+		
 		// handle resource failure messages
 		if b.msg_handle__brainNotifyMasterResourceFailure(&m) {continue}
 		
-//		if m.RpcFunc == brainRpcAskForMasterNode &&
-//			m.SrcHost != config._MyHostname() {
-//			
-//			b.replyToAskForMasterNode(&m)
-//			continue
 		
 		// Master node only replies
 		if b.msg_handle_brainRpcElectAsk_Nominate(&m) {continue}
-//		if b.isMaster &&
-//				(m.RpcFunc == brainRpcElectAsk ||
-//				 m.RpcFunc == brainRpcElectNominate) {
-//				b.SendMsg(
-//					m.SrcHost,
-//					brainRpcHaveMasterNodeReply,
-//					config.MyHostname)
-//				continue}
+		
 		// respond to message with info about master node
 		if b.msg_handle_brainRpcHaveMasterNodeReply(&m) {continue}
-//		if m.RpcFunc == brainRpcHaveMasterNodeReply {
-//			// TODO remove, it's only for debug function using fmt.Printf
-//			// makes a copy of this string
-//			// I had some strange problems with fmt.Printf without creating string copy
-//			str := m.Argv[0]
-//			b.masterNode=&str
-//			//b.masterNode=&m.Argv[0]
-//			lg.msg(fmt.Sprintf("got master node %s from host %s", 
-//				m.Argv[0], m.SrcHost))}
+		
 		// respond to brainRpcHaveMasterNodeReplyNil
 		if b.msg_handle_brainRpcHaveMasterNodeReplyNil(&m) {continue}
-//		if m.RpcFunc == brainRpcHaveMasterNodeReplyNil {
-//			b.masterNode = nil
-//			b.SendMsg("__everyone__",brainRpcElectAsk,"asking for elections")
-//			continue}
+		
 		// respond to request for elections
-		if m.RpcFunc == brainRpcElectAsk {
-			b.vote()
-			continue}
+		if m.RpcFunc == brainRpcElectAsk { b.vote(); continue}
+		
 		// respond to master node nomination
 		if b.msg_handle_brainRpcElectNominate(&m) {continue}
-//		if m.RpcFunc == brainRpcElectNominate && 
-//				m.SrcHost != config._MyHostname() {
-//			if config.MyHostname == m.Argv[0] {
-//				//this node got nominated
-//				b.nominatedBy[m.SrcHost]=true
-//				lg.msg_debug(5, fmt.Sprintf(
-//					"Node received nomination message %+v\n",m)
-//				go b.countVotes()}}
+		
 		lg.msg_debug(4, fmt.Sprintf(
-			"brain received message which failed all validation functions: %+v",m))}}
+			"brain received message which failed all validation functions: %+v",
+			m))}}
 
 func (b *Brain)vote(){
 	hostname := b.findHighWeightNode()
@@ -483,26 +453,10 @@ func (b *Brain)resourceBalancer(){
 	for{
 		if(b.killBrain){
 			return}
-		
-		//b.reportControllerResourceState(b.resCtl_lvd)
-		//b.update__local_resourcePlacement()
 		b.updateLocalResources()
-		// function moved into Master IF
-		// it shouldn't be needed on other nodes
-		// client may possibly want to see that info, 
-		// it would probably require excahnge code to forward client
-		// messages to client (and backwards
 		b.update_expectedResUtil()
 		if(b.isMaster){
-			// TODO
-			// get resource states
-			
-			// generate resource placement plan
-			//b.update_expectedResUtil()
-			b.basic_placeResources()
-			
-			// change resource states on nodes
-			}
+			b.basic_placeResources()}
 		
 		//b.send_localResourcesToMaster()
 		b.applyResourcePlacement()
@@ -526,6 +480,8 @@ func (b *Brain)updateLocalResources(){
 func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
 	var lr *Cluster_resource = nil
 	var rc bool = false
+	//READ only Mutex lock
+	b.rwmux_locP.RLock()
 	for k,_:=range b.local_resourcePlacement { 
 		rc = false
 		lr = &b.local_resourcePlacement[k]
@@ -533,23 +489,28 @@ func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
 		if lr.Name == r.Name {
 			// skip if already running with desired state
 			if lr.State == r.State {
+				//MUTEX UNLOCK
+				b.rwmux_locP.RUnlock()
 				return true}
 			// turn off if running locally
 			if r.State == resource_state_running &&
 				lr.State != resource_state_stopped {
+				//MUTEX UNLOCK
+				b.rwmux_locP.RUnlock()
 				return c.Stop_resource(r.Name)}
 			// nuke if not stopped
 			if r.State == resource_state_nuked &&
 				lr.State != resource_state_stopped {
+				//MUTEX UNLOCK
+				b.rwmux_locP.RUnlock()
 				return c.Nuke_resource(r.Name)}}}
+	//MUTEX UNLOCK
+	b.rwmux_locP.RUnlock()
 	// actions for resources not in b.local_resourcePlacement
-	//
 	// start resource
 	if r.State == resource_state_running {
 		rc = c.Start_resource(r.Name)
 		if rc == false {
-			//TODO send message about failure
-			//func (b *Brain)sendMsg_resFailure(r *Cluster_resource, action string, id int){
 			b.sendMsg_resFailure(r, "start", resouce_failure_unknown)}
 		return rc}
 
@@ -604,9 +565,11 @@ func (b *Brain)writeBrainStatus() *string {
 	sb.WriteString("========================================\n")
 		
 	sb.WriteString("\n======= local resource placement =======\n")
+	b.rwmux_locP.RLock()
 	for _,v:=range b.local_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
 			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
+	b.rwmux_locP.RUnlock()
 	sb.WriteString("========================================\n")
 	sb.WriteString(*b.writeSum_expectedResUtil())
 	sb.WriteString(*b.write_info_failureMap())
@@ -824,21 +787,24 @@ func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
 	return false}
 
 func (b *Brain)checkIfResourceIsCurrentlyPlaced(r *Cluster_resource) bool {
-	//b.rwmux_curPlacement.RLock()
+	b.rwmux_curPlacement.RLock()
 	for _,v:=range b.current_resourcePlacement {
 		for k,_:=range v {
 			if	v[k].Name == r.Name &&
 				v[k].Id == r.Id {
-				//b.rwmux_curPlacement.RUnlock()
+				b.rwmux_curPlacement.RUnlock()
 				return true}}}
-	//b.rwmux_curPlacement.RUnlock()
+	b.rwmux_curPlacement.RUnlock()
 	return false}
 
 func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
+	b.rwmux_locP.RLock()
 	for k,_:=range b.local_resourcePlacement {
 		if	b.local_resourcePlacement[k].Name == r.Name &&
 			b.local_resourcePlacement[k].Id == r.Id {
+			b.rwmux_locP.RUnlock()
 			return true}}
+	b.rwmux_locP.RUnlock()
 	return false}
 
 
@@ -854,7 +820,7 @@ func (b *Brain)write_info_failureMap() *string {
 		sb.WriteString(fmt.Sprintf("== ctl %s, resource '%s' ==\n",
 			config.GetCluster_resourcebyName(&k).CtlString(), k))
 		sb.WriteString(fmt.Sprintf("\tnodes %+v", v))}
-	sb.WriteString("\n=================\n")
+	sb.WriteString("\n===================\n")
 	retStr = sb.String()
 	return &retStr}
 	
@@ -878,27 +844,6 @@ func (b *Brain)writeSum_expectedResUtil() *string {
 	sb.WriteString("\n=================\n")
 	retStr = sb.String()
 	return &retStr}
-	
-//func (b *Brain)update__local_resourcePlacement(){
-//	var r_arr []Cluster_resource
-//	var retRes []Cluster_resource = make([]Cluster_resource,0)
-//	
-//	if b.resCtl_lvd != nil {
-//		r_arr = *b.resCtl_lvd.Get_running_resources()
-//		if r_arr != nil {
-//			for k,_:=range r_arr {
-//				retRes = append(retRes, r_arr[k])}}}
-//	if b.resCtl_Dummy != nil {
-//		//TODO handle lvd
-//		r_arr = *b.resCtl_Dummy.Get_running_resources()
-//		if r_arr != nil {
-//			for k,_:=range r_arr {
-//				retRes = append(retRes, r_arr[k])}}}
-//	
-//	b.rwmux_locP.Lock()
-//	b.local_resourcePlacement = retRes
-//	b.rwmux_locP.Unlock()}
-
 
 func (b *Brain)IncEpoch_NO_LOCK() {
 	b.Epoch++}
