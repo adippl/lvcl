@@ -382,15 +382,15 @@
 	"VMemMax": 8192,
 	"HwMemMax": 8192,
 	"HeartbeatInterval": 1000,
-	"ClusterTick": 5000,
-	"ClusterTickInterval": 250,
+	"ClusterTick": 2000,
+	"HealthDeltaUpdateDelay": 250,
 	"ReconnectLoopDelay": 2500,
 	"HeartbeatTimeFormat": "2006-01-02 15:04:05",
 	"EnabledResourceControllers": {
 		"0": true,
 		"2": true
 	},
-	"ClusterBalancerDelay": 3,
+	"ClusterBalancerDelay": 2,
 	"TCPport": "6798",
 	"UnixSocket": "./lvcl.sock",
 	"ConfHashCheck": true,

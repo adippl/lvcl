@@ -104,7 +104,7 @@ func (e *Exchange)updateNodeHealthDelta(){
 			dt := time.Now().Sub(*v)
 			e.heartbeatDelta[k]=&dt}
 		time.Sleep(time.Millisecond *
-			time.Duration(config.ClusterTickInterval))}}
+			time.Duration(config.HealthDeltaUpdateDelay))}}
 
 func (e *Exchange)initListenTCP(){
 	var err error

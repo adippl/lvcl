@@ -54,7 +54,7 @@ type Conf struct {
 	
 	HeartbeatInterval uint
 	ClusterTick uint
-	ClusterTickInterval uint
+	HealthDeltaUpdateDelay uint
 	//NodeHealthCheckInterval uint
 	ReconnectLoopDelay uint
 	HeartbeatTimeFormat string
@@ -141,7 +141,7 @@ func confLoad(){
 	if config.MyHostname == "x270" {
 		config._debug_one_node_cluster = true
 		config.Quorum = 1
-		config.numberOfNodes = 1
+		config.numberOfNodes++
 		config.Nodes = append(config.Nodes,
 			Node{
 				Hostname: "x270",
@@ -593,16 +593,16 @@ func writeExampleConfig(){
 		HwCpuMax: 8,
 		VMemMax: 8192,
 		HwMemMax: 8192,
-		ClusterBalancerDelay: 3,
+		ClusterBalancerDelay: 2,
 		Quorum: 2,
 		EnabledResourceControllers: map[uint]bool{
 			resource_controller_id_libvirt: true,
 			resource_controller_id_dummy:  true,
 			},
 		HeartbeatInterval: 1000,
-		ClusterTick: 5000,
+		ClusterTick: 2000,
 		ConfHashCheck: true,
-		ClusterTickInterval: 250,
+		HealthDeltaUpdateDelay: 250,
 		//NodeHealthCheckInterval: 1000,
 		ReconnectLoopDelay: 2500,
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",

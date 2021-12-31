@@ -49,6 +49,7 @@ type Brain struct{
 	nodeHealth				map[string]int
 	nodeHealthLast30Ticks	map[string][]uint
 	nodeHealthLastPing		map[string]uint
+	rwmuxHealth				sync.RWMutex
 	rwmux					sync.RWMutex
 	balancerTicksPassed		int
 	
@@ -92,6 +93,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		
 		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
+		rwmuxHealth:			sync.RWMutex{},
 		rwmux_locP:				sync.RWMutex{},
 		rwmux_curPlacement:		sync.RWMutex{},
 		rwmux_dp:				sync.RWMutex{},
@@ -257,7 +259,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			return}
 		//make new map, it's safer than removing dropped nodes from old map
 		//lock mutex for writing
-		b.rwmux.Lock()
+		b.rwmuxHealth.Lock()
 		b.nodeHealth = make(map[string]int)
 		b.nodeHealth[config.MyHostname]=HealthGreen
 		for k,v := range e.GetHeartbeat() {
@@ -293,7 +295,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 				b.nodeHealthLast30Ticks[k] = b.nodeHealthLast30Ticks[k][1:]}}
 		//SKIP HEALTH CHECK ON SINGLE NODE CLUSTER
 		if config._debug_one_node_cluster {
-			b.rwmux.Unlock()
+			b.rwmuxHealth.Unlock()
 			config.ClusterHeartbeat_sleep()
 			continue}
 		//SKIP HEALTH CHECK ON SINGLE NODE CLUSTER
@@ -313,7 +315,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			b.masterNode = nil
 			b.isMaster = false}
 		//unlock writing mutex 
-		b.rwmux.Unlock()
+		b.rwmuxHealth.Unlock()
 		config.ClusterHeartbeat_sleep()}}
 //		time.Sleep(
 //			time.Millisecond * time.Duration(
@@ -323,14 +325,14 @@ func (b *Brain)findHighWeightNode() *string {
 	var host *string
 	var hw uint = 0
 	//lock read mutex
-	b.rwmux.RLock()
+	b.rwmuxHealth.RLock()
 	for k,v := range b.nodeHealth{
 		n := config.GetNodebyHostname(&k)
 		if v == HealthGreen && n != nil && n.Weight > hw {
 			hw=n.Weight
 			host=&n.Hostname}}
 	//unlock read mutex
-	b.rwmux.RUnlock()
+	b.rwmuxHealth.RUnlock()
 	return host}
 
 func brainNewMessage() *message {
@@ -621,17 +623,54 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 //			u)}
 	return hwFits, usageFits, usagePerc}
 
-func (n *Node)doesResourceFitsOnNode(r *Cluster_resource, fmap *[]string) bool {
+func (n *Node)doesResourceFitsOnNode(
+	r *Cluster_resource,
+	fmap *[]string,
+	nodeHealth *map[string]int,
+	) bool {
+	
 	for k,_:=range r.Util {
 		if _,does_fit,_ := n.doesUtilFitsOnNode(&r.Util[k]); does_fit == false {
 			return false}}
+	//check if hostname is health map
+	if _, ok := (*nodeHealth)[n.Hostname]; ok {
+		// check if node health is fine
+		if h := (*nodeHealth)[n.Hostname] ; h != HealthGreen {
+			lg.msg_debug(4, fmt.Sprintf(
+				"resource '%s' cannot be placed on '%s' because of node health %d",
+				r.Name,
+				n.Hostname,
+				h))
+			return false}
+	}else{
+		// node missing doesn't exist in health map, 
+		// can not place on this node 
+		lg.msg_debug(4, fmt.Sprintf(
+			"resource '%s' cannot be placed on '%s' because of lack of info about node health",
+			r.Name,
+			n.Hostname))
+		return false}
 	//not sure which part takes more time. checking strings in fmap
 	//should take longer
 	if fmap == nil {
+		lg.msg_debug(4, fmt.Sprintf(
+			"resource fits on node %s with health %d, '%s' \t %+v %+v",
+			n.Hostname,
+			(*nodeHealth)[n.Hostname],
+			r.Name,
+			fmap,
+			r))
 		return true}
 	for k,_:=range *fmap {
 		if n.Hostname == (*fmap)[k] {
 			return false }}
+	
+	lg.msg_debug(4, fmt.Sprintf(
+		"resource fits on node %s with health %d, '%s' \t %+v",
+		n.Hostname,
+		(*nodeHealth)[n.Hostname],
+		r.Name,
+		r))
 	return true}
 
 func (b *Brain)update_expectedResUtil(){
@@ -668,8 +707,6 @@ func (b *Brain)update_expectedResUtil(){
 			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement)
 			}
 		for y,_:=range b.desired_resourcePlacement[x].Util {
-			//get ptr to Cluster_utilization if exists on this node
-//			fmt.Printf("ASDASDASDASDASD %+v\n", b.desired_resourcePlacement[x].Util[y].Id)
 			util = node.getPtrToUtil(b.desired_resourcePlacement[x].Util[y].Id)
 			if ! util.UtilAdd(&b.desired_resourcePlacement[x].Util[y]) {
 				continue}}}
@@ -696,7 +733,9 @@ func (b *Brain)getPtrToNode(name *string) *Node {
 func (b *Brain)_place_single_resource(
 	lastNode *int,
 	res *Cluster_resource,
-	fmap *[]string) bool {
+	fmap *[]string,
+	nh *map[string]int,
+	) bool {
 	
 	var nodeArrSize int = 0
 	var nodesChecked int = 0
@@ -709,12 +748,14 @@ func (b *Brain)_place_single_resource(
 		//reset nodeArray index to 0, we want to loop over this array
 		*lastNode = 0}
 	
-	for b.expectedResUtil[ *lastNode ].doesResourceFitsOnNode( res, fmap ) == false {
+	for b.expectedResUtil[ *lastNode ].doesResourceFitsOnNode( res, fmap, nh ) == false {
 		//checked on all nodes?
 		nodesChecked++
 		if nodesChecked >= nodeArrSize {
 			// all nodes checked, res coulsn't be placed
-//			lg.msg_debug(5, fmt.Sprintf( "_place_single_resource looped, (%d >= %d) = %b", nodesChecked, nodeArrSize, nodesChecked >= nodeArrSize))
+//			lg.msg_debug(5, fmt.Sprintf(
+//				"_place_single_resource looped, (%d >= %d) = %b",
+//					nodesChecked, nodeArrSize, nodesChecked >= nodeArrSize))
 			return false}
 		if *lastNode >= nodeArrSize-1 {
 			//reset nodeArray index to 0, we want to loop over this array
@@ -735,6 +776,7 @@ func (b *Brain)basic_placeResources(){
 	var has_changed bool = false
 	var fmap *[]string = nil
 	var resource *Cluster_resource = nil
+	var nodeHealth map[string]int = b.getNodeHealthCopy()
 	config.rwmux.RLock()
 	b.rwmux_dp.Lock()
 	for k,_:=range config.Resources {
@@ -761,7 +803,7 @@ func (b *Brain)basic_placeResources(){
 		if b.check_if_resource_is_running_on_cluster(resource) {
 			continue}
 			
-		if b._place_single_resource(&lastNode, resource, fmap){
+		if b._place_single_resource(&lastNode, resource, fmap, &nodeHealth){
 			has_changed = true
 			continue
 		}else{
@@ -780,6 +822,7 @@ func remove(s []Cluster_resource, i int) []Cluster_resource {
 	return s[:len(s)-1]}
 
 //resrouce has to had resource_state_stopped for this function to work
+//TODO return true if config changed
 func (b *Brain)stop_if_placed(c *Cluster_resource){
 	for k,_:=range b.desired_resourcePlacement {
 		if b.desired_resourcePlacement[k].Name == c.Name &&
@@ -1119,3 +1162,19 @@ func (b *Brain)check_if_resource_is_running_on_cluster(r *Cluster_resource) bool
 	b.rwmux_curPlacement.RUnlock()
 	return false}
 
+//func (b *Brain)getNodeHealth(name *string) int {
+//	var retInt = -1
+//	b.rwmuxHealth.RLock()
+//	if _, ok := b.nodeHealth[*name]; ok {
+//		retInt = b.nodeHealth[*name] }
+//	b.rwmuxHealth.RUnlock()
+//	return retInt }
+
+func (b *Brain)getNodeHealthCopy() map[string]int {
+	var retmap map[string]int
+	b.rwmuxHealth.RLock()
+	retmap = make(map[string]int, len(b.nodeHealth))
+	for k,v:=range b.nodeHealth {
+		retmap[k] = v }
+	b.rwmuxHealth.RUnlock()
+	return retmap }
