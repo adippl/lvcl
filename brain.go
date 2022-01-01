@@ -466,7 +466,11 @@ func (b *Brain)resourceBalancer(){
 		b.updateLocalResources()
 		b.update_expectedResUtil()
 		if b.isMaster && b.balancerTicksPassed >= config.ClusterBalancerDelay {
-			b.basic_placeResources()}
+			b.basic_placeResources()
+		}else{
+			b.initial_placementAfterBecomingMaster()
+			}
+		
 		if b.isMaster {
 			b.balancerTicksPassed++ }
 		
@@ -768,7 +772,7 @@ func (b *Brain)_place_single_resource(
 	resCopy = *res
 	resCopy.Placement = config.Nodes[ *lastNode ].Hostname
 	b.desired_resourcePlacement = append(b.desired_resourcePlacement, 
-	resCopy)
+		resCopy)
 	//resource placed in desired resources
 	return true}
 
@@ -816,8 +820,7 @@ func (b *Brain)basic_placeResources(){
 		}else{
 			lg.msg_debug(2, fmt.Sprintf(
 				"resource %s couldn't be placed on any node",
-				resource.Name))
-				}}
+				resource.Name))}}
 	b.rwmux_dp.Unlock()
 	config.rwmux.RUnlock()
 	if has_changed {
@@ -1188,3 +1191,44 @@ func (b *Brain)getNumberOfHealthyNodes(nh *map[string]int, fmap *[]string) int {
 					//this condition should fire only once
 					ret-- }}}}
 	return ret }
+
+func (b *Brain)initial_placementAfterBecomingMaster(){
+	var has_changed bool = false
+	var fmap *[]string = nil
+	var resource *Cluster_resource = nil
+	var resCopy Cluster_resource
+	var nodeHealth map[string]int = b.getNodeHealthCopy()
+	var real_node *Node
+	b.rwmux_curPlacement.RLock()
+	b.rwmux_dp.Lock()
+	for node_name,res_arr := range b.current_resourcePlacement {
+		real_node = nil
+		for i,_:=range config.Nodes {
+			if config.Nodes[i].Hostname == node_name {
+				real_node = &config.Nodes[i] }}
+			
+		for k,_:=range res_arr {
+			resource = nil
+			resource = &res_arr[k]
+			fmap = nil
+			fmap = b.checkResourceInFailureMap(&resource.Name)
+			
+			if	resource.State != resource_state_running ||
+				resource.State != resource_state_paused {
+				continue}
+				
+			for kk,_:=range *fmap {
+				if (*fmap)[kk] == node_name {
+					goto skip_loop }}
+			
+			if real_node.doesResourceFitsOnNode( resource, nil, &nodeHealth ) {
+				resCopy = *resource
+				resCopy.Placement = node_name
+				b.desired_resourcePlacement = append(
+					b.desired_resourcePlacement, resCopy) }
+			skip_loop: }}
+		
+		b.rwmux_dp.Unlock()
+		b.rwmux_curPlacement.RUnlock()
+		if has_changed {
+			b.IncEpoch()}}

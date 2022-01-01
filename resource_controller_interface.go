@@ -25,6 +25,7 @@ const(
 	resource_controller_id_libvirt=iota
 	resource_controller_id_docker
 	resource_controller_id_dummy
+	resource_controller_id_generic
 	
 	resource_state_starting
 	resource_state_running

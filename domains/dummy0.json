@@ -9,28 +9,28 @@
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vCPUs",
-			"Id": 17,
+			"Id": 18,
 			"Value": 10
 		},
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "hwCPUs",
-			"Id": 12,
+			"Id": 13,
 			"Value": 0
 		},
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vMEM",
-			"Id": 18,
+			"Id": 19,
 			"Value": 1024
 		},
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "hwMEM",
-			"Id": 16,
+			"Id": 17,
 			"Value": 0
 		}
 	],

@@ -9,14 +9,14 @@
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vCPUs",
-			"Id": 17,
+			"Id": 18,
 			"Value": 1
 		},
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vMEM",
-			"Id": 18,
+			"Id": 19,
 			"Value": 1024
 		}
 	],
