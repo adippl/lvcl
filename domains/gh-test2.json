@@ -2,21 +2,21 @@
 	"ResourceController_name": "libvirt",
 	"ResourceController_id": 0,
 	"Name": "gh-test2",
-	"Id": 2,
+	"Id": 0,
 	"State": 4,
 	"Util": [
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vCPUs",
-			"Id": 16,
+			"Id": 17,
 			"Value": 1
 		},
 		{
 			"ResourceController_name": "",
 			"ResourceController_id": 0,
 			"Name": "vMEM",
-			"Id": 17,
+			"Id": 18,
 			"Value": 1024
 		}
 	],
@@ -28,5 +28,7 @@
 	},
 	"Bools": {
 		"MigrateLive": true
-	}
+	},
+	"Placement": "",
+	"ConfFile": "domains/gh-test2.json"
 }

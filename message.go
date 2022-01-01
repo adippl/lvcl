@@ -102,3 +102,20 @@ func (m *message)heartbeatGetTime() *time.Time {
 	if err != nil {
 		lg.err("heartbeatGetTime time.Parse error", err)}
 	return &t}
+
+func (m *message)destMod_src() string {
+	switch m.DestMod {
+		case msgModCore:
+			return "Core"
+		case msgModLoggr:
+			return "logger"
+		case msgModExchn:
+			return "Exchange"
+		case msgModBrain:
+			return "Brain"
+		case msgModClient:
+			return "Client"
+		case msgModConfig:
+			return "Config"
+		default:
+			return "error"}}

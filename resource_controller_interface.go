@@ -163,3 +163,4 @@ func (c *Cluster_resource)SaveToFile(){
 	if err != nil {
 		lg.err("Can't serislize resource", err)}
 	ioutil.WriteFile(c.ConfFile, confser, 0644)}
+

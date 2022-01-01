@@ -132,6 +132,8 @@ func confLoad(){
 	
 	loadAllVMfiles()
 	config._fix_resource_ISs()
+	config._fix_node_ISs()
+	config._saveAllResources()
 	
 	//config.dumpConfig()
 	//config.rwmux.Unlock()
@@ -152,26 +154,27 @@ func confLoad(){
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	20,
 						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
-						Id:		utilization_hw_cores,
+						//Id:		utilization_hw_cores,
 						Value:	8,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	18432,
 						},
 					Cluster_utilization{
 						Name:	"hwMEM",
-						Id:		utilization_hw_mem,
+						//Id:		utilization_hw_mem,
 						Value:	18432,
 						},
 					},
 				})
+		config._fix_node_ISs()
 	}else{
 		config._debug_one_node_cluster = false
 		}
@@ -296,22 +299,22 @@ func writeExampleConfig(){
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	80,
 						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
-						Id:		utilization_hw_cores,
+						//Id:		utilization_hw_cores,
 						Value:	8,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	18432,
 						},
 					Cluster_utilization{
 						Name:	"hwMEM",
-						Id:		utilization_hw_mem,
+						//Id:		utilization_hw_mem,
 						Value:	18432,
 						},
 					},
@@ -325,22 +328,22 @@ func writeExampleConfig(){
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	80,
 						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
-						Id:		utilization_hw_cores,
+						//Id:		utilization_hw_cores,
 						Value:	8,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	10240,
 						},
 					Cluster_utilization{
 						Name:	"hwMEM",
-						Id:		utilization_hw_mem,
+						//Id:		utilization_hw_mem,
 						Value:	10240,
 						},
 					},
@@ -354,22 +357,22 @@ func writeExampleConfig(){
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	80,
 						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
-						Id:		utilization_hw_cores,
+						//Id:		utilization_hw_cores,
 						Value:	8,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	6144,
 						},
 					Cluster_utilization{
 						Name:	"hwMEM",
-						Id:		utilization_hw_mem,
+						//Id:		utilization_hw_mem,
 						Value:	6144,
 						},
 					},
@@ -386,22 +389,22 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	1,
 						},
 					Cluster_utilization{
 						Name:	"hwCPUs",
-						Id:		utilization_hw_cores,
+						//Id:		utilization_hw_cores,
 						Value:	1,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	1024,
 						},
 					Cluster_utilization{
 						Name:	"hwMEM",
-						Id:		utilization_hw_mem,
+						//Id:		utilization_hw_mem,
 						Value:	512,
 						},
 					},
@@ -424,12 +427,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	1,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	1024,
 						},
 					},
@@ -452,12 +455,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	1,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	99999,
 						},
 					},
@@ -480,12 +483,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	100,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	1024,
 						},
 					},
@@ -508,12 +511,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	3,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	512,
 						},
 					},
@@ -536,12 +539,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	3,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	512,
 						},
 					},
@@ -564,12 +567,12 @@ func writeExampleConfig(){
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
-						Id:		utilization_vpcus,
+						//Id:		utilization_vpcus,
 						Value:	2,
 						},
 					Cluster_utilization{
 						Name:	"vMEM",
-						Id:		utilization_vmem,
+						//Id:		utilization_vmem,
 						Value:	10240,
 						},
 					},
@@ -723,10 +726,41 @@ func (r *Cluster_resource)_fix_IDs() {
 			r.ResourceController_id = resource_controller_id_dummy
 		default:
 			fmt.Printf("ERROR Couldn't fix ID on resoutce %s %+v\n",
+				r.Name, r)}
+	for k,_:=range r.Util {
+		r.Util[k]._fix_util_IDs()}
+	}
+
+func (r *Cluster_utilization)_fix_util_IDs() {
+	////fix resource_controller ID
+	//switch r.ResourceController_name {
+	//	case "libvirt":
+	//		r.ResourceController_id = resource_controller_id_libvirt
+	//	case "dummy":
+	//		r.ResourceController_id = resource_controller_id_dummy
+	//	default:
+	//		fmt.Printf("ERROR Couldn't fix ID on Cluster_utilization %s %+v\n",
+	//			r.Name, r)}
+	//fix Cluster_utilization ID
+	switch r.Name {
+		case "vCPUs":
+			r.Id = utilization_vpcus
+		case "hwCPUs":
+			r.Id = utilization_hw_cores
+		case "vMEM":
+			r.Id = utilization_vmem
+		case "hwMEM":
+			r.Id = utilization_hw_mem
+		default:
+			fmt.Printf("ERROR Couldn't fix ID on Cluster_utilization %s %+v\n",
 				r.Name, r)}}
-	
 
 
 func (c *Conf)_fix_resource_ISs(){
 	for k,_:=range c.Resources {
 		c.Resources[k]._fix_IDs()}}
+
+func (c *Conf)_fix_node_ISs(){
+	for k,_:=range c.Nodes {
+		for kk,_:=range c.Nodes[k].HwStats {
+			c.Nodes[k].HwStats[kk]._fix_util_IDs()}}}

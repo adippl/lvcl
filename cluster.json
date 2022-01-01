@@ -13,28 +13,28 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 80
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 12,
+					"Id": 0,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 18432
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 16,
+					"Id": 0,
 					"Value": 18432
 				}
 			]
@@ -50,28 +50,28 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 80
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 12,
+					"Id": 0,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 10240
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 16,
+					"Id": 0,
 					"Value": 10240
 				}
 			]
@@ -87,28 +87,28 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 80
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 12,
+					"Id": 0,
 					"Value": 8
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 6144
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 16,
+					"Id": 0,
 					"Value": 6144
 				}
 			]
@@ -132,28 +132,28 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
-					"Id": 12,
+					"Id": 0,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 1024
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
-					"Id": 16,
+					"Id": 0,
 					"Value": 512
 				}
 			],
@@ -180,14 +180,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 1024
 				}
 			],
@@ -214,14 +214,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 1
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 99999
 				}
 			],
@@ -248,14 +248,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 100
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 1024
 				}
 			],
@@ -282,14 +282,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 3
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 512
 				}
 			],
@@ -316,14 +316,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 3
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 512
 				}
 			],
@@ -350,14 +350,14 @@
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
-					"Id": 17,
+					"Id": 0,
 					"Value": 2
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
-					"Id": 18,
+					"Id": 0,
 					"Value": 10240
 				}
 			],
