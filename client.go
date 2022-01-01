@@ -83,7 +83,6 @@ func formatMsg() *message {
 		SrcMod:		msgModClient,
 		ConfHash:	confFileHash,
 		Time:		time.Now(),
-		Argc:		1,
 		Argv:		make([]string,1),
 		}}
 
@@ -190,7 +189,7 @@ func (m *message)msg_handle_clientAskResStateChangeReply() bool {
 		m.RpcFunc == clientAskResStateChangeReply {
 		
 		clogger(0, m.Argv[3])
-		os.Exit(m.Cint)
+		os.Exit(m.Custom1.(int))
 		return true}
 	return false}
 

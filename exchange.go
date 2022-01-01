@@ -397,7 +397,6 @@ func (e *Exchange)heartbeatSender(){
 			DestMod: msgModExchnHeartbeat,
 			RpcFunc: rpcHeartbeat,
 			Time: t,
-			Argc: 1,
 			Argv: []string{"heartbeat"},
 			}
 		e.loc_ex <- m
@@ -419,9 +418,8 @@ func (e *Exchange)configEpochSender(){
 			DestMod: msgModConfig,
 			RpcFunc: confNotifAboutEpoch,
 			Time: t,
-			Argc: 1,
 			Argv: []string{"epoch"},
-			Cuint: config.GetEpoch(),
+			Custom1: config.GetEpoch(),
 			}
 		e.loc_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
@@ -561,7 +559,6 @@ func (ec *eclient)sendUsockClientID(id uint){
 			DestMod:	msgModClient,
 			RpcFunc:	exchangeSendClientID,
 			Time:		t,
-			Argc:		1,
 			Argv:		[]string{ec.hostname},
 			Custom1:	id,
 			}
@@ -576,7 +573,6 @@ func (e *Exchange)notifyClusterAboutClient(id string, hostname string){
 			DestMod:	msgModExchn,
 			RpcFunc:	exchangeNotifyAboutClient,
 			Time:		t,
-			Argc:		2,
 			Argv:		[]string{id,hostname},
 			}
 		e.loc_ex <- m}
@@ -584,7 +580,6 @@ func (e *Exchange)notifyClusterAboutClient(id string, hostname string){
 func (e *Exchange)msg_handler_cluster_client(m *message) bool {
 	if	m.RpcFunc == exchangeNotifyAboutClient &&
 		config.CheckIfNodeExists(&m.SrcHost) &&
-		m.Argc == 2 &&
 		len(m.Argv) == 2 {
 		
 		//maybe add mutex
@@ -605,7 +600,6 @@ func (e *Exchange)notifyClusterAboutClientDisconnect(id string){
 			DestMod:	msgModExchn,
 			RpcFunc:	exchangeNotifyClientDisconnect,
 			Time:		t,
-			Argc:		2,
 			Argv:		[]string{id,l_hostname},
 			}
 		e.loc_ex <- m}
@@ -613,7 +607,6 @@ func (e *Exchange)notifyClusterAboutClientDisconnect(id string){
 func (e *Exchange)msg_handler_cluster_client_disconnect(m *message) bool {
 	if	m.RpcFunc == exchangeNotifyClientDisconnect &&
 		config.CheckIfNodeExists(&m.SrcHost) &&
-		m.Argc == 2 &&
 		len(m.Argv) == 2 {
 		
 		//maybe add mutex
@@ -632,7 +625,6 @@ func (e *Exchange)askClusterAboutClientNode(id string){
 			DestMod:	msgModExchn,
 			RpcFunc:	exchangeAskAboutClientNode,
 			Time:		t,
-			Argc:		1,
 			Argv:		[]string{id},
 			}
 		e.loc_ex <- m}
@@ -642,7 +634,6 @@ func (e *Exchange)msg_handler_cluster_ask_about_client_node(m *message) bool {
 	var ok bool
 	if	m.RpcFunc == exchangeAskAboutClientNode &&
 		config.CheckIfNodeExists(&m.SrcHost) &&
-		m.Argc == 2 &&
 		len(m.Argv) == 2 {
 		
 		//maybe add mutex
@@ -765,7 +756,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		
 		if validateStateFlag(&m.Argv[1]) == false {
 			//message arrived with wrong 
-			reply.Cint=11
+			reply.Custom1=11
 			reply.Argv = append(reply.Argv, "error wrong state requested")
 			lg.msgERR("error wrong state requested")
 			e.replyToUsock(&reply)
@@ -784,7 +775,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 			newState = resource_state_nuked
 		default:
 			//reply with error
-			reply.Cint=12
+			reply.Custom1=12
 			reply.Argv = append(reply.Argv, "error wrong state requested 2")
 			lg.msgERR("error wrong state requested 2")
 			e.replyToUsock(&reply)
@@ -794,7 +785,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		res = config.GetCluster_resourcebyName_RW(&m.Argv[0])
 		if res == nil {
 			// resource doesn't exists
-			reply.Cint=13
+			reply.Custom1=13
 			reply.Argv = append(reply.Argv, "couldn't find resource")
 			lg.msgERR("couldn't find resource")
 			e.replyToUsock(&reply)
@@ -809,7 +800,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		lg.msg_debug(2, fmt.Sprintf("resource %s changing state to %s",
 			res.Name, res.StateString()))
 		//positive reply
-		reply.Cint=0
+		reply.Custom1 = 0
 		reply.Argv = append(reply.Argv, "resource changed state")
 		e.replyToUsock(&reply)
 		return true}
@@ -822,13 +813,13 @@ func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Cuint) {
+		if config.isTheirEpochAhead(m.Custom1.(uint64)) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdateAsk
 			m.Argv[0] = "requesting config from host with higher epoch"
-			bk_epo = m.Cuint
-			m.Cuint = config.GetEpoch()
+			bk_epo = m.Custom1.(uint64)
+			m.Custom1 = config.GetEpoch()
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"found node with higher epoch %s (our %d theirs %d)",
@@ -843,20 +834,20 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochBehind(m.Cuint) {
+		if config.isTheirEpochBehind(m.Custom1.(uint64)) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdate
 			m.Argv[0] = "sending config with newer epoch"
-			m.Cuint = config.GetEpoch()
+			m.Custom1 = config.GetEpoch()
 			config.rwmux.RLock()
-			m.Res = config.Resources
+			m.Custom1 = config.Resources
 			config.rwmux.RUnlock()
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending config to node %s (epoch %d)",
 				m.DestHost,
-				m.Cuint))}
+				m.Custom1))}
 			return true}
 	return false}
 
@@ -866,18 +857,14 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.DestHost == config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Cuint) {
+		if config.isTheirEpochAhead(m.Custom1.(uint64)) {
 			config.rwmux.Lock()
-			config.Resources = m.Res
-			config.Epoch = m.Cuint
+			config.Resources = m.Custom1.([]Cluster_resource)
+			config.Epoch = m.Custom1.(uint64)
 			config._saveAllResources()
 			config.rwmux.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(
 				"received config from node %s with epoch %d ",
-				m.SrcHost, m.Cuint))}
+				m.SrcHost, m.Custom1.(uint64)))}
 			return true}
 	return false}
-
-//func (e *Exchange)msg_handle___EVERYONE__to_brain(m *message) bool {
-//	if m.RpcFunc == brainNotifyMasterAboutLocalResources {
-//		

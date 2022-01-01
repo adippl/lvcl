@@ -167,8 +167,7 @@ func (m *message)logger_message_validate() bool { // TODO PLACEHOLDER
 		m.SrcHost != config._MyHostname() &&
 		m.SrcMod == msgModLoggr &&
 		m.DestMod == msgModLoggr &&
-		m.RpcFunc == 1 &&
-		m.Argc == 1 )}
+		m.RpcFunc == 1 )}
 
 func (m *message)logger_handle_ForwardMessageToClient() bool {
 	if	m.SrcMod == msgModExchn &&
@@ -226,7 +225,6 @@ func msgFormat(s *string) *message{
 	m.DestMod=msgModLoggr
 	m.RpcFunc=1
 	m.Time=time.Now()
-	m.Argc=1
 	//m.Argv=append(m.Argv,*s)
 	m.Argv=[]string{*s}
 	

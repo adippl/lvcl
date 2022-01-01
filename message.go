@@ -67,18 +67,14 @@ const(
 	)
 
 type message struct{
-	SrcHost         string
-	DestHost        string
+	SrcHost		string
+	DestHost	string
 	SrcMod		uint
 	DestMod		uint
 	ConfHash	string
 	Time		time.Time
 	RpcFunc		uint
-	Argc		uint
 	Argv		[]string
-	Cint		int
-	Cuint		uint64
-	Res			[]Cluster_resource //terrible but quick
 	Custom1		interface{}
 	Custom2		interface{}
 	Custom3		interface{}
@@ -99,14 +95,10 @@ func Newmessage() *message {
 	return &m}
 
 func (m *message)setStr(s *string){
-	m.Argv=append(m.Argv,*s)
-	m.Argc++}
-	
+	m.Argv=append(m.Argv,*s)}
 
 func (m *message)heartbeatGetTime() *time.Time {
 	t,err := time.Parse(config.HeartbeatTimeFormat, m.Argv[0])
 	if err != nil {
 		lg.err("heartbeatGetTime time.Parse error", err)}
 	return &t}
-
-
