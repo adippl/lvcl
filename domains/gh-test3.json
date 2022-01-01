@@ -2,7 +2,7 @@
 	"ResourceController_name": "libvirt",
 	"ResourceController_id": 0,
 	"Name": "gh-test3",
-	"State": 4,
+	"State_name": "on",
 	"Util": [
 		{
 			"ResourceController_name": "",

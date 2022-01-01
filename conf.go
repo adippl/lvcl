@@ -423,7 +423,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "basicResource 2 HIGH mem",
 				Id: 11,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -451,7 +451,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 3 Too High mem",
 				Id: 12,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -479,7 +479,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 4 too high cpu",
 				Id: 13,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -507,7 +507,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 5 high cpu",
 				Id: 14,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -535,7 +535,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 6 high cpu",
 				Id: 15,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -563,7 +563,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 7 high mem",
 				Id: 16,
-				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -727,6 +727,13 @@ func (r *Cluster_resource)_fix_IDs() {
 		default:
 			fmt.Printf("ERROR Couldn't fix ID on resoutce %s %+v\n",
 				r.Name, r)}
+	switch r.State_name {
+		case "on":
+			r.State = resource_state_running
+		case "off":
+			r.State = resource_state_stopped
+		default:
+			r.State = resource_state_other }
 	for k,_:=range r.Util {
 		r.Util[k]._fix_util_IDs()}
 	}

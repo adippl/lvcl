@@ -3,7 +3,8 @@
 	"ResourceController_id": 0,
 	"Name": "gh-test2",
 	"Id": 0,
-	"State": 4,
+	"State": 5,
+	"State_name": "on",
 	"Util": [
 		{
 			"ResourceController_name": "",

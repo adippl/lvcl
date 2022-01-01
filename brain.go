@@ -886,7 +886,7 @@ func (b *Brain)write_info_failureMap() *string {
 		// maybe store that info in failure map
 		sb.WriteString(fmt.Sprintf("== ctl %s, resource '%s' ==\n",
 			config.GetCluster_resourcebyName(&k).CtlString(), k))
-		sb.WriteString(fmt.Sprintf("\tnodes %+v", v))}
+		sb.WriteString(fmt.Sprintf("\tnodes %+v\n", v))}
 	sb.WriteString("\n===================\n")
 	retStr = sb.String()
 	return &retStr}

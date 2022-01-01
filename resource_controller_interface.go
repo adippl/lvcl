@@ -83,6 +83,7 @@ type Cluster_resource struct {
 	Name		string
 	Id			int
 	State		int
+	State_name	string
 	Util		[]Cluster_utilization
 	Strs		map[string]string
 	Ints		map[string]int
