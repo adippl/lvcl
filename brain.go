@@ -1101,7 +1101,7 @@ func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
 
 func (b *Brain)sendMsg_resFailure(r *Cluster_resource, action string, id int){
 	var m *message = brainNewMessage()
-		m.DestHost="__master__"
+		m.DestHost="__EVERYONE__"
 		m.RpcFunc=brainNotifyMasterAboutResourceFailure
 		m.Argv = []string{r.Name, r.ResourceController_name, action}
 	m.Custom1 = r.ResourceController_id
