@@ -64,6 +64,7 @@ const(
 	brainNotifyAboutEpochUpdateAsk
 	brainNotifyMasterAboutResourceFailure
 	brainNotifyMasterAboutLocalResources
+	brainNotifyAboutNewClusterEvent
 	)
 
 type message struct{

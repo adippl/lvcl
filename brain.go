@@ -21,13 +21,7 @@ import "fmt"
 import "time"
 import "sync"
 import "strings"
-
-const(
-	CLUSTER_TICK = time.Millisecond * 1000 
-	INTERNAL_CLUSTER_TICK = time.Millisecond * 250 
-	//config.ClusterTick = config.ClusterTick
-	//INTERNAL_config.ClusterTick = config.ClusterTickInterval 
-	)
+import "math/rand"
 
 const (
 	HealthGreen=1
@@ -61,35 +55,38 @@ type Brain struct{
 	current_resourcePlacement	map[string][]Cluster_resource
 	local_resourcePlacement		[]Cluster_resource
 	failureMap					map[string][]string
+	expectedResUtil				[]Node
+	lastPickedNode				string
+	clusterEvents				[]event
 	rwmux_locP					sync.RWMutex
 	rwmux_curPlacement			sync.RWMutex
 	rwmux_dp					sync.RWMutex
 	rwmux_expUtl				sync.RWMutex
-	expectedResUtil				[]Node
-	lastPickedNode				string
+	rwmux_events				sync.RWMutex
 	}
 
 var b *Brain
 
 func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 	b := Brain{
-		isMaster:			false,
-		masterNode:			nil,
-		killBrain:			false,
-		nominatedBy:		make(map[string]bool),
-		voteCounterExists:	false,
-		quorum:				0,
+		isMaster:				false,
+		masterNode:				nil,
+		killBrain:				false,
+		nominatedBy:			make(map[string]bool),
+		voteCounterExists:		false,
+		quorum:					0,
 		balancerTicksPassed:	0,
 		
 		ex_brn:					a_ex_brn,
 		brn_ex:					a_brn_ex,
-		Epoch:			0,
+		Epoch:					0,
 		nodeHealth:				make(map[string]int),
 		nodeHealthLast30Ticks:	make(map[string][]uint),
 		nodeHealthLastPing:		make(map[string]uint),
 		resCtl_lvd:				nil,
 		resCtl_Dummy:			nil,
 		current_resourcePlacement:	make(map[string][]Cluster_resource),
+		clusterEvents:			make([]event,0),
 		
 		//resourceControllers:	make(map[uint]interface{}),
 		rwmux:					sync.RWMutex{},
@@ -98,6 +95,7 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		rwmux_curPlacement:		sync.RWMutex{},
 		rwmux_dp:				sync.RWMutex{},
 		rwmux_expUtl:			sync.RWMutex{},
+		rwmux_events:			sync.RWMutex{},
 //		_vote_delay				make(chan int),
 		}
 //	if config.enabledResourceControllers[resource_controller_id_libvirt] {
@@ -184,6 +182,8 @@ func  (b *Brain)messageHandler(){
 		if b.msg_handle_brainRpcElectNominate(&m) {continue}
 		
 		if b.msg_handle_brainNotifyMasterAboutLocalResources(&m) {continue}
+
+		if b.msg_handle_brainNotifyAboutNewClusterEvent(&m) {continue}
 		
 		lg.msg_debug(4, fmt.Sprintf(
 			"brain received message which failed all validation functions: %+v",
@@ -475,6 +475,10 @@ func (b *Brain)resourceBalancer(){
 			b.balancerTicksPassed++ }
 		
 		b.send_localResourcesToMaster()
+		
+		//b.montorClusterEvents()
+		b.createMigrationEvents()
+		
 		b.applyResourcePlacement()
 		config.ClusterTick_sleep()}}
 
@@ -535,12 +539,12 @@ func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
 
 
 func (b *Brain)applyResourcePlacement(){
-	//var r bool
 	var res *Cluster_resource = nil
 	
 	for k,_:=range b.desired_resourcePlacement {
-		//r = false
 		res = &b.desired_resourcePlacement[k]
+		// skip if node is running somewhere else on the cluster
+		if b.checkIfResourceIsCurrentlyRunning( res ) {continue}
 		
 		switch res.ResourceController_id {
 		case resource_controller_id_libvirt:
@@ -589,9 +593,11 @@ func (b *Brain)writeBrainStatus() *string {
 	sb.WriteString("========================================\n")
 	sb.WriteString(*b.writeSum_expectedResUtil())
 	sb.WriteString(*b.write_info_failureMap())
+	sb.WriteString(*b.write_info_ClusterEvents())
 		
 	retString = sb.String()
 	return &retString}
+
 
 func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 	var hwFits bool = false
@@ -853,7 +859,18 @@ func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
 			return true}}
 	return false}
 
-func (b *Brain)checkIfResourceIsCurrentlyPlaced(r *Cluster_resource) bool {
+func (b *Brain)checkIfResourceIsCurrentlyRunning(r *Cluster_resource) bool {
+	b.rwmux_curPlacement.RLock()
+	for _,v:=range b.current_resourcePlacement {
+		for k,_:=range v {
+			if	v[k].Name == r.Name &&
+				v[k].Id == r.Id {
+				b.rwmux_curPlacement.RUnlock()
+				return true}}}
+	b.rwmux_curPlacement.RUnlock()
+	return false}
+
+func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
 	b.rwmux_curPlacement.RLock()
 	for _,v:=range b.current_resourcePlacement {
 		for k,_:=range v {
@@ -887,6 +904,29 @@ func (b *Brain)write_info_failureMap() *string {
 		sb.WriteString(fmt.Sprintf("== ctl %s, resource '%s' ==\n",
 			config.GetCluster_resourcebyName(&k).CtlString(), k))
 		sb.WriteString(fmt.Sprintf("\tnodes %+v\n", v))}
+	sb.WriteString("\n===================\n")
+	retStr = sb.String()
+	return &retStr}
+
+func (b *Brain)write_info_ClusterEvents() *string {
+	var sb strings.Builder
+	var retStr string
+	sb.WriteString("\n==== Events ====\n")
+	b.rwmux_events.RLock()
+	for k,_:=range b.clusterEvents {
+		//sb.WriteString(fmt.Sprintf("== resource '%s' ==\n", k))
+		// TODO searching for resource in config takes time,
+		// maybe store that info in failure map
+		sb.WriteString(fmt.Sprintf("== id %10d, name %10s, resCtl %10s, action %10s, timeLeft %d, src %10s, dest %10s\n",
+			b.clusterEvents[k].ID,
+			b.clusterEvents[k].Name,
+			b.clusterEvents[k].ResCtlID,
+			b.clusterEvents[k].ActionID,
+			b.clusterEvents[k].TimeoutTime.Sub(time.Now()) ,
+			b.clusterEvents[k].Actor,
+			b.clusterEvents[k].Subject))}
+		//sb.WriteString(fmt.Sprintf("\tnodes %+v\n", v))}
+	b.rwmux_events.RUnlock()
 	sb.WriteString("\n===================\n")
 	retStr = sb.String()
 	return &retStr}
@@ -1232,3 +1272,110 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 		b.rwmux_curPlacement.RUnlock()
 		if has_changed {
 			b.IncEpoch()}}
+
+type event struct {
+	ID				uint32
+	Name			string
+	ActionID		uint
+	ResCtlID		uint
+	CreationTime	time.Time
+	TimeoutTime		time.Time
+	Actor			string
+	Subject			string
+	Custom1			interface{}
+	}
+
+func createEvent() *event {
+	var e event
+	e.CreationTime = time.Now()
+	e.TimeoutTime = e.CreationTime.Add(
+		time.Millisecond * time.Duration(config.DefaultEventTimeoutTimeSec))
+	return &e }
+
+func (e *event)checktimeout() bool {
+	return time.Now().After(e.TimeoutTime) }
+
+func (b *Brain)getEventById(id uint32) *event {
+	var e *event = nil
+	for k,_:=range b.clusterEvents {
+		if b.clusterEvents[k].ID == id {
+			e = &b.clusterEvents[k]}}
+	return e}
+
+
+func (b *Brain)createLibvirtMigrationEvent( resname *string, destNode *string ) {
+	var e *event = createEvent()
+	var m *message = nil
+	// create unique ID
+	for{
+		if u := rand.Uint32() ; b.getEventById( u ) == nil {
+			e.ID = u
+			continue}}
+	e.ActionID = event_action_libvirt_migration
+	e.ResCtlID = resource_controller_id_libvirt
+	e.Actor = *resname
+	e.Subject = *destNode
+	b.rwmux_events.Lock()
+	b.clusterEvents = append( b.clusterEvents, *e)
+	b.rwmux_events.Unlock()
+	
+	m = brainNewMessage()
+	m.DestHost = "__everyone__"
+	m.Custom1 = *e
+	b.brn_ex <- *m
+	}
+
+func (b *Brain)checkForExistingMigrationEvents_libvirt(
+	resname *string, destNode *string ) bool {
+	
+	for k,_:=range b.clusterEvents {
+		if	b.clusterEvents[k].ResCtlID == resource_controller_id_libvirt &&
+			b.clusterEvents[k].ActionID == event_action_libvirt_migration &&
+			b.clusterEvents[k].Actor == *resname &&
+			b.clusterEvents[k].Subject == *destNode {
+			return true}}
+	return false}
+
+//	b.montorClusterEvents()
+//	b.createMigrationEvents()
+
+func (b *Brain)createMigrationEvents(){
+	var drp *Cluster_resource = nil //desired res placement ptr
+	var crp *Cluster_resource = nil //current res placement ptr
+	b.rwmux_curPlacement.RLock()
+	b.rwmux_dp.RLock()
+	for node,res_arr :=range b.current_resourcePlacement {
+		for k,_:=range res_arr {
+			crp = nil
+			crp = &res_arr[k]
+			//check if resource exists in desired placement
+			for k2,_:=range b.desired_resourcePlacement {
+				drp = nil
+				drp = &b.desired_resourcePlacement[k2] 
+				if	drp.State == resource_state_running &&
+					crp.State == resource_state_running &&
+					drp.ResourceController_id == crp.ResourceController_id &&
+					drp.Name == crp.Name &&
+					drp.Placement != node {
+					//found resource not running on desired node
+					if ! b.checkForExistingMigrationEvents_libvirt( &drp.Name, 
+						&drp.Placement) {
+						//migration even for this node doesn't exist
+						b.createLibvirtMigrationEvent( &drp.Name,
+							&drp.Placement)}}}}}
+	b.rwmux_curPlacement.RUnlock()
+	b.rwmux_dp.RUnlock()}
+
+func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
+	var already_exists bool = false
+	
+	if m.RpcFunc == brainNotifyAboutNewClusterEvent {
+		b.rwmux_events.Lock()
+		for k,_:=range b.clusterEvents {
+			if b.clusterEvents[k].ID == m.Custom1.(event).ID {
+				already_exists = true }}
+		if ! already_exists {
+			b.clusterEvents = append( b.clusterEvents, m.Custom1.(event))}
+		b.rwmux_events.Unlock()
+		return true}
+	return false}

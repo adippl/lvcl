@@ -68,6 +68,7 @@ type Conf struct {
 	ConfFileHashRaw []byte `json:"-"`
 	MyHostname string `json:"-"`
 	ConfHashCheck bool
+	DefaultEventTimeoutTimeSec uint
 	
 	LogLocal string
 	LogCombined string
@@ -611,6 +612,7 @@ func writeExampleConfig(){
 		HeartbeatTimeFormat: "2006-01-02 15:04:05",
 		TCPport: "6798",
 		UnixSocket: "./lvcl.sock",
+		DefaultEventTimeoutTimeSec: 15,
 		LogLocal: "loc.log",
 		LogCombined: "cmb.log",
 		DaemonLogging:	true,

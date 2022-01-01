@@ -64,6 +64,10 @@ const(
 
 
 	resouce_failure_unknown
+
+	event_migration
+
+	event_action_libvirt_migration
 	)
 
 // generalized HARDWARE resource

@@ -401,6 +401,7 @@
 	"TCPport": "6798",
 	"UnixSocket": "./lvcl.sock",
 	"ConfHashCheck": true,
+	"DefaultEventTimeoutTimeSec": 15,
 	"LogLocal": "loc.log",
 	"LogCombined": "cmb.log",
 	"DaemonLogging": true,
