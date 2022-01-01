@@ -777,7 +777,7 @@ func (b *Brain)basic_placeResources(){
 	var fmap *[]string = nil
 	var resource *Cluster_resource = nil
 	var nodeHealth map[string]int = b.getNodeHealthCopy()
-	var n_o_health_nodes int = b.getNumberOfHealthyNodes() 
+	var n_o_health_nodes int = 0 
 	config.rwmux.RLock()
 	b.rwmux_dp.Lock()
 	for k,_:=range config.Resources {
@@ -785,8 +785,10 @@ func (b *Brain)basic_placeResources(){
 		resource = &config.Resources[k]
 		fmap = nil
 		fmap = b.checkResourceInFailureMap(&resource.Name)
+		n_o_health_nodes = b.getNumberOfHealthyNodes(&nodeHealth, fmap) 
 		
-		//lg.msg_debug(5, fmt.Sprintf( "ASDFASDF %+v %+v", fmap, nodeHealth["r210II-1"]))
+		// check if failure map of this resource is as big as number of
+		// healthy nodes. 
 		if fmap != nil && len(*fmap) >= n_o_health_nodes {
 			// resource failed on all nodes
 			// stop if placed somewhere
@@ -1144,10 +1146,10 @@ func (b *Brain)msg_handle_brainNotifyMasterAboutLocalResources(m *message) bool{
 		//	"Master Brain received info about local resources from %s: %+v",
 		//	m.SrcHost,
 		//	m.Custom1))
-		fmt.Sprintf(
-			"Master Brain received info about local resources from %s: %+v",
-			m.SrcHost,
-			m.Custom1)
+//		fmt.Sprintf(
+//			"Master Brain received info about local resources from %s: %+v",
+//			m.SrcHost,
+//			m.Custom1)
 		b.rwmux_curPlacement.Lock()
 		// this has to panic if type is wrong
 		b.current_resourcePlacement[m.SrcHost] = m.Custom1.([]Cluster_resource)
@@ -1165,14 +1167,6 @@ func (b *Brain)check_if_resource_is_running_on_cluster(r *Cluster_resource) bool
 	b.rwmux_curPlacement.RUnlock()
 	return false}
 
-//func (b *Brain)getNodeHealth(name *string) int {
-//	var retInt = -1
-//	b.rwmuxHealth.RLock()
-//	if _, ok := b.nodeHealth[*name]; ok {
-//		retInt = b.nodeHealth[*name] }
-//	b.rwmuxHealth.RUnlock()
-//	return retInt }
-
 func (b *Brain)getNodeHealthCopy() map[string]int {
 	var retmap map[string]int
 	b.rwmuxHealth.RLock()
@@ -1182,11 +1176,21 @@ func (b *Brain)getNodeHealthCopy() map[string]int {
 	b.rwmuxHealth.RUnlock()
 	return retmap }
 
-func (b *Brain)getNumberOfHealthyNodes() int {
+
+func (b *Brain)getNumberOfHealthyNodes(nh *map[string]int, fmap *[]string) int {
 	var ret int = 0
-	b.rwmuxHealth.RLock()
-	for _,v:=range b.nodeHealth {
-		if v == 1 {
-			ret++ }}
-	b.rwmuxHealth.RUnlock()
+	//lg.msg_debug(5, fmt.Sprintf("debug ", nh, fmap))
+	for k,v:=range *nh {
+		if v == HealthGreen {
+			//found green node
+			ret++
+			// search fap for mentions of this node
+			// it only works if nodes are not repeated in fmap
+			if fmap == nil {
+				//skip if fmap doesn't exist
+				continue }
+			for kk,_:=range *fmap {
+				if (*fmap)[kk] != k{ 
+					//this condition should fire only once
+					ret-- }}}}
 	return ret }
