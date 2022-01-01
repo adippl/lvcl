@@ -18,8 +18,6 @@
  */
 package main
 
-//import libvirt "gitlab.com/libvirt/libvirt-go@v7.0.0"
-//https://gitlab.com/libvirt/libvirt-go.git
 import libvirt "gitlab.com/libvirt/libvirt-go"
 import "fmt"
 import "io/ioutil"

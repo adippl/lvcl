@@ -777,6 +777,7 @@ func (b *Brain)basic_placeResources(){
 	var fmap *[]string = nil
 	var resource *Cluster_resource = nil
 	var nodeHealth map[string]int = b.getNodeHealthCopy()
+	var n_o_health_nodes int = b.getNumberOfHealthyNodes() 
 	config.rwmux.RLock()
 	b.rwmux_dp.Lock()
 	for k,_:=range config.Resources {
@@ -785,10 +786,12 @@ func (b *Brain)basic_placeResources(){
 		fmap = nil
 		fmap = b.checkResourceInFailureMap(&resource.Name)
 		
-		if fmap != nil && len(*fmap) >= config.numberOfNodes {
+		//lg.msg_debug(5, fmt.Sprintf( "ASDFASDF %+v %+v", fmap, nodeHealth["r210II-1"]))
+		if fmap != nil && len(*fmap) >= n_o_health_nodes {
 			// resource failed on all nodes
 			// stop if placed somewhere
 			resource.State = resource_state_stopped
+			lg.msg_debug(5, fmt.Sprintf( "ASDFASDF %+v %+v", fmap, resource.Name))
 			b.stop_if_placed(resource)
 			//skip this resource
 			continue}
@@ -1178,3 +1181,12 @@ func (b *Brain)getNodeHealthCopy() map[string]int {
 		retmap[k] = v }
 	b.rwmuxHealth.RUnlock()
 	return retmap }
+
+func (b *Brain)getNumberOfHealthyNodes() int {
+	var ret int = 0
+	b.rwmuxHealth.RLock()
+	for _,v:=range b.nodeHealth {
+		if v == 1 {
+			ret++ }}
+	b.rwmuxHealth.RUnlock()
+	return ret }
