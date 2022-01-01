@@ -240,7 +240,7 @@ func (e *Exchange)forwarder(){
 			return}
 		
 		e.markMessageWithConfigHash(m)
-
+		
 		//forward client message to "__master__"
 		if e.msg_handle_client_msg_to_master(m) {continue}
 		
@@ -249,6 +249,12 @@ func (e *Exchange)forwarder(){
 		
 		// forward brain status message to client
 		if e.msg_handle_clientPrintTextStatus(m) {continue}
+		
+		//forward to __EVERYONE__ including local
+		if e.forward_to__EVERYONE__(m) {continue}
+		
+		//forward to __everyone__ EXCLUDING local
+		if e.forward_to__everyone__(m) {continue}
 		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
@@ -261,18 +267,42 @@ func (e *Exchange)forwarder(){
 		}else{
 			e.rwmux.RUnlock()
 			if(m.DestHost!="__everyone__"){
-			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}
-			}
-		
-		//forward to everyone else
-		if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
-			for _,n := range config.Nodes{
-				e.rwmux.RLock()
-				if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
-					if config.DebugNetwork {
-						fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", n.Hostname, m)}
-					e.outgoing[n.Hostname].outgoing <- *m }
-					e.rwmux.RUnlock()}}}}
+			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}}}}
+
+func (e *Exchange)forward_to__everyone__(m *message) bool {
+	if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
+		for _,n := range config.Nodes{
+			e.rwmux.RLock()
+			if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
+				if config.DebugNetwork {
+					fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", 
+						n.Hostname, m)}
+				e.outgoing[n.Hostname].outgoing <- *m }
+				e.rwmux.RUnlock()}
+		return true}
+	return false}
+
+func (e *Exchange)forward_to__EVERYONE__(m *message) bool {
+	if	m.SrcHost == config.MyHostname && m.DestHost == "__EVERYONE__" {
+		for _,n := range config.Nodes{
+			e.rwmux.RLock()
+			//forward to local host
+			if n.Hostname == config.MyHostname {
+				if config.DebugNetwork {
+					fmt.Printf(
+						"DEBUG forwarder pushing from %s local queue %+v\n",
+						n.Hostname, m)}
+				e.recQueue <- *m}
+			//forward to remote hosts
+			if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
+				if config.DebugNetwork {
+					fmt.Printf("DEBUG forwarder pushing to %s  %+v\n",
+						n.Hostname, m)}
+				e.outgoing[n.Hostname].outgoing <- *m }
+				e.rwmux.RUnlock()}
+		return true}
+	return false}
+	
 
 func (e *Exchange)sorter(){
 	var m message
@@ -324,13 +354,17 @@ func (e *Exchange)sorter(){
 		//pass Brain messages
 		if e.msg_handler_forward_to_brain(&m) {continue}
 		
+		//pass Brain messages broadcasted to __EVEYONE__
+		if e.msg_handler_forward_to_brain__EVERYONE__(&m) {continue}
+		
 		//update heartbeat values from heartbeat messages
 		if m.validate_Heartbeat() {
 			if config.CheckIfNodeExists(&m.SrcHost){
 				timeCopy := m.Time
 				e.heartbeatLastMsg[m.SrcHost]=&timeCopy}
 			continue}
-		lg.msg_debug(2, fmt.Sprintf("exchange received message which failed all validation functions: %+v",m))}}
+		lg.msg_debug(2, fmt.Sprintf(
+			"exchange received message which failed all validation functions: %+v",m))}}
 
 func (e *Exchange)placeholderStupidVariableNotUsedError(){
 	lg.msg("exchange started")}
@@ -445,6 +479,17 @@ func (e *Exchange)msg_handler_forward_to_brain(m *message) bool {
 	if	m.SrcHost != config.MyHostname &&
 		m.SrcMod == msgModBrain &&
 		m.DestMod == msgModBrain {
+		
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
+		e.ex_brn <- *m;
+		return true}
+	return false}
+
+func (e *Exchange)msg_handler_forward_to_brain__EVERYONE__(m *message) bool {
+	if	m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain &&
+		m.DestHost == "__EVERYONE__" {
 		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
@@ -832,3 +877,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 				m.SrcHost, m.Cuint))}
 			return true}
 	return false}
+
+//func (e *Exchange)msg_handle___EVERYONE__to_brain(m *message) bool {
+//	if m.RpcFunc == brainNotifyMasterAboutLocalResources {
+//		

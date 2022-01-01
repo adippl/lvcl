@@ -1127,9 +1127,8 @@ func (b *Brain)msg_handle__brainNotifyMasterResourceFailure(m *message) bool{
 
 func (b *Brain)send_localResourcesToMaster(){
 	var m *message = brainNewMessage()
-		m.DestHost = "__master__"
+		m.DestHost = "__EVERYONE__"
 		m.RpcFunc = brainNotifyMasterAboutLocalResources
-		//m.Argv = []string{str}
 		b.rwmux_locP.RLock()
 		if len(b.local_resourcePlacement) == 0 {
 			b.rwmux_locP.RUnlock()
@@ -1139,17 +1138,11 @@ func (b *Brain)send_localResourcesToMaster(){
 	b.brn_ex <- *m}
  
 func (b *Brain)msg_handle_brainNotifyMasterAboutLocalResources(m *message) bool{
-	if m.RpcFunc == brainNotifyMasterAboutLocalResources &&
-		b.isMaster &&
-		m.SrcHost == config._MyHostname() {
-		//lg.msg_debug(4, fmt.Sprintf(
-		//	"Master Brain received info about local resources from %s: %+v",
-		//	m.SrcHost,
-		//	m.Custom1))
-//		fmt.Sprintf(
-//			"Master Brain received info about local resources from %s: %+v",
-//			m.SrcHost,
-//			m.Custom1)
+	if m.RpcFunc == brainNotifyMasterAboutLocalResources {
+		fmt.Sprintf(
+			"Master Brain received info about local resources from %s: %+v",
+			m.SrcHost,
+			m.Custom1)
 		b.rwmux_curPlacement.Lock()
 		// this has to panic if type is wrong
 		b.current_resourcePlacement[m.SrcHost] = m.Custom1.([]Cluster_resource)
