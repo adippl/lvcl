@@ -18,7 +18,7 @@
  */
 package main
 
-import libvirt "gitlab.com/libvirt/libvirt-go"
+import "gitlab.com/libvirt/libvirt-go-module"
 import "fmt"
 import "io/ioutil"
 import "time"
