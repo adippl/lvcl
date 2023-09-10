@@ -463,6 +463,10 @@ func (b *Brain)resourceBalancer(){
 	for{
 		if(b.killBrain){
 			return}
+		if config.GetMaintenance() {
+			config.ClusterTick_sleep()
+			lg.msg_debug(2, " Maintenance mode enabled not managing resources")
+			continue}
 		b.updateLocalResources()
 		b.update_expectedResUtil()
 		if b.isMaster && b.balancerTicksPassed >= config.ClusterBalancerDelay {

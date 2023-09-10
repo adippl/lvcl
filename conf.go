@@ -1119,3 +1119,8 @@ func (c *Conf)_fix_node_ISs(){
 	for k,_:=range c.Nodes {
 		for kk,_:=range c.Nodes[k].HwStats {
 			c.Nodes[k].HwStats[kk]._fix_util_IDs()}}}
+
+
+func (c *Conf)GetMaintenance() (bool){
+	// TODO make this thread safe
+	return config.Maintenance}
