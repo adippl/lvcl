@@ -412,7 +412,7 @@ func (b *Brain)writeNodeHealth() string {
 	config.rwmux.RLock()
 	for _,v := range config.Resources {
 		sb.WriteString(fmt.Sprintf("Id %d\tdesState %s\tName %s\n", 
-			v.Id, v.StateString(), v.Name))}
+			v.Id, v.DesStateString(), v.Name))}
 	config.rwmux.RUnlock()
 
 	sb.WriteString("===================\n")
@@ -490,11 +490,14 @@ func (b *Brain)updateLocalResources(){
 	var lr *[]Cluster_resource = nil
 	var new_placement []Cluster_resource = make([]Cluster_resource,0)
 	
-	lr = b.resCtl_lvd.Get_running_resources()
+	if b.resCtl_lvd != nil {
+		lr = b.resCtl_lvd.Get_running_resources()}
 	if lr != nil {
 		new_placement = append(new_placement, *lr...)}
-
-	lr = b.resCtl_Dummy.Get_running_resources()
+	
+	lr = nil
+	if b.resCtl_Dummy != nil {
+		lr = b.resCtl_Dummy.Get_running_resources()}
 	if lr != nil {
 		new_placement = append(new_placement, *lr...)}
 	b.rwmux_locP.Lock()
@@ -554,6 +557,9 @@ func (b *Brain)applyResourcePlacement(){
 		case resource_controller_id_libvirt:
 			b._applyResource(b.resCtl_lvd, res)
 		case resource_controller_id_dummy:
+			if b.resCtl_Dummy == nil {
+				continue
+			}
 			b._applyResource(b.resCtl_Dummy, res)}}}
 
 
@@ -576,7 +582,7 @@ func (b *Brain)writeBrainStatus() *string {
 	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
 	for _,v:=range b.desired_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
+			v.CtlString(), v.DesStateString(), v.Placement, v.Name ))}
 	sb.WriteString("========================================\n")
 	
 	sb.WriteString("\n====== current resource placement ======\n")
@@ -807,29 +813,44 @@ func (b *Brain)basic_placeResources(){
 		if fmap != nil && len(*fmap) >= n_o_health_nodes {
 			// resource failed on all nodes
 			// stop if placed somewhere
-			resource.State = resource_state_stopped
+			resource.DesState = resource_state_stopped
 			//lg.msg_debug(5, fmt.Sprintf(
 			//	"ASDFASDF %+v %+v", fmap, resource.Name))
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' failed on all nodes, stopping", resource.Name, resource.DesStateString()))
 			b.stop_if_placed(resource)
 			//skip this resource
 			continue}
 		
 		//nodesChecked = 0
-		if resource.State != resource_state_running {
+		if config.IsCtrlEnabled( resource.ResourceController_id ) == false {
+			// TODO print resource controller ID as string
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' controller %d is not enabled, not placing", resource.Name, resource.ResourceController_id))
+			continue}
+		
+		if resource.DesState != resource_state_running {
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
+			continue}
+		if resource.DesState == resource_state_stopped {
 			// check if resouce was placed previously
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
 			b.stop_if_placed(resource)
 			continue}
 		if b.checkIfResourceHasPlacement(resource) {
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' not placing resource has placement", resource.Name))
 			continue}
 		if b.check_if_resource_is_running_on_cluster(resource) {
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' not placing resource already running", resource.Name))
 			continue}
 			
 		if b._place_single_resource(&lastNode, resource, fmap, &nodeHealth){
 			has_changed = true
+			lg.msg_debug(2, fmt.Sprintf(
+				"resource '%s' placed",
+				resource.Name))
 			continue
 		}else{
 			lg.msg_debug(2, fmt.Sprintf(
-				"resource %s couldn't be placed on any node",
+				"resource '%s' couldn't be placed on any node",
 				resource.Name))}}
 	b.rwmux_dp.Unlock()
 	config.rwmux.RUnlock()

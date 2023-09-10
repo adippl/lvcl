@@ -86,6 +86,7 @@ type Cluster_resource struct {
 	ResourceController_id	int
 	Name		string
 	Id			int
+	DesState	int
 	State		int
 	State_name	string
 	Util		[]Cluster_utilization
@@ -108,8 +109,8 @@ type ResourceController interface {
 	Kill_controller() bool
 }
 
-func (c *Cluster_resource)StateString() string {
-	switch c.State {
+func _stateString(i int) string {
+	switch i {
 	case resource_state_starting:
 		return "starting"
 	case resource_state_running:
@@ -120,12 +121,19 @@ func (c *Cluster_resource)StateString() string {
 		return "stopped"
 	case resource_state_paused:
 		return "paused "
-//	case resource_state_migrating:
-//		return "migrating"
+	case resource_state_migrating:
+		return "migrating"
 	case resource_state_other:
 		return "other  "
 	default:
 		return "other  "}}
+
+func (c *Cluster_resource)StateString() string {
+	return _stateString(c.State)}
+
+func (c *Cluster_resource)DesStateString() string {
+	return _stateString(c.DesState)}
+	
 
 func (c *Cluster_resource)CtlString() string {
 	switch c.ResourceController_id {
