@@ -281,10 +281,14 @@ func (c *Conf)GetNodebyHostname(argHostname *string) *Node {
 	return nil}
 
 func (c *Conf)CheckIfNodeExists(argHostname *string) bool {
+	var ret bool
+	ret=false
+	c.rwmux.RLock()
 	for _,t:= range c.Nodes{
 		if t.Hostname == *argHostname{
-			return true}}
-	return false}
+			ret=true}}
+	c.rwmux.RUnlock()
+	return ret}
 
 func writeExampleConfig(){
 	fmt.Println("Creatimg example config for lvcl")
@@ -979,9 +983,6 @@ func OLDwriteExampleConfig(){
 	ioutil.WriteFile("./cluster.json",confser,0644)}
 
 
-func (c *Conf)_MyHostname()(hostname string){
-	return c.MyHostname }
-
 func (c *Conf)ClusterTick_sleep(){
 	time.Sleep( time.Duration(c.ClusterTick) * time.Millisecond )}
 
@@ -1124,3 +1125,10 @@ func (c *Conf)_fix_node_ISs(){
 func (c *Conf)GetMaintenance() (bool){
 	// TODO make this thread safe
 	return config.Maintenance}
+
+func (c *Conf)GetMyHostname() (string){
+	return config.GetField_string("MyHostname")}
+
+func (c *Conf)_MyHostname()(hostname string){
+	return c.MyHostname }
+

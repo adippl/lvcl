@@ -45,6 +45,7 @@ const(
 	exchangeNotifyAboutClient
 	exchangeNotifyClientDisconnect
 	exchangeSendClientID
+	exchangeClientDisconnected
 	clientAskAboutStatus
 	clientAskAboutStatusReply
 	clientListenToClusterLogger

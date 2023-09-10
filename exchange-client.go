@@ -49,15 +49,18 @@ func (ec *eclient)listen(){
 	if ec.conn != nil{
 		ec.conn = nil}
 	//delete itself from the map if running usock
-	if ec.usock {
-		ec.exch.notifyClusterAboutClientDisconnect(ec.hostname)
-		e.rwmuxUSock.Lock()
-		//delete because map usock keys are not reused
-		delete(ec.exch.outgoing, ec.hostname)
-		delete(ec.exch.cliLogTap, ec.hostname)
-		e.rwmuxUSock.Unlock()
-		close(ec.outgoing)
-		}
+	//if ec.usock {
+	//	ec.exch.notifyClusterAboutClientDisconnect(ec.hostname)
+	//	//e.rwmux_ec.Lock()
+	//	delete(ec.exch.outgoing, ec.hostname)
+	//	delete(ec.exch.incoming, ec.hostname)
+	//	//e.rwmux_ec.Unlock()
+	//	//e.rwmuxUSock.Lock()
+	//	delete(ec.exch.cliLogTap, ec.hostname)
+	//	//e.rwmuxUSock.Unlock()
+	//	close(ec.outgoing)
+	//	}
+	go ec.report_dead_eclient()
 	ec = nil
 	lg.err("eclient Decoder ", err)}
 
@@ -90,9 +93,19 @@ func (ec *eclient)forward(){
 	//	ec.exch.outgoing[ec.hostname]=nil
 	//}else{
 	//	ec.exch.outgoing[ec.hostname]=nil
-	ec.exch.outgoing[ec.hostname]=nil
+	//ec.exch.outgoing[ec.hostname]=nil
 	//unlock exchange writing mutex 
 	//ec.exch.rwmux.Unlock()
+	
+	//e.loc_ex <- message{
+	//	SrcMod: msgModExchn,
+	//	DestMod: msgModExchn,
+	//	SrcHost: config.GetMyHostname(),
+	//	DestHost: "__local__",
+	//	RpcFunc: exchangeClientDisconnected,
+	//	Argv: []string{ ec.hostname},
+	//}
+	go ec.report_dead_eclient()
 	
 	//read all queued messages 
 	for cleanup_loop {
@@ -101,3 +114,14 @@ func (ec *eclient)forward(){
 		}
 	ec = nil
 	lg.err("eclient forwarder serializer ", err)}
+
+func (ec *eclient)report_dead_eclient(){
+	e.loc_ex <- message{
+		SrcMod: msgModExchn,
+		DestMod: msgModExchn,
+		SrcHost: config.GetMyHostname(),
+		DestHost: "__local__",
+		RpcFunc: exchangeClientDisconnected,
+		Argv: []string{ ec.hostname},
+	}
+}

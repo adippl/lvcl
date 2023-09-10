@@ -31,6 +31,8 @@ type Exchange struct{
 	outgoing		map[string]*eclient
 	incoming		map[string]*eclient
 	usocks			map[string]*eclient
+	rwmux_ec		sync.RWMutex
+	
 	listenTCP		net.Listener
 	listenUnix		net.Listener
 	clientMap		map[string]string
@@ -48,7 +50,6 @@ type Exchange struct{
 	ex_log		chan<- message
 	
 	killExchange	bool // ugly solution
-	rwmux			sync.RWMutex
 	rwmuxUSock		sync.RWMutex
 	
 	confFileHash string `json:"-"`
@@ -75,8 +76,8 @@ func NewExchange(	a_brn_ex <-chan message,
 		ex_brn:			a_ex_brn,
 		log_ex:			a_log_ex,
 		ex_log:			a_ex_log,
-		rwmux:			sync.RWMutex{},
 		rwmuxUSock:		sync.RWMutex{},
+		rwmux_ec:	sync.RWMutex{},
 		confFileHash:	config.GetField_string("ConfFileHash"),
 		confHashCheck:	config.GetField_bool("ConfHashCheck"),
 		}
@@ -161,10 +162,10 @@ func (e *Exchange)initListenUnix(){
 		go ec.forward()
 		ec.sendUsockClientID(sockId)
 		//mutex
-		e.rwmux.Lock()
+		e.rwmux_ec.Lock()
 		e.outgoing[ec.hostname]=ec
 		e.clientMap[s_usockID]=config._MyHostname()
-		e.rwmux.Unlock()
+		e.rwmux_ec.Unlock()
 		//mutex
 		e.notifyClusterAboutClient(s_usockID, config._MyHostname())
 		}
@@ -176,16 +177,18 @@ func (e *Exchange)reconnectLoop(){
 		if e.killExchange { //ugly solution
 			return}
 		//fmt.Println("e.killExchange ", e.killExchange)
-		e.rwmux.RLock()
+		// mutex
+		e.rwmux_ec.RLock()
 		for _,n := range *e.nodeList{
-			if e.outgoing[n.Hostname] == nil && 
-				n.Hostname != config.MyHostname {
+			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
 				
-				lg.msg_debug(1, fmt.Sprintf(
-					"attempting to recconect to host %s",n.Hostname))
+				//lg.msg_debug(1, fmt.Sprintf(
+				//	"attempting to recconect to host %s",n.Hostname))
 				
-				go e.startConn(n)}}
-		e.rwmux.RUnlock()
+				go e.startConn(n)
+				}}
+		e.rwmux_ec.RUnlock()
+		// end of mutex
 		time.Sleep(
 			time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
@@ -196,9 +199,11 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 	c,err := net.Dial("tcp",n.NodeAddress)
 	if(err!=nil){
 		lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
-		e.rwmux.Lock()
+		// mutex
+		e.rwmux_ec.Lock()
 		e.outgoing[n.Hostname]=nil //just to be sure
-		e.rwmux.Unlock()
+		e.rwmux_ec.Unlock()
+		// mutex
 		return}
 	ec := eclient{
 		hostname:		n.Hostname,
@@ -208,9 +213,9 @@ func (e *Exchange)startConn(n Node){	//TODO connect to eclient
 		exch:			e,
 		}
 	go ec.forward();
-	e.rwmux.Lock()
+	e.rwmux_ec.Lock()
 	e.outgoing[n.Hostname]=&ec
-	e.rwmux.Unlock()
+	e.rwmux_ec.Unlock()
 	}
 
 func (e *Exchange)forwarder(){
@@ -255,51 +260,84 @@ func (e *Exchange)forwarder(){
 		
 		//forward to __everyone__ EXCLUDING local
 		if e.forward_to__everyone__(m) {continue}
+
+		// process messages from __local__ exchange to local exchange
+		if e.process__local_exchange(m) {continue}
 		
 		if config.DebugNetwork {
 			fmt.Printf("DEBUG forwarder recieved %+v\n", m)}
-		e.rwmux.RLock()
-		if	m.SrcHost == config.MyHostname &&
-			config.GetNodebyHostname(&m.DestHost) != nil &&
-			e.outgoing[m.DestHost] != nil {
-			e.outgoing[m.DestHost].outgoing <- *m
-			e.rwmux.RUnlock()
+		if	m.SrcHost == config.GetMyHostname() && config.GetNodebyHostname(&m.DestHost) != nil {
+			// separate if, avoid double mutexes with config.X functions
+			// mutex
+			e.rwmux_ec.RLock()
+			if e.outgoing[m.DestHost] != nil {
+				e.outgoing[m.DestHost].outgoing <- *m}
+			e.rwmux_ec.RUnlock()
+			// end of mutex
 		}else{
-			e.rwmux.RUnlock()
 			if(m.DestHost!="__everyone__"){
 			fmt.Printf("DEBUG forwarder recieved INVALID message %+v\n", m)}}}}
 
+func (e *Exchange)process__local_exchange(m *message) bool {
+	if	m.SrcMod ==  msgModExchn && 
+		m.DestMod == msgModExchn && 
+		m.SrcHost == config.GetMyHostname() &&
+			m.DestHost == "__local__" {
+			
+		//if m.RpcFunc == exchangeClientDisconnected && config.CheckIfNodeExists(&(m.Argv[0])) {
+		if m.RpcFunc == exchangeClientDisconnected {
+			e.rwmux_ec.Lock()
+			e.rwmuxUSock.Lock()
+			//delete(e.incoming, m.Argv[0])
+			//delete(e.outgoing, m.Argv[0])
+			e.incoming[m.Argv[0]]=nil
+			e.outgoing[m.Argv[0]]=nil
+			delete(e.cliLogTap, m.Argv[0])
+			e.rwmuxUSock.Unlock()
+			e.rwmux_ec.Unlock()
+			}
+		return true}
+	return false}
+
 func (e *Exchange)forward_to__everyone__(m *message) bool {
 	if	m.SrcHost == config.MyHostname && m.DestHost == "__everyone__" {
+		// mutex
+		e.rwmux_ec.RLock()
 		for _,n := range config.Nodes{
-			e.rwmux.RLock()
+			// mutex
 			if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG forwarder pushing to %s  %+v\n", 
 						n.Hostname, m)}
-				e.outgoing[n.Hostname].outgoing <- *m }
-				e.rwmux.RUnlock()}
+				e.outgoing[n.Hostname].outgoing <- *m }}
+		e.rwmux_ec.RUnlock()
+		// end of mutex
 		return true}
 	return false}
 
+
 func (e *Exchange)forward_to__EVERYONE__(m *message) bool {
-	if	m.SrcHost == config.MyHostname && m.DestHost == "__EVERYONE__" {
+	hostname := config.GetMyHostname()
+	if	m.SrcHost == hostname && m.DestHost == "__EVERYONE__" {
+		// mutex
+		e.rwmux_ec.RLock()
 		for _,n := range config.Nodes{
-			e.rwmux.RLock()
+			//mutex
 			//forward to local host
-			if n.Hostname == config.MyHostname {
+			if n.Hostname == hostname {
 				if config.DebugNetwork {
 					fmt.Printf(
 						"DEBUG forwarder pushing from %s local queue %+v\n",
 						n.Hostname, m)}
 				e.recQueue <- *m}
 			//forward to remote hosts
-			if n.Hostname != config.MyHostname && e.outgoing[n.Hostname] != nil {
+			if n.Hostname != hostname && e.outgoing[n.Hostname] != nil {
 				if config.DebugNetwork {
 					fmt.Printf("DEBUG forwarder pushing to %s  %+v\n",
 						n.Hostname, m)}
-				e.outgoing[n.Hostname].outgoing <- *m }
-				e.rwmux.RUnlock()}
+				e.outgoing[n.Hostname].outgoing <- *m }}
+		e.rwmux_ec.RUnlock()
+		// end of mutex
 		return true}
 	return false}
 	
@@ -376,10 +414,12 @@ func (m *message)validate_Heartbeat() bool {
 		m.RpcFunc == rpcHeartbeat )}
 
 func (e *Exchange)dumpAllConnectedHosts(){
-	e.rwmux.RLock()
+	// mutex
+	e.rwmux_ec.RLock()
 	fmt.Println(e.outgoing)
 	fmt.Println(e.incoming)
-	e.rwmux.RUnlock()
+	e.rwmux_ec.RUnlock()
+	// end of mutex
 	}
 
 func (e *Exchange)heartbeatSender(){
@@ -520,17 +560,19 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 	if	m.SrcMod == msgModLoggr &&
 		m.DestMod == msgModClient {
 		
+		// mutex
 		e.rwmuxUSock.RLock()
-		if len(e.cliLogTap) == 0 {
-			e.rwmuxUSock.RUnlock()
+		cliLogTap_len := len(e.cliLogTap) 
+		e.rwmuxUSock.RUnlock()
+		// end of mutex
+		if cliLogTap_len == 0 {
 			// TODO DON'T LOG WITH A LOGGER DURING LOGGER STUFF...
 			//go lg.msg_debug(2, "no unix socket client listening, stopping forwarding log messages to clients")
 			// TODO notify logger with message
 			//lg.forwardToCli = false
 			e.sendLoggerStartForwardToClientStop()
 			return true
-		}else{
-			e.rwmuxUSock.RUnlock()}
+			}
 		
 		mod_m = *m
 		mod_m.RpcFunc = clientPrintTextLogger
@@ -540,13 +582,19 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 		if config.DebugNetwork {
 			fmt.Println("DEBUG tap forwarding logger message to client", 
 				mod_m)}
+		// TODO rework remove send inside mutex ??
+		// mutex
+		e.rwmux_ec.Lock()
 		e.rwmuxUSock.RLock()
 		for k,_ := range e.cliLogTap {
 			mod_m.DestHost = k
 			if config.DebugNetwork {
 				fmt.Printf("DEBUG SORTER passed to client %s %+v\n", k, m)}
+			//e.outgoing[k].outgoing <- mod_m;}
 			e.outgoing[k].outgoing <- mod_m;}
 		e.rwmuxUSock.RUnlock()
+		e.rwmux_ec.Unlock()
+		// end of mutex
 		return true}
 	return false}
 
@@ -582,10 +630,9 @@ func (e *Exchange)msg_handler_cluster_client(m *message) bool {
 		config.CheckIfNodeExists(&m.SrcHost) &&
 		len(m.Argv) == 2 {
 		
-		//maybe add mutex
-		e.rwmuxUSock.Lock()
+		e.rwmux_ec.Lock()
 		e.clientMap[m.Argv[0]] = m.Argv[1]
-		e.rwmuxUSock.Unlock()
+		e.rwmux_ec.Unlock()
 		return true}
 	return false}
 
@@ -666,7 +713,8 @@ func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 		if masterNode != config._MyHostname() &&
 			e.outgoing[masterNode] != nil {
 			
-			//e.rwmux.RLock()
+			// mutex
+			e.rwmux_ec.RLock()
 			if config.DebugNetwork {
 				//do not log with logger in forwarder function
 				//lg.msg_debug(5,
@@ -676,7 +724,8 @@ func (e *Exchange)msg_handle_client_msg_to_master(m *message) bool {
 					masterNode, m)
 				}
 			e.outgoing[masterNode].outgoing <- *m }
-			//e.rwmux.RUnlock()
+			e.rwmux_ec.RUnlock()
+			// end of mutex
 			return true }
 	return false}
 
@@ -692,15 +741,15 @@ func (e *Exchange)msg_handle_client_logger_listen_connect(m *message) bool {
 			lg.err("clientListenToClusterLogger wrong m.Argv[0] ", err)
 			// TODO client should commit suicide
 			return false}
+		// mutex
 		e.rwmuxUSock.Lock()
 		e.cliLogTap[m.SrcHost] = loglevel
 		fmt.Println(e.cliLogTap)
 		for k, v := range e.cliLogTap {
 		    fmt.Println(k, "value is", v)}
-		//TODO SEND MESSAGE INSTEAD OF DIRECT WRITE
-		//lg.forwardToCli= true
 		e.sendLoggerStartForwardToClient()
 		e.rwmuxUSock.Unlock()
+		// mutex
 		return true}
 	return false}
 
@@ -722,19 +771,21 @@ func (e *Exchange)msg_handle_clientPrintTextStatus(m *message) bool {
 			fmt.Println(
 				"DEBUG exchange forwards cli status from brain to client", 
 				mod_m)}
-		e.rwmux.RLock()
+		// mutex
+		e.rwmux_ec.RLock()
 		e.outgoing[m.DestHost].outgoing <- *m
 			if config.DebugNetwork {
 				fmt.Printf(
 					"DEBUG SORTER passed to client %s %+v\n", m.DestHost, m)}
-		e.rwmux.RUnlock()
+		e.rwmux_ec.RUnlock()
+		// end of mutex
 		return true}
 	return false}
 
 func (e *Exchange)replyToUsock(m *message) {
-	e.rwmuxUSock.RLock()
+	e.rwmux_ec.Lock()
 	e.outgoing[m.DestHost].outgoing <- *m
-	e.rwmuxUSock.RUnlock()
+	e.rwmux_ec.Unlock()
 	}
 	
 
@@ -840,9 +891,11 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 			m.RpcFunc = confNotifAboutEpochUpdate
 			m.Argv[0] = "sending config with newer epoch"
 			m.Custom1 = config.GetEpoch()
+			// mutex
 			config.rwmux.RLock()
 			m.Custom1 = config.Resources
 			config.rwmux.RUnlock()
+			// end of mutex
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending config to node %s (epoch %d)",
