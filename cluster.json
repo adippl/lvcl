@@ -3,9 +3,9 @@
 	"DomainDefinitionDir": "domains/",
 	"Nodes": [
 		{
-			"Hostname": "r210II-1",
-			"NodeAddress": "10.0.6.14:6798",
-			"LibvirtAddress": "10.0.6.14",
+			"Hostname": "ghn-s920-3",
+			"NodeAddress": "10.0.5.57:6798",
+			"LibvirtAddress": "10.0.5.57",
 			"NodeState": 1,
 			"Weight": 1003,
 			"HwStats": [
@@ -14,35 +14,35 @@
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
 					"Id": 0,
-					"Value": 80
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 0,
-					"Value": 8
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
 					"Id": 0,
-					"Value": 18432
+					"Value": 3000
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
 					"Id": 0,
-					"Value": 18432
+					"Value": 3807
 				}
 			]
 		},
 		{
-			"Hostname": "r210II-2",
-			"NodeAddress": "10.0.6.15:6798",
-			"LibvirtAddress": "10.0.6.15",
+			"Hostname": "ghn-s920-4",
+			"NodeAddress": "10.0.5.58:6798",
+			"LibvirtAddress": "10.0.5.58",
 			"NodeState": 1,
 			"Weight": 1002,
 			"HwStats": [
@@ -51,35 +51,35 @@
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
 					"Id": 0,
-					"Value": 80
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 0,
-					"Value": 8
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
 					"Id": 0,
-					"Value": 10240
+					"Value": 3000
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
 					"Id": 0,
-					"Value": 10240
+					"Value": 3807
 				}
 			]
 		},
 		{
-			"Hostname": "r210II-3",
-			"NodeAddress": "10.0.6.16:6798",
-			"LibvirtAddress": "10.0.6.16",
+			"Hostname": "ghn-s920-5",
+			"NodeAddress": "10.0.5.59:6798",
+			"LibvirtAddress": "10.0.5.59",
 			"NodeState": 1,
 			"Weight": 1001,
 			"HwStats": [
@@ -88,28 +88,28 @@
 					"ResourceController_id": 0,
 					"Name": "vCPUs",
 					"Id": 0,
-					"Value": 80
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwCPUs",
 					"Id": 0,
-					"Value": 8
+					"Value": 4
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "vMEM",
 					"Id": 0,
-					"Value": 6144
+					"Value": 3000
 				},
 				{
 					"ResourceController_name": "",
 					"ResourceController_id": 0,
 					"Name": "hwMEM",
 					"Id": 0,
-					"Value": 6144
+					"Value": 3807
 				}
 			]
 		}

@@ -83,8 +83,6 @@ func NewLVD() *lvd {
 		}
 	l_lvd.getNodeInfo()
 	go l_lvd.updateStats()
-	//go l_lvd.messageHandler()
-	//go l_lvd.sendStatsToMaster()
 	return &l_lvd }
 
 func (l *lvd)getNodeInfo(){
@@ -448,7 +446,7 @@ func (l *lvd)Nuke_resource(name string) bool {
 	dom := l.GetDomainPtr(vm.Name)
 	if(dom==nil){
 		return(false)}
-	err := dom.Shutdown()
+	err := dom.Destroy()
 	if(err!=nil){
 		lg.err("lvd.stop_resource domain failed to stop",err)
 		return(false)

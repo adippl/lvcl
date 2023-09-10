@@ -1001,7 +1001,7 @@ func (b *Brain)epochSender(){
 			RpcFunc: brainNotifyAboutEpoch,
 			Time: t,
 			Argv: []string{"brain dest_placement epoch advertisment"},
-			Custom1: b.GetEpoch(),
+			Epoch: b.GetEpoch(),
 			}
 		b.brn_ex <- m
 		config.ClusterHeartbeat_sleep()}}
@@ -1014,13 +1014,13 @@ func (b *Brain)msg_handle_brainNotifyAboutEpoch(m *message) bool {
 		m.DestMod == msgModBrain &&
 		m.SrcHost != config._MyHostname() {
 			
-		if b.isTheirEpochAhead(m.Custom1.(uint64)) {
+		if b.isTheirEpochAhead(m.Epoch) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = brainNotifyAboutEpochUpdateAsk
 			m.Argv[0] = "requesting desired_placement from host with higher epoch"
-			bk_epo = m.Custom1.(uint64)
-			m.Custom1 = b.GetEpoch()
+			bk_epo = m.Epoch
+			m.Epoch = b.GetEpoch()
 			b.brn_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"found node with higher Brain epoch %s (our %d theirs %d)",
@@ -1035,22 +1035,22 @@ func (b *Brain)msg_handle_brainNotifyAboutEpochUpdateAsk(m *message) bool {
 		m.DestMod == msgModBrain &&
 		m.SrcHost != config._MyHostname() {
 			
-		if b.isTheirEpochBehind(m.Custom1.(uint64)) {
+		if b.isTheirEpochBehind(m.Epoch) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = brainNotifyAboutEpochUpdate
 			m.Argv[0] = "sending desired_placement with newer epoch"
-			m.Custom1 = b.GetEpoch()
+			m.Epoch = b.GetEpoch()
 			b.rwmux_dp.RLock()
-			m.Custom1 = b.desired_resourcePlacement
+			m.Cres = b.desired_resourcePlacement
 			fmt.Printf("== ASDF %+v\n", b.desired_resourcePlacement)
-			fmt.Printf("== ASDF %+v\n", m.Custom1.([]Cluster_resource))
+			fmt.Printf("== ASDF %+v\n", m.Cres)
 			b.rwmux_dp.RUnlock()
 			b.brn_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending desired_placement to node %s (epoch %d)",
 				m.DestHost,
-				m.Custom1.(uint64)))}
+				m.Epoch))}
 			return true}
 	return false}
 
@@ -1060,17 +1060,17 @@ func (b *Brain)msg_handle_brainNotifyAboutEpochUpdate(m *message) bool {
 		m.DestMod == msgModBrain &&
 		m.DestHost == config._MyHostname() {
 			
-		if b.isTheirEpochAhead(m.Custom1.(uint64)) {
+		if b.isTheirEpochAhead(m.Epoch) {
 			b.rwmux_dp.Lock()
-			b.desired_resourcePlacement = m.Custom1.([]Cluster_resource)
-			b.Epoch = m.Custom1.(uint64)
+			b.desired_resourcePlacement = m.Cres
+			b.Epoch = m.Epoch
 			lg.msg_debug(2, fmt.Sprintf(
 				"received desired_placement from node %s with epoch %d %+v",
-				m.SrcHost, m.Custom1.(uint64), m.Custom1.([]Cluster_resource)))
+				m.SrcHost, m.Epoch, m.Cres))
 			b.rwmux_dp.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(
 				"received desired_placement from node %s with epoch %d ",
-				m.SrcHost, m.Custom1.(uint64)))}
+				m.SrcHost, m.Epoch))}
 			return true}
 	return false}
 
@@ -1177,7 +1177,7 @@ func (b *Brain)send_localResourcesToMaster(){
 		if len(b.local_resourcePlacement) == 0 {
 			b.rwmux_locP.RUnlock()
 			return}
-		m.Custom1 = b.local_resourcePlacement
+		m.Cres = b.local_resourcePlacement
 		b.rwmux_locP.RUnlock()
 	b.brn_ex <- *m}
  
@@ -1186,10 +1186,10 @@ func (b *Brain)msg_handle_brainNotifyMasterAboutLocalResources(m *message) bool{
 		fmt.Sprintf(
 			"Master Brain received info about local resources from %s: %+v",
 			m.SrcHost,
-			m.Custom1)
+			m.Cres)
 		b.rwmux_curPlacement.Lock()
 		// this has to panic if type is wrong
-		b.current_resourcePlacement[m.SrcHost] = m.Custom1.([]Cluster_resource)
+		b.current_resourcePlacement[m.SrcHost] = m.Cres
 		b.rwmux_curPlacement.Unlock()
 		return true}
 	return false}

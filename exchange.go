@@ -419,7 +419,7 @@ func (e *Exchange)configEpochSender(){
 			RpcFunc: confNotifAboutEpoch,
 			Time: t,
 			Argv: []string{"epoch"},
-			Custom1: config.GetEpoch(),
+			Epoch: config.GetEpoch(),
 			}
 		e.loc_ex <- m
 		time.Sleep(time.Millisecond * time.Duration(config.HeartbeatInterval))}}
@@ -813,12 +813,12 @@ func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Custom1.(uint64)) {
+		if config.isTheirEpochAhead(m.Epoch) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdateAsk
 			m.Argv[0] = "requesting config from host with higher epoch"
-			bk_epo = m.Custom1.(uint64)
+			bk_epo = uint64(m.Custom1.(float64))
 			m.Custom1 = config.GetEpoch()
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
@@ -834,7 +834,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.SrcHost != config._MyHostname() {
 			
-		if config.isTheirEpochBehind(m.Custom1.(uint64)) {
+		if config.isTheirEpochBehind(m.Epoch) {
 			m.DestHost = m.SrcHost
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdate
@@ -857,14 +857,14 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 		m.DestMod == msgModConfig &&
 		m.DestHost == config._MyHostname() {
 			
-		if config.isTheirEpochAhead(m.Custom1.(uint64)) {
+		if config.isTheirEpochAhead(m.Epoch) {
 			config.rwmux.Lock()
 			config.Resources = m.Custom1.([]Cluster_resource)
-			config.Epoch = m.Custom1.(uint64)
+			config.Epoch = m.Epoch
 			config._saveAllResources()
 			config.rwmux.Unlock()
 			lg.msg_debug(2, fmt.Sprintf(
 				"received config from node %s with epoch %d ",
-				m.SrcHost, m.Custom1.(uint64)))}
+				m.SrcHost, m.Epoch))}
 			return true}
 	return false}

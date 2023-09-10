@@ -76,6 +76,8 @@ type message struct{
 	Time		time.Time
 	RpcFunc		uint
 	Argv		[]string
+	Epoch		uint64
+	Cres		[]Cluster_resource
 	Custom1		interface{}
 	Custom2		interface{}
 	Custom3		interface{}
