@@ -578,6 +578,22 @@ func (b *Brain)LogBrainStatus(){
 func (b *Brain)writeBrainStatus() *string {
 	var sb strings.Builder
 	var retString string
+	var resEnabled bool
+	sb.WriteString("\n====== Resource controller states ======\n")
+	resEnabled = config.IsCtrlEnabled( resource_controller_id_dummy)
+	sb.WriteString(fmt.Sprintf("dummy ctrl enabled %t", resEnabled))
+	if resEnabled {
+		sb.WriteString(fmt.Sprintf(", healthy %t", 
+			b.resCtl_Dummy.Get_controller_health()))}
+	sb.WriteString("\n")
+	resEnabled = false
+	resEnabled = config.IsCtrlEnabled( resource_controller_id_libvirt)
+	sb.WriteString(fmt.Sprintf("libvirt ctrl enabled %t", resEnabled))
+	if resEnabled {
+		sb.WriteString(fmt.Sprintf(", healthy %t", 
+			b.resCtl_lvd.Get_controller_health()))}
+	sb.WriteString("\n")
+	sb.WriteString("========================================\n")
 	sb.WriteString("\n====== desired resource placement ======\n")
 	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
 	for _,v:=range b.desired_resourcePlacement {
@@ -827,6 +843,10 @@ func (b *Brain)basic_placeResources(){
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' controller %d is not enabled, not placing", resource.Name, resource.ResourceController_id))
 			continue}
 		
+		if b.isCtrlHealthy( resource.ResourceController_id ) == false {
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' controller %d is not healthy, not placing", resource.Name, resource.ResourceController_id))
+			continue}
+		
 		if resource.DesState != resource_state_running {
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
 			continue}
@@ -856,6 +876,16 @@ func (b *Brain)basic_placeResources(){
 	config.rwmux.RUnlock()
 	if has_changed {
 		b.IncEpoch()}}
+
+
+func (b *Brain)isCtrlHealthy( ctrl_id int ) bool {
+	switch ctrl_id {
+		case resource_controller_id_dummy:
+			return b.resCtl_Dummy.Get_controller_health();
+		case resource_controller_id_libvirt:
+			return b.resCtl_lvd.Get_controller_health();
+		default:
+			panic("unknown resource controller")}}
 
 
 func remove(s []Cluster_resource, i int) []Cluster_resource {

@@ -475,3 +475,8 @@ func (l *lvd)Migrate_resource(name string, dest_node string) bool {
 
 //func (l *lvd)clean_resource(name string) bool {
 //	l.nuke_resource(&name)
+
+// placeholder
+// TODO implement
+func (c *lvd)Get_controller_health() bool {
+	return false }

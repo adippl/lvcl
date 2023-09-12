@@ -107,6 +107,7 @@ type ResourceController interface {
 	Migrate_resource(resource_name string, dest_node string) bool
 	Clean_resource(name string) bool
 	Kill_controller() bool
+	Get_controller_health() bool
 }
 
 func _stateString(i int) string {

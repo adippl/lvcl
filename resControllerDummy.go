@@ -84,3 +84,6 @@ func NewDummy() *Dummy_rctl {
 		rwmux:			sync.RWMutex{},
 		resources:		make([]Cluster_resource, 0),
 		utilization:	make([]Cluster_utilization, 0)}}
+
+func (c *Dummy_rctl)Get_controller_health() bool {
+	return true }
