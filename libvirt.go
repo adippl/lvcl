@@ -52,6 +52,7 @@ type lvd struct {
 	nodeInfo			*libvirt.NodeInfo
 	nodeStats			NodeStats
 	utilization			*[]Cluster_utilization
+	live_migration		bool
 	}
 
 type lvdVM struct {
@@ -79,6 +80,7 @@ func NewLVD() *lvd {
 		nodeCPUStats:		nil,
 		nodeMemStats:		nil,
 		nodeInfo:			nil,
+		live_migration:		false,
 		daemonConneciton: conn,
 		}
 	l_lvd.getNodeInfo()
@@ -130,7 +132,7 @@ func (l *lvd)listDomains(){
 		fmt.Println("lvd object ptr == nil")
 		return }
 	//fmt.Printf("NodeCPUStats %+v\n",l.nodeCPUStats)
-	fmt.Printf("== local resources and domains ==\n");
+	fmt.Printf("== local libvirtd resources and domains ==\n");
 	fmt.Printf("Host total cores=%d mem=%d", l.nodeStats.totalCores, l.nodeStats.totalMem/(1<<20))
 	fmt.Printf("CPU: kernel=%d user=%d io=%d idle=%d\n",
 		l.nodeStats.cpuKernel/10,
@@ -201,24 +203,27 @@ func (l *lvd)updateDomStates(){
 //			l.domStates[name] = lvdVmStatePaused}
 //		dom.Free() }
 
-	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
-	if err != nil {
-		return}
-	for _, dom := range doms {
-		name, err := dom.GetName()
-		if(err == nil){
-			l.domStates[name] = lvdVmStateOther
-			//state,_,err := dom.GetState()
-			_,_,err := dom.GetState()
-			if(err != nil){
-				l.domStates[name] = lvdVmStateOther
-			}else{
-				lg.err("updateDomStates", err)}}
-		dom.Free()}
+//	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
+//	if err != nil {
+//		return}
+//	for _, dom := range doms {
+//		name, err := dom.GetName()
+//		if(err == nil){
+//			l.domStates[name] = lvdVmStateOther
+//			//state,_,err := dom.GetState()
+//			_,_,err := dom.GetState()
+//			if(err != nil){
+//				l.domStates[name] = lvdVmStateOther
+//			}else{
+//				lg.err("updateDomStates", err)}}
+//		dom.Free()}
 	
-	doms, err = l.daemonConneciton.ListAllDomains(0)
+	doms, err := l.daemonConneciton.ListAllDomains(0)
 	if err != nil {
+		lg.err("DEBUG l.daemonConneciton.ListAllDomains(0)", err)
 		return}
+	err=nil
+	lg.msg_debug(3, fmt.Sprintf("l.daemonConneciton.ListAllDomains(0) returned %+v", doms))
 // don't check for errors,
 // something is wrong, false positives
 // check later
@@ -320,6 +325,7 @@ func (l *lvd)lvd_cluster_utilization_template() *Cluster_utilization {
 
 func (l *lvd)Get_running_resources() *[]Cluster_resource {
 	var ret []Cluster_resource
+	l.updateDomStates()
 	
 	for k,v := range l.domStates {
 		dom := l.lvd_cluster_resource_template()
@@ -395,7 +401,7 @@ func (l *lvd)Get_utilization() *[]Cluster_utilization {
 func (l *lvd)Start_resource(name string) bool {
 	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
-		lg.msg("config.GetVMbyName returned null pointer")
+		lg.err("config.GetVMbyName returned null pointer", nil)
 		return false }
 	//if(l.startVM(vm)!=0){
 	//	return(false)
@@ -479,4 +485,20 @@ func (l *lvd)Migrate_resource(name string, dest_node string) bool {
 // placeholder
 // TODO implement
 func (c *lvd)Get_controller_health() bool {
-	return false }
+	var isalive bool = false
+	var err error = nil
+	
+	//hostname,err := c.daemonConneciton.GetHostname() 
+	//if err != nil {
+	//	lg.err(" libvirt couldn't get a hostname", err)}
+	//lg.msg(fmt.Sprintf("DEBUG libvirt hostname %+v", hostname))
+	//err=nil
+	
+	isalive,err = c.daemonConneciton.IsAlive()
+	if err != nil {
+		lg.err(fmt.Sprintf("libvirt IsAlive returned error and bool %b", isalive ), err)}
+	return isalive }
+
+
+func (c *lvd)Get_live_migration_support() bool {
+	return c.live_migration}

@@ -352,7 +352,7 @@ func (b *Brain)getMasterNode(){
 			return}
 		config.ClusterTick_sleep()
 		if b.masterNode == nil {
-			lg.msg("looking for master node")
+			lg.msg_debug(1, "looking for master node")
 			b.SendMsg("__everyone__", brainRpcAskForMasterNode, "asking for master node")
 			config.ClusterTick_sleep()}}}
 
@@ -492,6 +492,7 @@ func (b *Brain)updateLocalResources(){
 	
 	if b.resCtl_lvd != nil {
 		lr = b.resCtl_lvd.Get_running_resources()}
+	lg.msg(fmt.Sprintf("DEBUG Get_running_resources() %+v", lr))
 	if lr != nil {
 		new_placement = append(new_placement, *lr...)}
 	
@@ -591,7 +592,9 @@ func (b *Brain)writeBrainStatus() *string {
 	sb.WriteString(fmt.Sprintf("libvirt ctrl enabled %t", resEnabled))
 	if resEnabled {
 		sb.WriteString(fmt.Sprintf(", healthy %t", 
-			b.resCtl_lvd.Get_controller_health()))}
+			b.resCtl_lvd.Get_controller_health()))
+		sb.WriteString(fmt.Sprintf(", live migration %b",
+			b.resCtl_lvd.Get_live_migration_support()));}
 	sb.WriteString("\n")
 	sb.WriteString("========================================\n")
 	sb.WriteString("\n====== desired resource placement ======\n")

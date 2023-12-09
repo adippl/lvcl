@@ -87,3 +87,7 @@ func NewDummy() *Dummy_rctl {
 
 func (c *Dummy_rctl)Get_controller_health() bool {
 	return true }
+
+
+func (c *Dummy_rctl)Get_live_migration_support() bool {
+	return false}
