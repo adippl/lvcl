@@ -829,7 +829,7 @@ func writeExampleConfig(){
 		HwCpuMax: 8,
 		VMemMax: 8192,
 		HwMemMax: 8192,
-		ClusterBalancerDelay: 2,
+		ClusterBalancerDelay: 3,
 		Quorum: 2,
 		EnabledResourceControllers: map[int]bool{
 			resource_controller_id_libvirt: true,

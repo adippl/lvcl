@@ -330,9 +330,11 @@ func (l *lvd)Get_running_resources() *[]Cluster_resource {
 	var ret []Cluster_resource
 	l.updateDomStates()
 	
-	for k,v := range l.domStates {
-		dom := l.lvd_cluster_resource_template()
-		dom.Name = k
+	for name,v := range l.domStates {
+		dom := config.GetCluster_resourcebyName_RW(&name)
+		if dom == nil {
+			continue}
+		dom.Name = name
 		switch v {
 		case lvdVmStateStarting:
 			dom.State = resource_state_starting
@@ -406,8 +408,13 @@ func (l *lvd)Get_utilization() *[]Cluster_utilization {
 func (l *lvd)Start_resource(name string) bool {
 	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
-		lg.err("config.GetVMbyName returned null pointer", nil)
+		lg.err("lvd.Start_resource() config.GetVMbyName returned null pointer", nil)
 		return false }
+	lg.msg_debug(1,
+		fmt.Sprintf("Node %s starts resource %s with %s controller",
+			config._MyHostname(),
+			name,
+			vm.CtlString()))
 	//if(l.startVM(vm)!=0){
 	//	return(false)
 	//}else{

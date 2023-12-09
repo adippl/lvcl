@@ -471,7 +471,7 @@ func (b *Brain)resourceBalancer(){
 		b.update_expectedResUtil()
 		if b.isMaster && b.balancerTicksPassed >= config.ClusterBalancerDelay {
 			b.basic_placeResources()
-		}else{
+		}else if b.isMaster {
 			b.initial_placementAfterBecomingMaster()
 			}
 		
@@ -505,7 +505,9 @@ func (b *Brain)updateLocalResources(){
 	b.local_resourcePlacement = new_placement
 	b.rwmux_locP.Unlock()}
 
-func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
+func (b *Brain)_applyResource(c ResourceController, config_resource *Cluster_resource) bool {
+	// config_resource variable comes from cluster configuration
+	// and represends state resource should be in
 	var lr *Cluster_resource = nil
 	var rc bool = false
 	//READ only Mutex lock
@@ -514,32 +516,39 @@ func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
 		rc = false
 		lr = &b.local_resourcePlacement[k]
 		// actions on locally running resources
-		if lr.Name == r.Name {
+		if lr.Name == config_resource.Name {
 			// skip if already running with desired state
-			if lr.State == r.State {
+			if lr.State == config_resource.State {
 				//MUTEX UNLOCK
 				b.rwmux_locP.RUnlock()
 				return true}
 			// turn off if running locally
-			if r.State == resource_state_running &&
+			if config_resource.State == resource_state_running &&
 				lr.State != resource_state_stopped {
 				//MUTEX UNLOCK
 				b.rwmux_locP.RUnlock()
-				return c.Stop_resource(r.Name)}
+				return c.Stop_resource(config_resource.Name)}
 			// nuke if not stopped
-			if r.State == resource_state_nuked &&
+			if config_resource.State == resource_state_nuked &&
 				lr.State != resource_state_stopped {
 				//MUTEX UNLOCK
 				b.rwmux_locP.RUnlock()
-				return c.Nuke_resource(r.Name)}}}
+				return c.Nuke_resource(config_resource.Name)}
+			// start resource if in stopped state
+			if config_resource.State == resource_state_running &&
+				lr.State == resource_state_stopped {
+				//MUTEX UNLOCK
+				b.rwmux_locP.RUnlock()
+				return c.Start_resource(config_resource.Name)}
+				}}
 	//MUTEX UNLOCK
 	b.rwmux_locP.RUnlock()
 	// actions for resources not in b.local_resourcePlacement
 	// start resource
-	if r.State == resource_state_running {
-		rc = c.Start_resource(r.Name)
+	if config_resource.State == resource_state_running {
+		rc = c.Start_resource(config_resource.Name)
 		if rc == false {
-			b.sendMsg_resFailure(r, "start", resouce_failure_unknown)}
+			b.sendMsg_resFailure(config_resource, "start", resouce_failure_unknown)}
 		return rc}
 
 	// return false by default
@@ -548,20 +557,46 @@ func (b *Brain)_applyResource(c ResourceController, r *Cluster_resource) bool {
 
 func (b *Brain)applyResourcePlacement(){
 	var res *Cluster_resource = nil
+
+	lg.msg_debug(5, fmt.Sprintf(
+		"applyResourcePlacement() starting"))
 	
 	for k,_:=range b.desired_resourcePlacement {
 		res = &b.desired_resourcePlacement[k]
+		
+		// DEBUG
+		//lg.msg_debug(5, fmt.Sprintf(
+		//	"applyResourcePlacement() considering starting %s %+v %b",
+		//	res.Name,
+		//	res,
+		//	b.check_if_resource_is_running_on_cluster( res )))
+		
 		// skip if node is running somewhere else on the cluster
-		if b.checkIfResourceIsCurrentlyRunning( res ) {continue}
+		if b.check_if_resource_is_running_on_cluster( res ) {
+			lg.msg_debug(5, fmt.Sprintf(
+				"applyResourcePlacement() not starting resource %s because it's already running on cluster %b",
+				res.Name,
+				b.check_if_resource_is_running_on_cluster( res )))
+			continue}
 		
 		switch res.ResourceController_id {
 		case resource_controller_id_libvirt:
+			
+			lg.msg_debug(5, fmt.Sprintf(
+				"applyResourcePlacement() starts %s with resource controller %s",
+				res.Name,
+				res.CtlString()))
 			b._applyResource(b.resCtl_lvd, res)
 		case resource_controller_id_dummy:
 			if b.resCtl_Dummy == nil {
-				continue
-			}
-			b._applyResource(b.resCtl_Dummy, res)}}}
+				continue}
+			b._applyResource(b.resCtl_Dummy, res)
+		default:
+			lg.msg_debug(5, fmt.Sprintf(
+				"applyResourcePlacement() resource %s has invalid ResourceController_id %s",
+				res.Name,
+				res.CtlString))
+			}}}
 
 
 func (b *Brain)is_this_node_a_master() bool {
@@ -809,6 +844,10 @@ func (b *Brain)_place_single_resource(
 	b.desired_resourcePlacement = append(b.desired_resourcePlacement, 
 		resCopy)
 	//resource placed in desired resources
+	lg.msg_debug(2, fmt.Sprintf(
+		"resource '%s' placed on node %s",
+		resCopy.Name,
+		resCopy.Placement))
 	return true}
 
 func (b *Brain)basic_placeResources(){
@@ -867,9 +906,9 @@ func (b *Brain)basic_placeResources(){
 			
 		if b._place_single_resource(&lastNode, resource, fmap, &nodeHealth){
 			has_changed = true
-			lg.msg_debug(2, fmt.Sprintf(
-				"resource '%s' placed",
-				resource.Name))
+			//lg.msg_debug(2, fmt.Sprintf(
+			//	"resource '%s' placed on node %s",
+			//	resource.Name))
 			continue
 		}else{
 			lg.msg_debug(2, fmt.Sprintf(
@@ -917,16 +956,16 @@ func (b *Brain)check_if_resource_has_placement(r *Cluster_resource) bool {
 			return true}}
 	return false}
 
-func (b *Brain)checkIfResourceIsCurrentlyRunning(r *Cluster_resource) bool {
-	b.rwmux_curPlacement.RLock()
-	for _,v:=range b.current_resourcePlacement {
-		for k,_:=range v {
-			if	v[k].Name == r.Name &&
-				v[k].Id == r.Id {
-				b.rwmux_curPlacement.RUnlock()
-				return true}}}
-	b.rwmux_curPlacement.RUnlock()
-	return false}
+//func (b *Brain)checkIfResourceIsCurrentlyRunning(r *Cluster_resource) bool {
+//	b.rwmux_curPlacement.RLock()
+//	for _,v:=range b.current_resourcePlacement {
+//		for k,_:=range v {
+//			if	v[k].Name == r.Name &&
+//				v[k].Id == r.Id {
+//				b.rwmux_curPlacement.RUnlock()
+//				return true}}}
+//	b.rwmux_curPlacement.RUnlock()
+//	return false}
 
 func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
 	b.rwmux_curPlacement.RLock()
@@ -1257,8 +1296,23 @@ func (b *Brain)check_if_resource_is_running_on_cluster(r *Cluster_resource) bool
 	b.rwmux_curPlacement.RLock()
 	for _,v:=range b.current_resourcePlacement {
 		for k,_:=range v {
-			if v[k].Name == r.Name && v[k].Id == r.Id {
+			// debug
+			//if 	v[k].Name == r.Name {
+			//	lg.msg_debug(5, fmt.Sprintf(
+			//		"check_if_resource_is_running_on_cluster() is looking for %T '%s' '%s' and comparing with %T '%s' '%s' state:'%s' %b %s",
+			//		r,
+			//		r.Name,
+			//		r.Id,
+			//		v[k],
+			//		v[k].Name,
+			//		v[k].Id,
+			//		_stateString(v[k].State),
+			//		v[k].Name == r.Name && v[k].State == resource_state_running,
+			//		))}
+			if 	v[k].Name == r.Name &&
+				v[k].State == resource_state_running  {
 				b.rwmux_curPlacement.RUnlock()
+			lg.msg_debug(5, fmt.Sprintf("check_if_resource_is_running_on_cluster() found running resource %T %s and comparing with %T %s", r, r.Name, v[k], v[k].Name))
 				return true}}}
 	b.rwmux_curPlacement.RUnlock()
 	return false}
@@ -1298,8 +1352,10 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 	var resCopy Cluster_resource
 	var nodeHealth map[string]int = b.getNodeHealthCopy()
 	var real_node *Node
+	lg.msg_debug(5, fmt.Sprintf("running initial_placementAfterBecomingMaster()"))
 	b.rwmux_curPlacement.RLock()
 	b.rwmux_dp.Lock()
+	b.desired_resourcePlacement = make([]Cluster_resource, 0)
 	for node_name,res_arr := range b.current_resourcePlacement {
 		real_node = nil
 		for i,_:=range config.Nodes {
@@ -1312,13 +1368,14 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 			fmap = nil
 			fmap = b.checkResourceInFailureMap(&resource.Name)
 			
-			if	resource.State != resource_state_running ||
+			if	resource.State != resource_state_running &&
 				resource.State != resource_state_paused {
 				continue}
 				
-			for kk,_:=range *fmap {
-				if (*fmap)[kk] == node_name {
-					goto skip_loop }}
+			if fmap != nil {
+				for kk,_:=range *fmap {
+					if (*fmap)[kk] == node_name {
+						goto skip_loop }}}
 			
 			if real_node.doesResourceFitsOnNode( resource, nil, &nodeHealth ) {
 				resCopy = *resource
