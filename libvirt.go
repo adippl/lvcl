@@ -35,6 +35,7 @@ const(
 	lvdVmStateShutdown
 	lvdVmStateStarting
 	lvdVmStateStopping
+	lvdVmStateStopped
 	lvdVmState
 	
 	lvdCpuKernel
@@ -249,6 +250,8 @@ func (l *lvd)updateDomStates(){
 					l.domStates[name]=lvdVmStateShutdown
 				case libvirt.DOMAIN_CRASHED:
 					l.domStates[name]=lvdVmStateCrashed
+				case libvirt.DOMAIN_SHUTOFF:
+					l.domStates[name]=lvdVmStateStopped
 				default:
 					l.domStates[name]=lvdVmStateNil}
 			//}else{
@@ -337,6 +340,8 @@ func (l *lvd)Get_running_resources() *[]Cluster_resource {
 			dom.State = resource_state_running
 		case lvdVmStateStopping:
 			dom.State = resource_state_stopping
+		case lvdVmStateStopped:
+			dom.State = resource_state_stopped
 		case lvdVmStatePaused:
 			dom.State = resource_state_paused
 		default:

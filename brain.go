@@ -492,7 +492,7 @@ func (b *Brain)updateLocalResources(){
 	
 	if b.resCtl_lvd != nil {
 		lr = b.resCtl_lvd.Get_running_resources()}
-	lg.msg(fmt.Sprintf("DEBUG Get_running_resources() %+v", lr))
+	lg.msg_debug(5, fmt.Sprintf("DEBUG Get_running_resources() %+v", lr))
 	if lr != nil {
 		new_placement = append(new_placement, *lr...)}
 	
@@ -858,7 +858,7 @@ func (b *Brain)basic_placeResources(){
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
 			b.stop_if_placed(resource)
 			continue}
-		if b.checkIfResourceHasPlacement(resource) {
+		if b.check_if_resource_has_placement(resource) {
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' not placing resource has placement", resource.Name))
 			continue}
 		if b.check_if_resource_is_running_on_cluster(resource) {
@@ -910,7 +910,7 @@ func (b *Brain)stop_if_placed(c *Cluster_resource){
 			b.IncEpoch_NO_LOCK()
 			return}}}
 
-func (b *Brain)checkIfResourceHasPlacement(r *Cluster_resource) bool {
+func (b *Brain)check_if_resource_has_placement(r *Cluster_resource) bool {
 	for k,_:=range b.desired_resourcePlacement {
 		if	b.desired_resourcePlacement[k].Name == r.Name &&
 			b.desired_resourcePlacement[k].Id == r.Id {
@@ -930,6 +930,7 @@ func (b *Brain)checkIfResourceIsCurrentlyRunning(r *Cluster_resource) bool {
 
 func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
 	b.rwmux_curPlacement.RLock()
+	// node,[]Cluster_resource
 	for _,v:=range b.current_resourcePlacement {
 		for k,_:=range v {
 			if	v[k].Name == r.Name &&
@@ -1256,7 +1257,7 @@ func (b *Brain)check_if_resource_is_running_on_cluster(r *Cluster_resource) bool
 	b.rwmux_curPlacement.RLock()
 	for _,v:=range b.current_resourcePlacement {
 		for k,_:=range v {
-			if v[k].Name == r.Name {
+			if v[k].Name == r.Name && v[k].Id == r.Id {
 				b.rwmux_curPlacement.RUnlock()
 				return true}}}
 	b.rwmux_curPlacement.RUnlock()
@@ -1322,6 +1323,10 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 			if real_node.doesResourceFitsOnNode( resource, nil, &nodeHealth ) {
 				resCopy = *resource
 				resCopy.Placement = node_name
+				
+				lg.msg_debug(3, fmt.Sprintf(
+					" initial_placementAfterBecomingMaster() resource '%s' placed",
+					resource.Name))
 				b.desired_resourcePlacement = append(
 					b.desired_resourcePlacement, resCopy) }
 			skip_loop: }}
