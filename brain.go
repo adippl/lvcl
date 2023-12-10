@@ -987,17 +987,6 @@ func (b *Brain)check_if_resource_has_placement(r *Cluster_resource) bool {
 			return true}}
 	return false}
 
-//func (b *Brain)checkIfResourceIsCurrentlyRunning(r *Cluster_resource) bool {
-//	b.rwmux_curPlacement.RLock()
-//	for _,v:=range b.current_resourcePlacement {
-//		for k,_:=range v {
-//			if	v[k].Name == r.Name &&
-//				v[k].Id == r.Id {
-//				b.rwmux_curPlacement.RUnlock()
-//				return true}}}
-//	b.rwmux_curPlacement.RUnlock()
-//	return false}
-
 func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
 	b.rwmux_curPlacement.RLock()
 	// node,[]Cluster_resource
