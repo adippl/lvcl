@@ -37,6 +37,7 @@ const(
 	
 	resource_state_nuked
 	resource_state_reboot
+	resource_state_undefine
 	
 	
 	utilization_hw_cores
@@ -185,7 +186,7 @@ func (u *Cluster_utilization)UtilAdd(arg *Cluster_utilization) bool {
 	// maybe this function shouldn't check for string name
 	// less error prone in config and it should be faster
 	//if u.Id != arg.Id || u.Name != arg.Name {
-	if u.Id != arg.Id {
+	if u.Id != arg.Id { // TODO check for both
 		// resources of the wrong type
 		return false}
 	u.Value += arg.Value
