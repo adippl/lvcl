@@ -481,7 +481,7 @@ func (b *Brain)resourceBalancer(){
 		
 		//b.montorClusterEvents()
 		//b.createMigrationEvents()
-		
+		b.cleanup_timed_out_events()
 		b.apply_placement_create_events()
 		config.ClusterTick_sleep()}}
 
@@ -549,10 +549,30 @@ func (b *Brain)_applyResource(c ResourceController, config_resource *Cluster_res
 		if rc == false {
 			b.sendMsg_resFailure(config_resource, "start", resouce_failure_unknown)}
 		return rc}
-
+	
 	// return false by default
 	return false }
 
+func (b *Brain)cleanup_timed_out_events(){
+	var new_ev_list []event
+	b.rwmux_events.Lock()
+	for _,event := range b.clusterEvents {
+		if event.checktimeout() == false {
+			new_ev_list = append( new_ev_list, event )
+		}else{
+			lg.msg(fmt.Sprintf("ERROR cluster event %d %s timed out",
+				event.ID,
+				event.Name ))
+			lg.msg_debug(5, fmt.Sprintf(
+				"cleanup_timed_out_events cleans up event %d %s because of timeout",
+				event.ID,
+				event.Name ))}}
+	b.clusterEvents = new_ev_list
+	b.rwmux_events.Unlock()
+	}
+
+func (b *Brain)handle_resCtrlEvents(){
+}
 
 func (b *Brain)apply_placement_create_events(){
 	var des_res *Cluster_resource = nil
@@ -987,17 +1007,17 @@ func (b *Brain)check_if_resource_has_placement(r *Cluster_resource) bool {
 			return true}}
 	return false}
 
-func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
-	b.rwmux_curPlacement.RLock()
-	// node,[]Cluster_resource
-	for _,v:=range b.current_resourcePlacement {
-		for k,_:=range v {
-			if	v[k].Name == r.Name &&
-				v[k].Id == r.Id {
-				b.rwmux_curPlacement.RUnlock()
-				return true}}}
-	b.rwmux_curPlacement.RUnlock()
-	return false}
+//func (b *Brain)checkIfResourceHas_migration_events(r *Cluster_resource) bool {
+//	b.rwmux_curPlacement.RLock()
+//	// node,[]Cluster_resource
+//	for _,v:=range b.current_resourcePlacement {
+//		for k,_:=range v {
+//			if	v[k].Name == r.Name &&
+//				v[k].Id == r.Id {
+//				b.rwmux_curPlacement.RUnlock()
+//				return true}}}
+//	b.rwmux_curPlacement.RUnlock()
+//	return false}
 
 func (b *Brain)checkIfResourceIsPlacedLocally(r *Cluster_resource) bool {
 	b.rwmux_locP.RLock()
@@ -1481,16 +1501,14 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 //	b.rwmux_dp.RUnlock()}
 
 func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
-	var already_exists bool = false
-	
 	if m.RpcFunc == brainNotifyAboutNewClusterEvent {
+		if b.getEventById( m.Custom1.(event).ID ) == nil{
 		b.rwmux_events.Lock()
-		for k,_:=range b.clusterEvents {
-			if b.clusterEvents[k].ID == m.Custom1.(event).ID {
-				already_exists = true }}
-		if ! already_exists {
 			b.clusterEvents = append( b.clusterEvents, m.Custom1.(event))}
 		b.rwmux_events.Unlock()
+		lg.msg_debug(5, fmt.Sprintf("msg_handle_brainNotifyAboutNewClusterEvent() adds event %d %s to clusterEvents",
+			m.Custom1.(event).ID,
+			m.Custom1.(event).Name))
 		return true}
 	return false}
 

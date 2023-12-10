@@ -60,6 +60,9 @@ func (b *Brain)getEventById(id uint32) *event {
 	return e}
 
 func (b *Brain)append_clusterEvents( e *event ){
+	lg.msg_debug(5, fmt.Sprintf("append_clusterEvents() adds event %d %s to clusterEvents",
+		e.ID,
+		e.Name))
 	b.rwmux_events.Lock()
 	b.clusterEvents = append( b.clusterEvents , *e)
 	b.rwmux_events.Unlock()
@@ -75,14 +78,14 @@ func (e1 *event)compare_events_timeout_check_e2(e2 *event) bool {
 	return false}
 
 func (b *Brain)check_if_event_already_exist_and_active( e *event ) bool {
-	b.rwmux_events.Lock()
+	b.rwmux_events.RLock()
 	for k,_ := range b.clusterEvents {
 		if e.compare_events_timeout_check_e2( &b.clusterEvents[k] ) {
-			b.rwmux_events.Unlock()
+			b.rwmux_events.RUnlock()
 			return true}}
-	b.clusterEvents = append( b.clusterEvents , *e)
-	b.rwmux_events.Unlock()
+	b.rwmux_events.RUnlock()
 	return false}
+
 
 func (b *Brain)create_event_start_resource(r *Cluster_resource) bool {
 	e := createEvent()
@@ -99,7 +102,7 @@ func (b *Brain)create_event_start_resource(r *Cluster_resource) bool {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
 			e.Name))
-	return false}
+		return false}
 	b.append_clusterEvents(e)
 	return true}
 
@@ -118,7 +121,7 @@ func (b *Brain)create_event_stop_resource(r *Cluster_resource) bool {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
 			e.Name))
-	return false}
+		return false}
 	b.append_clusterEvents(e)
 	return true}
 
@@ -138,6 +141,6 @@ func (b *Brain)create_event_nuke_resource(r *Cluster_resource) bool {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
 			e.Name))
-	return false}
+		return false}
 	b.append_clusterEvents(e)
 	return true}
