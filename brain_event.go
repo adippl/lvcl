@@ -37,10 +37,16 @@ func createEvent() *event {
 	var e event
 	e.CreationTime = time.Now()
 	e.TimeoutTime = e.CreationTime.Add(
-		time.Millisecond * time.Duration(config.DefaultEventTimeoutTimeSec))
+		time.Millisecond * time.Duration( config.DefaultEventTimeoutTimeSec * 1000))
 	return &e }
 
 func (e *event)checktimeout() bool {
+	lg.msg_debug(5, fmt.Sprintf("checktimeout '%s' '%s' %b",
+		time.Now().String(),
+		e.TimeoutTime.String(),
+		time.Now().After(e.TimeoutTime),
+		))
+
 	return time.Now().After(e.TimeoutTime) }
 
 

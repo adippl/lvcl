@@ -334,6 +334,9 @@ func (l *lvd)Get_running_resources() *[]Cluster_resource {
 		dom := config.GetCluster_resourcebyName_RW(&name)
 		if dom == nil {
 			continue}
+		//if dom.State = resource_state_stopped {
+		//	// don't send info about stopped domains
+		//	continue)
 		dom.Name = name
 		switch v {
 		case lvdVmStateStarting:

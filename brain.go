@@ -21,7 +21,6 @@ import "fmt"
 import "time"
 import "sync"
 import "strings"
-import "math/rand"
 
 const (
 	HealthGreen=1
@@ -481,9 +480,9 @@ func (b *Brain)resourceBalancer(){
 		b.send_localResourcesToMaster()
 		
 		//b.montorClusterEvents()
-		b.createMigrationEvents()
+		//b.createMigrationEvents()
 		
-		b.applyResourcePlacement()
+		b.apply_placement_create_events()
 		config.ClusterTick_sleep()}}
 
 func (b *Brain)updateLocalResources(){
@@ -555,48 +554,80 @@ func (b *Brain)_applyResource(c ResourceController, config_resource *Cluster_res
 	return false }
 
 
-func (b *Brain)applyResourcePlacement(){
-	var res *Cluster_resource = nil
+func (b *Brain)apply_placement_create_events(){
+	var des_res *Cluster_resource = nil
+	var cur_res *Cluster_resource = nil
 
 	lg.msg_debug(5, fmt.Sprintf(
-		"applyResourcePlacement() starting"))
+		"apply_placement_create_events() starting"))
 	
-	for k,_:=range b.desired_resourcePlacement {
-		res = &b.desired_resourcePlacement[k]
-		
-		// DEBUG
-		//lg.msg_debug(5, fmt.Sprintf(
-		//	"applyResourcePlacement() considering starting %s %+v %b",
-		//	res.Name,
-		//	res,
-		//	b.check_if_resource_is_running_on_cluster( res )))
-		
-		// skip if node is running somewhere else on the cluster
-		if b.check_if_resource_is_running_on_cluster( res ) {
-			lg.msg_debug(5, fmt.Sprintf(
-				"applyResourcePlacement() not starting resource %s because it's already running on cluster %b",
-				res.Name,
-				b.check_if_resource_is_running_on_cluster( res )))
-			continue}
-		
-		switch res.ResourceController_id {
-		case resource_controller_id_libvirt:
+	b.rwmux_dp.RLock()
+	b.rwmux_curPlacement.RLock()
+	for k,_:= range b.desired_resourcePlacement {
+		des_res = &b.desired_resourcePlacement[k]
+		for node,_ := range b.current_resourcePlacement{
+			for kk,_:= range b.current_resourcePlacement[node] { 
+			cur_res = &b.current_resourcePlacement[node][kk]
 			
-			lg.msg_debug(5, fmt.Sprintf(
-				"applyResourcePlacement() starts %s with resource controller %s",
-				res.Name,
-				res.CtlString()))
-			b._applyResource(b.resCtl_lvd, res)
-		case resource_controller_id_dummy:
-			if b.resCtl_Dummy == nil {
-				continue}
-			b._applyResource(b.resCtl_Dummy, res)
-		default:
-			lg.msg_debug(5, fmt.Sprintf(
-				"applyResourcePlacement() resource %s has invalid ResourceController_id %s",
-				res.Name,
-				res.CtlString))
-			}}}
+				if des_res.Id == cur_res.Id && des_res.Name == cur_res.Name {
+					// found resource that it's already in current_resourcePlacement
+					
+					// skip if state is and placement are fine
+					if des_res.State == cur_res.State && des_res.Placement == cur_res.Placement {
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node", des_res.Name))
+						continue}
+					
+					// skip if state is not supported
+					if cur_res.State == resource_state_starting ||
+						cur_res.State == resource_state_stopping || 
+						cur_res.State == resource_state_paused || 
+						cur_res.State == resource_state_migrating || 
+						cur_res.State == resource_state_other {
+						
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s has not supported state '%s', not touching",
+							des_res.Name,
+							cur_res._stateString()))
+						continue}
+					
+					
+					// stop resource if it's running but supposed to be down
+					if des_res.State != cur_res.State &&
+						des_res.State == resource_state_stopped && 
+						cur_res.State == resource_state_running {
+						
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s stopping resource", des_res.Name))
+						b.create_event_stop_resource( des_res )
+						continue}
+					
+					// stop resource if resource requires migration but it's controller doesn't support migration
+					if des_res.State != cur_res.State &&
+						des_res.State == resource_state_running && 
+						cur_res.State == resource_state_running &&
+						des_res.Placement != cur_res.Placement &&
+						b.get_ctrl_live_migration_enabled(des_res) == false {
+						
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node", des_res.Name))
+						b.create_event_stop_resource( des_res )
+						continue}
+
+					// migrate resource if 
+					if des_res.State != cur_res.State &&
+						des_res.State == resource_state_running && 
+						cur_res.State == resource_state_running &&
+						des_res.Placement != cur_res.Placement &&
+						b.get_ctrl_live_migration_enabled(des_res) == true {
+						
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s live migration not enabled ", des_res.Name))
+						continue}
+				}
+			}
+		}
+		lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() couldn't find %s running on the cluster. Starting resource ", des_res.Name))
+		b.create_event_start_resource( des_res )
+	}
+	b.rwmux_curPlacement.RUnlock()
+	b.rwmux_dp.RUnlock()
+}
 
 
 func (b *Brain)is_this_node_a_master() bool {
@@ -1015,12 +1046,14 @@ func (b *Brain)write_info_ClusterEvents() *string {
 		//sb.WriteString(fmt.Sprintf("== resource '%s' ==\n", k))
 		// TODO searching for resource in config takes time,
 		// maybe store that info in failure map
-		sb.WriteString(fmt.Sprintf("== id %10d, name %10s, resCtl %10s, action %10s, timeLeft %d, src %10s, dest %10s\n",
+		sb.WriteString(fmt.Sprintf("== id %10d, name %10s, resCtl %10s, res.State %s, action %10s, timeLeft %f, src %10s, dest %10s\n",
 			b.clusterEvents[k].ID,
 			b.clusterEvents[k].Name,
 			b.clusterEvents[k].ResCtlID,
+			_stateString(b.clusterEvents[k].ActionID),
 			b.clusterEvents[k].ActionID,
-			b.clusterEvents[k].TimeoutTime.Sub(time.Now()) ,
+			b.clusterEvents[k].TimeoutTime.Sub(time.Now()).Seconds() ,
+			//time.Now().Sub(b.clusterEvents[k].TimeoutTime),
 			b.clusterEvents[k].Actor,
 			b.clusterEvents[k].Subject))}
 		//sb.WriteString(fmt.Sprintf("\tnodes %+v\n", v))}
@@ -1393,98 +1426,70 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 		if has_changed {
 			b.IncEpoch()}}
 
-type event struct {
-	ID				uint32
-	Name			string
-	ActionID		uint
-	ResCtlID		uint
-	CreationTime	time.Time
-	TimeoutTime		time.Time
-	Actor			string
-	Subject			string
-	Custom1			interface{}
-	}
-
-func createEvent() *event {
-	var e event
-	e.CreationTime = time.Now()
-	e.TimeoutTime = e.CreationTime.Add(
-		time.Millisecond * time.Duration(config.DefaultEventTimeoutTimeSec))
-	return &e }
-
-func (e *event)checktimeout() bool {
-	return time.Now().After(e.TimeoutTime) }
-
-func (b *Brain)getEventById(id uint32) *event {
-	var e *event = nil
-	for k,_:=range b.clusterEvents {
-		if b.clusterEvents[k].ID == id {
-			e = &b.clusterEvents[k]}}
-	return e}
 
 
-func (b *Brain)createLibvirtMigrationEvent( resname *string, destNode *string ) {
-	var e *event = createEvent()
-	var m *message = nil
-	// create unique ID
-	for{
-		if u := rand.Uint32() ; b.getEventById( u ) == nil {
-			e.ID = u
-			continue}}
-	e.ActionID = event_action_libvirt_migration
-	e.ResCtlID = resource_controller_id_libvirt
-	e.Actor = *resname
-	e.Subject = *destNode
-	b.rwmux_events.Lock()
-	b.clusterEvents = append( b.clusterEvents, *e)
-	b.rwmux_events.Unlock()
-	
-	m = brainNewMessage()
-	m.DestHost = "__everyone__"
-	m.Custom1 = *e
-	b.brn_ex <- *m
-	}
+//func (b *Brain)createLibvirtMigrationEvent( resname *string, destNode *string ) {
+//	var e *event = createEvent()
+//	var m *message = nil
+//	// create unique ID
+//	for{
+//		if u := rand.Uint32() ; b.getEventById( u ) == nil {
+//			e.ID = u
+//			continue}}
+//	e.ActionID = event_action_libvirt_migration
+//	e.ResCtlID = resource_controller_id_libvirt
+//	e.Actor = *resname
+//	e.Subject = *destNode
+//	b.rwmux_events.Lock()
+//	b.clusterEvents = append( b.clusterEvents, *e)
+//	b.rwmux_events.Unlock()
+//	
+//	m = brainNewMessage()
+//	m.DestHost = "__everyone__"
+//	m.Custom1 = *e
+//	b.brn_ex <- *m
+//	}
 
-func (b *Brain)checkForExistingMigrationEvents_libvirt(
-	resname *string, destNode *string ) bool {
-	
-	for k,_:=range b.clusterEvents {
-		if	b.clusterEvents[k].ResCtlID == resource_controller_id_libvirt &&
-			b.clusterEvents[k].ActionID == event_action_libvirt_migration &&
-			b.clusterEvents[k].Actor == *resname &&
-			b.clusterEvents[k].Subject == *destNode {
-			return true}}
-	return false}
+//func (b *Brain)checkForExistingMigrationEvents_libvirt(
+//	resname *string, destNode *string ) bool {
+//	
+//	for k,_:=range b.clusterEvents {
+//		if	b.clusterEvents[k].ResCtlID == resource_controller_id_libvirt &&
+//			b.clusterEvents[k].ActionID == event_action_libvirt_migration &&
+//			b.clusterEvents[k].Actor == *resname &&
+//			b.clusterEvents[k].Subject == *destNode {
+//			return true}}
+//	return false}
 
 //	b.montorClusterEvents()
 //	b.createMigrationEvents()
 
-func (b *Brain)createMigrationEvents(){
-	var drp *Cluster_resource = nil //desired res placement ptr
-	var crp *Cluster_resource = nil //current res placement ptr
-	b.rwmux_curPlacement.RLock()
-	b.rwmux_dp.RLock()
-	for node,res_arr :=range b.current_resourcePlacement {
-		for k,_:=range res_arr {
-			crp = nil
-			crp = &res_arr[k]
-			//check if resource exists in desired placement
-			for k2,_:=range b.desired_resourcePlacement {
-				drp = nil
-				drp = &b.desired_resourcePlacement[k2] 
-				if	drp.State == resource_state_running &&
-					crp.State == resource_state_running &&
-					drp.ResourceController_id == crp.ResourceController_id &&
-					drp.Name == crp.Name &&
-					drp.Placement != node {
-					//found resource not running on desired node
-					if ! b.checkForExistingMigrationEvents_libvirt( &drp.Name, 
-						&drp.Placement) {
-						//migration even for this node doesn't exist
-						b.createLibvirtMigrationEvent( &drp.Name,
-							&drp.Placement)}}}}}
-	b.rwmux_curPlacement.RUnlock()
-	b.rwmux_dp.RUnlock()}
+//func (b *Brain)createMigrationEvents(){
+//	var drp *Cluster_resource = nil //desired res placement ptr
+//	var crp *Cluster_resource = nil //current res placement ptr
+//	b.rwmux_curPlacement.RLock()
+//	b.rwmux_dp.RLock()
+//	for node,res_arr :=range b.current_resourcePlacement {
+//		for k,_:=range res_arr {
+//			crp = nil
+//			crp = &res_arr[k]
+//			//check if resource exists in desired placement
+//			for k2,_:=range b.desired_resourcePlacement {
+//				drp = nil
+//				drp = &b.desired_resourcePlacement[k2] 
+//				if	drp.State == resource_state_running &&
+//					crp.State == resource_state_running &&
+//					drp.ResourceController_id == crp.ResourceController_id &&
+//					drp.Name == crp.Name &&
+//					drp.Placement != node {
+//					//found resource not running on desired node
+//					if ! b.checkForExistingMigrationEvents_libvirt( &drp.Name, 
+//						&drp.Placement) {
+//						//migration even for this node doesn't exist
+//						b.createLibvirtMigrationEvent( &drp.Name,
+//							&drp.Placement)}}}}}
+//	b.rwmux_curPlacement.RUnlock()
+//	b.rwmux_dp.RUnlock()}
 
 func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
 	var already_exists bool = false
@@ -1499,3 +1504,15 @@ func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
 		b.rwmux_events.Unlock()
 		return true}
 	return false}
+
+
+func (b *Brain)get_ctrl_live_migration_enabled(c *Cluster_resource) bool {
+	switch c.ResourceController_id {
+		case resource_controller_id_libvirt:
+			return b.resCtl_lvd.Get_live_migration_support()
+		case resource_controller_id_docker:
+			return false
+		case resource_controller_id_dummy:
+			return b.resCtl_Dummy.Get_live_migration_support()
+		default:
+			return false }}

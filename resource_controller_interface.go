@@ -132,6 +132,26 @@ func _stateString(i int) string {
 		return "other  "}}
 
 
+func (c *Cluster_resource)_stateString() string {
+	switch c.State {
+	case resource_state_starting:
+		return "starting"
+	case resource_state_running:
+		return "running"
+	case resource_state_stopping:
+		return "stopping"
+	case resource_state_stopped:
+		return "stopped"
+	case resource_state_paused:
+		return "paused "
+	case resource_state_migrating:
+		return "migrating"
+	case resource_state_other:
+		return "other  "
+	default:
+		return "other  "}}
+
+
 func (c *Cluster_resource)GetStateString() string {
 	switch c.State {
 	case resource_state_starting:
