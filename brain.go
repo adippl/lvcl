@@ -685,6 +685,7 @@ func (b *Brain)writeBrainStatus() *string {
 	var sb strings.Builder
 	var retString string
 	var resEnabled bool
+	
 	sb.WriteString("\n====== Resource controller states ======\n")
 	resEnabled = config.IsCtrlEnabled( resource_controller_id_dummy)
 	sb.WriteString(fmt.Sprintf("dummy ctrl enabled %t", resEnabled))
@@ -702,20 +703,25 @@ func (b *Brain)writeBrainStatus() *string {
 			b.resCtl_lvd.Get_live_migration_support()));}
 	sb.WriteString("\n")
 	sb.WriteString("========================================\n")
+	
 	sb.WriteString("\n====== desired resource placement ======\n")
 	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
+	b.rwmux_dp.RLock()
 	for _,v:=range b.desired_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
 			v.CtlString(), v.DesStateString(), v.Placement, v.Name ))}
+	b.rwmux_dp.RUnlock()
 	sb.WriteString("========================================\n")
 	
 	sb.WriteString("\n====== current resource placement ======\n")
+	b.rwmux_curPlacement.RLock()
 	for k,v:=range b.current_resourcePlacement {
 		sb.WriteString(fmt.Sprintf(" == node %s ==\n", k)) 
 		for _,v2:=range v {
 			sb.WriteString(fmt.Sprintf(
 				"\tctl %-10s\tstate %-10s\tnode %s\tname %s\n",
 				v2.CtlString(), v2.StateString(), v2.Placement, v2.Name ))}}
+	b.rwmux_curPlacement.RUnlock()
 	sb.WriteString("========================================\n")
 		
 	sb.WriteString("\n======= local resource placement =======\n")
