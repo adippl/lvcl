@@ -85,7 +85,7 @@ func NewExchange(	a_brn_ex <-chan message,
 	go e.forwarder()
 	lg.msg_debug(3, "exchange launched forwarder()")
 	go e.initListenTCP()
-	go e.reconnectLoop_simpler()
+	go e.reconnectLoop()
 	go e.sorter()
 	go e.heartbeatSender()
 	go e.updateNodeHealthDelta()
@@ -171,42 +171,52 @@ func (e *Exchange)initListenUnix(){
 		}
 	}
 
-func (e *Exchange)reconnectLoop_simpler(){
+func (e *Exchange)reconnectLoop(){
 	lg.msg_debug(3, "exchange launched reconnectLoop()")
 	for{
 		if e.killExchange { //ugly solution
 			return}
+		//fmt.Println("e.killExchange ", e.killExchange)
 		// mutex
-		e.rwmux_ec.Lock()
-		
+		e.rwmux_ec.RLock()
 		for _,n := range *e.nodeList{
-			if e.outgoing[n.Hostname] == nil && n.Hostname != config._MyHostname() {
+			if e.outgoing[n.Hostname] == nil && n.Hostname != config.MyHostname {
 				
-				// launching this message without goroutine deadlocks the program because we're trying to send message while e.rwmux_ec is Locked
-				go lg.msg_debug(2, fmt.Sprintf("reconnectLoop_simpler() attempting to recconect to host %s",n.Hostname))
-				c,err := net.Dial("tcp",n.NodeAddress)
-				if(err!=nil){
-					
-					// launching this message without goroutine deadlocks the program because we're trying to send message while e.rwmux_ec is Locked
-					go lg.err(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err), err)
-					e.outgoing[n.Hostname]=nil //just to be sure
-					err = nil
-				}else{
-					ec := eclient{
-						hostname:		n.Hostname,
-						originLocal:	true,
-						outgoing:		make(chan message),
-						conn:			c,
-						exch:			e,
-						}
-					go ec.forward();
-					e.outgoing[n.Hostname]=&ec }}}
-		
-		e.rwmux_ec.Unlock()
+				//lg.msg_debug(1, fmt.Sprintf(
+				//	"attempting to recconect to host %s",n.Hostname))
+				
+				go e.startConn(n)
+				}}
+		e.rwmux_ec.RUnlock()
 		// end of mutex
 		time.Sleep(
 			time.Millisecond * time.Duration(config.ReconnectLoopDelay))}}
 
+
+func (e *Exchange)startConn(n Node){	//TODO connect to eclient
+	if(n.Hostname == config.MyHostname){
+		return}
+	c,err := net.Dial("tcp",n.NodeAddress)
+	if(err!=nil){
+		lg.msg(fmt.Sprintf("ERR, dialing %s error: \"%s\"", n.Hostname, err))
+		// mutex
+		e.rwmux_ec.Lock()
+		e.outgoing[n.Hostname]=nil //just to be sure
+		e.rwmux_ec.Unlock()
+		// mutex
+		return}
+	ec := eclient{
+		hostname:		n.Hostname,
+		originLocal:	true,
+		outgoing:		make(chan message),
+		conn:			c,
+		exch:			e,
+		}
+	go ec.forward();
+	e.rwmux_ec.Lock()
+	e.outgoing[n.Hostname]=&ec
+	e.rwmux_ec.Unlock()
+	}
 
 func (e *Exchange)forwarder(){
 	var m *message
