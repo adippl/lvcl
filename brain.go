@@ -45,6 +45,8 @@ type Brain struct{
 	rwmuxHealth				sync.RWMutex
 	rwmux					sync.RWMutex
 	balancerTicksPassed		int
+//	eventEpoch				int
+//	eventEpoch_old			int
 	
 	//resourceControllers		map[uint]interface{}
 	resCtl_lvd					*lvd
@@ -75,6 +77,8 @@ func NewBrain(a_ex_brn <-chan message, a_brn_ex chan<- message) *Brain {
 		voteCounterExists:		false,
 		quorum:					0,
 		balancerTicksPassed:	0,
+//		eventEpoch:				0,
+//		eventEpoch_old:			0,
 		
 		ex_brn:					a_ex_brn,
 		brn_ex:					a_brn_ex,
@@ -236,6 +240,7 @@ func (b *Brain)countVotes(){
 
 func (b *Brain)zeroVariablesAfterBecomingMaster(){
 	b.balancerTicksPassed = 0
+//	b.zero_eventEpoch()
 //	b.current_resourcePlacement = make(map[string][]Cluster_resource)
 //	b.failureMap = make(map[string][]string)
 	}
@@ -564,10 +569,10 @@ func (b *Brain)cleanup_timed_out_events(){
 		if event.checktimeout() == false {
 			new_ev_list = append( new_ev_list, event )
 		}else{
-			lg.msg(fmt.Sprintf("ERROR cluster event %d %s timed out",
+			go lg.msg(fmt.Sprintf("ERROR cluster event %d %s timed out",
 				event.ID,
 				event.Name ))
-			lg.msg_debug(5, fmt.Sprintf(
+			go lg.msg_debug(1, fmt.Sprintf(
 				"cleanup_timed_out_events cleans up event %d %s because of timeout",
 				event.ID,
 				event.Name ))}}
@@ -1087,7 +1092,6 @@ func (b *Brain)write_info_ClusterEvents() *string {
 			_stateString(b.clusterEvents[k].ActionID),
 			b.clusterEvents[k].ActionID,
 			b.clusterEvents[k].TimeoutTime.Sub(time.Now()).Seconds() ,
-			//time.Now().Sub(b.clusterEvents[k].TimeoutTime),
 			b.clusterEvents[k].Actor,
 			b.clusterEvents[k].Subject))}
 		//sb.WriteString(fmt.Sprintf("\tnodes %+v\n", v))}
@@ -1310,7 +1314,7 @@ func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
 
 func (b *Brain)sendMsg_resFailure(r *Cluster_resource, action string, id int){
 	var m *message = brainNewMessage()
-		m.DestHost="__EVERYONE__"
+		m.DestHost="__everyone__"
 		m.RpcFunc=brainNotifyMasterAboutResourceFailure
 		m.Argv = []string{r.Name, r.ResourceController_name, action}
 	m.Custom1 = r.ResourceController_id
@@ -1336,7 +1340,7 @@ func (b *Brain)msg_handle__brainNotifyMasterResourceFailure(m *message) bool{
 
 func (b *Brain)send_localResourcesToMaster(){
 	var m *message = brainNewMessage()
-		m.DestHost = "__EVERYONE__"
+		m.DestHost = "__everyone__"
 		m.RpcFunc = brainNotifyMasterAboutLocalResources
 		b.rwmux_locP.RLock()
 		if len(b.local_resourcePlacement) == 0 {
@@ -1383,7 +1387,7 @@ func (b *Brain)check_if_resource_is_running_on_cluster(r *Cluster_resource) bool
 			if 	v[k].Name == r.Name &&
 				v[k].State == resource_state_running  {
 				b.rwmux_curPlacement.RUnlock()
-			lg.msg_debug(5, fmt.Sprintf("check_if_resource_is_running_on_cluster() found running resource %T %s and comparing with %T %s", r, r.Name, v[k], v[k].Name))
+				//lg.msg_debug(5, fmt.Sprintf("check_if_resource_is_running_on_cluster() found running resource %T %s and comparing with %T %s", r, r.Name, v[k], v[k].Name))
 				return true}}}
 	b.rwmux_curPlacement.RUnlock()
 	return false}
@@ -1528,19 +1532,6 @@ func (b *Brain)initial_placementAfterBecomingMaster(){
 //							&drp.Placement)}}}}}
 //	b.rwmux_curPlacement.RUnlock()
 //	b.rwmux_dp.RUnlock()}
-
-func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
-	if m.RpcFunc == brainNotifyAboutNewClusterEvent {
-		if b.getEventById( m.Custom1.(event).ID ) == nil{
-		b.rwmux_events.Lock()
-			b.clusterEvents = append( b.clusterEvents, m.Custom1.(event))}
-		b.rwmux_events.Unlock()
-		lg.msg_debug(5, fmt.Sprintf("msg_handle_brainNotifyAboutNewClusterEvent() adds event %d %s to clusterEvents",
-			m.Custom1.(event).ID,
-			m.Custom1.(event).Name))
-		return true}
-	return false}
-
 
 func (b *Brain)get_ctrl_live_migration_enabled(c *Cluster_resource) bool {
 	switch c.ResourceController_id {

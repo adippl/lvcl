@@ -1,0 +1,5 @@
+
+
+Mutex deadlock → never user lg.msg, lg.msg_debug lg.err inside mutex lock without goroutine
+
+less than Mutex in dump → probably channel deadlock
