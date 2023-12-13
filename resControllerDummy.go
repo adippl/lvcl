@@ -25,13 +25,13 @@ type Dummy_rctl struct {
 	utilization		[]Cluster_utilization
 }
 
-func (c *Dummy_rctl)Get_running_resources() *[]Cluster_resource {
+func (c Dummy_rctl)Get_running_resources() *[]Cluster_resource {
 	return &c.resources }
 
-func (c *Dummy_rctl)Get_utilization() *[]Cluster_utilization {
+func (c Dummy_rctl)Get_utilization() *[]Cluster_utilization {
 	return &c.utilization }
 
-func (c *Dummy_rctl)Start_resource(name string) bool {
+func (c Dummy_rctl)Start_resource(name string) bool {
 	lg.msg("Dummy resource "+name+" starting")
 	res := config.GetCluster_resourcebyName(&name)
 	if res == nil {
@@ -41,7 +41,7 @@ func (c *Dummy_rctl)Start_resource(name string) bool {
 	c.resources = append(c.resources, *res)
 	return true}
 
-func (c *Dummy_rctl)Stop_resource(name string) bool {
+func (c Dummy_rctl)Stop_resource(name string) bool {
 	lg.msg("Dummy resource "+name+" stopping")
 	for k,_:=range c.resources {
 		if c.resources[k].Name == name {
@@ -51,7 +51,7 @@ func (c *Dummy_rctl)Stop_resource(name string) bool {
 	lg.msg("Dummy resource "+name+" couldn't stop, doesn't exist")
 	return false}
 
-func (c *Dummy_rctl)Nuke_resource(name string) bool {
+func (c Dummy_rctl)Nuke_resource(name string) bool {
 	lg.msg("Dummy resource "+name+" Nukked")
 	for k,_:=range c.resources {
 		if c.resources[k].Name == name {
@@ -60,12 +60,12 @@ func (c *Dummy_rctl)Nuke_resource(name string) bool {
 			return true}}
 	return true}
 
-func (c *Dummy_rctl)Migrate_resource(resource_name string,
+func (c Dummy_rctl)Migrate_resource(resource_name string,
 	dest_node string) bool {
 	lg.msg("Dummy resource "+resource_name+" migrating to "+dest_node)
 	return true}
 
-func (c *Dummy_rctl)Clean_resource(name string) bool {
+func (c Dummy_rctl)Clean_resource(name string) bool {
 	lg.msg("Dummy resource "+name+" cleanned up")
 	for k,_:=range c.resources {
 		if c.resources[k].Name == name {
@@ -74,7 +74,7 @@ func (c *Dummy_rctl)Clean_resource(name string) bool {
 			return true}}
 	return false}
 
-func (c *Dummy_rctl)Kill_controller() bool {
+func (c Dummy_rctl)Kill_controller() bool {
 	lg.msg("Dummy resource controller Killed")
 	return true}
 
@@ -85,9 +85,9 @@ func NewDummy() *Dummy_rctl {
 		resources:		make([]Cluster_resource, 0),
 		utilization:	make([]Cluster_utilization, 0)}}
 
-func (c *Dummy_rctl)Get_controller_health() bool {
+func (c Dummy_rctl)Get_controller_health() bool {
 	return true }
 
 
-func (c *Dummy_rctl)Get_live_migration_support() bool {
+func (c Dummy_rctl)Get_live_migration_support() bool {
 	return false}

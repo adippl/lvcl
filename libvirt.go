@@ -326,7 +326,7 @@ func (l *lvd)lvd_cluster_utilization_template() *Cluster_utilization {
 	return &cr
 	}
 
-func (l *lvd)Get_running_resources() *[]Cluster_resource {
+func (l lvd)Get_running_resources() *[]Cluster_resource {
 	var ret []Cluster_resource
 	l.updateDomStates()
 	
@@ -358,7 +358,7 @@ func (l *lvd)Get_running_resources() *[]Cluster_resource {
 	}
 
 
-func (l *lvd)Get_utilization() *[]Cluster_utilization {
+func (l lvd)Get_utilization() *[]Cluster_utilization {
 	//var ret []utilization
 	ret := make([]Cluster_utilization,0,10)
 	var util *Cluster_utilization
@@ -408,7 +408,7 @@ func (l *lvd)Get_utilization() *[]Cluster_utilization {
 	return &ret
 	}
 
-func (l *lvd)Start_resource(name string) bool {
+func (l lvd)Start_resource(name string) bool {
 	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
 		lg.err("lvd.Start_resource() config.GetVMbyName returned null pointer", nil)
@@ -440,7 +440,7 @@ func (l *lvd)GetDomainPtr(domain_name string) *libvirt.Domain {
 		err=nil}
 	return(r_dom)}
 
-func (l *lvd)Stop_resource(name string) bool {
+func (l lvd)Stop_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
 	vm := config.GetCluster_resourcebyName(&name)
@@ -458,7 +458,7 @@ func (l *lvd)Stop_resource(name string) bool {
 	dom.Free()
 	return(ret)}
 
-func (l *lvd)Nuke_resource(name string) bool {
+func (l lvd)Nuke_resource(name string) bool {
 	var ret bool = false
 	//doms, err = l.daemonConneciton.ListAllDomains(0)
 	vm := config.GetCluster_resourcebyName(&name)
@@ -476,7 +476,7 @@ func (l *lvd)Nuke_resource(name string) bool {
 	dom.Free()
 	return(ret)}
 
-func (l *lvd)Kill_controller() bool {
+func (l lvd)Kill_controller() bool {
 	l.lvdKill=true
 	time.Sleep(time.Millisecond * 1000)
 	//defer conn.Close()
@@ -486,11 +486,11 @@ func (l *lvd)Kill_controller() bool {
 	lg.msg(fmt.Sprintf("DEBUG lvd.kill_controller returned %d",rc))
 	return(true)}
 	
-func (l *lvd)Clean_resource(name string) bool {
+func (l lvd)Clean_resource(name string) bool {
 	lg.msg("WARNING lvd.clean_controller IS A PLACEHOLDER FOR REAL METHOD")
 	return(true)}
 	
-func (l *lvd)Migrate_resource(name string, dest_node string) bool {
+func (l lvd)Migrate_resource(name string, dest_node string) bool {
 	lg.msg("WARNING lvd.migrate_controller IS A PLACEHOLDER FOR REAL METHOD")
 	return(true)}
 
@@ -499,7 +499,7 @@ func (l *lvd)Migrate_resource(name string, dest_node string) bool {
 
 // placeholder
 // TODO implement
-func (c *lvd)Get_controller_health() bool {
+func (c lvd)Get_controller_health() bool {
 	var isalive bool = false
 	var err error = nil
 	
@@ -515,5 +515,5 @@ func (c *lvd)Get_controller_health() bool {
 	return isalive }
 
 
-func (c *lvd)Get_live_migration_support() bool {
+func (c lvd)Get_live_migration_support() bool {
 	return c.live_migration}

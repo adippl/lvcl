@@ -414,7 +414,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-1.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,
@@ -452,7 +452,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-2.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,
@@ -490,7 +490,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-3.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,
@@ -528,7 +528,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-4.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,
@@ -566,7 +566,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-5.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,
@@ -604,7 +604,7 @@ func writeExampleConfig(){
 						},
 					},
 				Strs: map[string]string{
-					"DomainXML": "tests struct embedded in main cluster.conf",
+					"DomainXML": "/var/lib/libvirt/images/domains/gh-test-6.xml",
 				},
 				Ints: map[string]int{
 					"MigrationTimeout" : 180,

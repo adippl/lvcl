@@ -394,7 +394,7 @@ func (e *Exchange)sorter(){
 		if e.msg_handler_forward_to_brain(&m) {continue}
 		
 		////pass Brain messages broadcasted to __EVEYONE__
-		//if e.msg_handler_forward_to_brain__EVERYONE__(&m) {continue}
+		if e.msg_handler_forward_to_brain__EVERYONE__(&m) {continue}
 		
 		//update heartbeat values from heartbeat messages
 		if m.validate_Heartbeat() {
@@ -526,16 +526,16 @@ func (e *Exchange)msg_handler_forward_to_brain(m *message) bool {
 	return false}
 
 // NOT SAFE do not  use without extensivve testing
-//func (e *Exchange)msg_handler_forward_to_brain__EVERYONE__(m *message) bool {
-//	if	m.SrcMod == msgModBrain &&
-//		m.DestMod == msgModBrain &&
-//		m.DestHost == "__EVERYONE__" {
-//		
-//		if config.DebugNetwork {
-//			fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
-//		e.ex_brn <- *m;
-//		return true}
-//	return false}
+func (e *Exchange)msg_handler_forward_to_brain__EVERYONE__(m *message) bool {
+	if	m.SrcMod == msgModBrain &&
+		m.DestMod == msgModBrain &&
+		m.DestHost == "__EVERYONE__" {
+		
+		if config.DebugNetwork {
+			fmt.Printf("DEBUG SORTER passed to brain %+v\n", m)}
+		e.ex_brn <- *m;
+		return true}
+	return false}
 
 func (e *Exchange)msg_handler_forward_to_logger(m *message) bool {
 	if	m.logger_message_validate() {

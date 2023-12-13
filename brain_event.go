@@ -24,13 +24,14 @@ import "strconv"
 
 type event struct {
 	ID				uint64
-	Name			string
+	EvName			string
 	ActionID		int
 	ResCtlID		int
 	CreationTime	time.Time
 	TimeoutTime		time.Time
 	Actor			string
 	Subject			string
+	ResName			string
 	Custom1			interface{}
 	}
 
@@ -60,10 +61,20 @@ func (b *Brain)getEventById(id uint64) *event {
 	b.rwmux_events.RUnlock()
 	return e}
 
+func (b *Brain)getEventByEvName(EvName *string) *event {
+	var e *event = nil
+	b.rwmux_events.RLock()
+	for k,_:=range b.clusterEvents {
+		if b.clusterEvents[k].EvName == *EvName {
+			e = &b.clusterEvents[k]}}
+	b.rwmux_events.RUnlock()
+	return e}
+
+
 func (b *Brain)append_clusterEvents( e *event ){
 	lg.msg_debug(5, fmt.Sprintf("append_clusterEvents() adds event %d %s to clusterEvents",
 		e.ID,
-		e.Name))
+		e.EvName))
 	b.rwmux_events.Lock()
 	b.clusterEvents = append( b.clusterEvents , *e)
 //	b.eventEpoch++ 
@@ -78,13 +89,14 @@ func (b *Brain)send_events_to_nodes( e *event){
 	m.RpcFunc=brainNotifyAboutNewClusterEvent
 	m.Argv = []string{
 		strconv.FormatUint(e.ID,10),
-		e.Name,
+		e.EvName,
 		strconv.Itoa(e.ActionID),
 		strconv.Itoa(e.ResCtlID),
 		e.CreationTime.Format(time.RFC3339),
 		e.TimeoutTime.Format(time.RFC3339),
 		e.Actor,
 		e.Subject,
+		e.ResName,
 		}
 	m.Custom1 = *e
 
@@ -94,40 +106,63 @@ func (b *Brain)send_events_to_nodes( e *event){
 
 func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
 	var u uint64 = 0
+	var i1 int = 0
+	var i2 int = 0
 	var e error = nil
 	if m.RpcFunc == brainNotifyAboutNewClusterEvent {
 		
+
+		event := event{
+			EvName: 		m.Argv[1],
+			Actor:			m.Argv[6],
+			Subject:		m.Argv[7],
+			ResName:		m.Argv[8],
+		}
 		u,e = strconv.ParseUint(m.Argv[0], 10, 64)
 		if e != nil {
 			// network critical function, logging function has to run as separate thread to prevent lockup
-			go lg.err("Brain.send_events_to_nodes() u err", e)
+			go lg.err("Brain.msg_handle_brainNotifyAboutNewClusterEvent() u err", e)
 			return true}
 		e=nil
+		event.ID = u
+		
+		i1,e = strconv.Atoi(m.Argv[2])
+		if e != nil {
+			// network critical function, logging function has to run as separate thread to prevent lockup
+			go lg.err("Brain.msg_handle_brainNotifyAboutNewClusterEvent() i1 err", e)
+			return true}
+		e=nil
+		event.ActionID = i1
+
+		i2,e = strconv.Atoi(m.Argv[3])
+		if e != nil {
+			// network critical function, logging function has to run as separate thread to prevent lockup
+			go lg.err("Brain.msg_handle_brainNotifyAboutNewClusterEvent() i2 err", e)
+			return true}
+		e=nil
+		event.ResCtlID = i2
+		
 		t1,e := time.Parse(time.RFC3339, m.Argv[4])
 		if e != nil {
 			// network critical function, logging function has to run as separate thread to prevent lockup
-			go lg.err("Brain.send_events_to_nodes() t1 err", e)
+			go lg.err("Brain.msg_handle_brainNotifyAboutNewClusterEvent() t1 err", e)
 			return true}
 		e=nil
+		event.CreationTime = t1
+
 		t2,e := time.Parse(time.RFC3339, m.Argv[5])
 		if e != nil {
 			// network critical function, logging function has to run as separate thread to prevent lockup
-			go lg.err("Brain.send_events_to_nodes() t2 err", e)
+			go lg.err("Brain.msg_handle_brainNotifyAboutNewClusterEvent() t2 err", e)
 			return true}
-		ev := event{
-			ID:		u,
-			Name: 	m.Argv[1],
-			CreationTime:	t1,
-			TimeoutTime:	t2,
-			Actor:			m.Argv[6],
-			Subject:		m.Argv[7],
-		}
-		if b.getEventById( ev.ID ) == nil{
-			b.append_clusterEvents( &ev )
+		event.TimeoutTime = t2
+
+		if b.getEventById( event.ID ) == nil{
+			b.append_clusterEvents( &event )
 			// network critical function, logging function has to run as separate thread to prevent lockup
-			go lg.msg_debug(5, fmt.Sprintf("msg_handle_brainNotifyAboutNewClusterEvent() adds event %d %s to clusterEvents",
-				ev.ID,
-				ev.Name))}
+			go lg.msg_debug(5, fmt.Sprintf("Brain.msg_handle_brainNotifyAboutNewClusterEvent() adds event %d %s to clusterEvents",
+				event.ID,
+				event.EvName))}
 		return true}
 	return false}
 
@@ -153,8 +188,9 @@ func (b *Brain)msg_handle_brainNotifyAboutNewClusterEvent(m *message) bool {
 func (e1 *event)compare_events_timeout_check_e2(e2 *event) bool {
 	if e1.ActionID == e2.ActionID &&
 		e1.ResCtlID == e2.ResCtlID &&
-		e1.Name == e2.Name &&
-		e2.checktimeout() != true {
+		e1.ResName == e2.ResName &&
+		e1.EvName == e2.EvName &&
+		e1.checktimeout() != true {
 		
 		return true}
 	return false}
@@ -172,9 +208,11 @@ func (b *Brain)check_if_event_already_exist_and_active( e *event ) bool {
 func (b *Brain)create_event_start_resource(r *Cluster_resource) bool {
 	e := createEvent()
 	e.ID = rand.Uint64()
-	e.Name = fmt.Sprintf("starting %s on %s with %s", r.Name, r.Placement, r.CtlString())
+	e.EvName = fmt.Sprintf("starting %s on %s with %s", r.Name, r.Placement, r.CtlString())
 	e.ActionID = resource_state_running
 	e.ResCtlID = r.ResourceController_id
+	e.ResName = r.Name
+	e.Actor = r.Placement
 	
 	// check if exists event with the same ID. Recreate ID and check again
 	for b.getEventById( e.ID ) != nil {
@@ -183,7 +221,7 @@ func (b *Brain)create_event_start_resource(r *Cluster_resource) bool {
 	if b.check_if_event_already_exist_and_active(e) {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
-			e.Name))
+			e.EvName))
 		return false}
 	b.append_clusterEvents(e)
 	return true}
@@ -191,9 +229,11 @@ func (b *Brain)create_event_start_resource(r *Cluster_resource) bool {
 func (b *Brain)create_event_stop_resource(r *Cluster_resource) bool {
 	e := createEvent()
 	e.ID = rand.Uint64()
-	e.Name = fmt.Sprintf("stopping %s on %s with %s", r.Name, r.Placement, r.CtlString())
+	e.EvName = fmt.Sprintf("stopping %s on %s with %s", r.Name, r.Placement, r.CtlString())
 	e.ActionID = resource_state_stopped
 	e.ResCtlID = r.ResourceController_id
+	e.ResName = r.Name
+	e.Actor = r.Placement
 	
 	// check if exists event with the same ID. Recreate ID and check again
 	for b.getEventById( e.ID ) != nil {
@@ -202,7 +242,7 @@ func (b *Brain)create_event_stop_resource(r *Cluster_resource) bool {
 	if b.check_if_event_already_exist_and_active(e) {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
-			e.Name))
+			e.EvName))
 		return false}
 	b.append_clusterEvents(e)
 	return true}
@@ -211,9 +251,10 @@ func (b *Brain)create_event_stop_resource(r *Cluster_resource) bool {
 func (b *Brain)create_event_nuke_resource(r *Cluster_resource) bool {
 	e := createEvent()
 	e.ID = rand.Uint64()
-	e.Name = fmt.Sprintf("nuking %s on %s with %s", r.Name, r.Placement, r.CtlString())
+	e.EvName = fmt.Sprintf("nuking %s on %s with %s", r.Name, r.Placement, r.CtlString())
 	e.ActionID = resource_state_nuked
 	e.ResCtlID = r.ResourceController_id
+	e.Actor = r.Placement
 	
 	// check if exists event with the same ID. Recreate ID and check again
 	for b.getEventById( e.ID ) != nil {
@@ -222,7 +263,7 @@ func (b *Brain)create_event_nuke_resource(r *Cluster_resource) bool {
 	if b.check_if_event_already_exist_and_active(e) {
 		lg.msg_debug(5, fmt.Sprintf(
 			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
-			e.Name))
+			e.EvName))
 		return false}
 	b.append_clusterEvents(e)
 	return true}
