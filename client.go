@@ -189,7 +189,7 @@ func (m *message)msg_handle_clientAskResStateChangeReply() bool {
 		m.RpcFunc == clientAskResStateChangeReply {
 		
 		clogger(0, m.Argv[3])
-		os.Exit(m.Custom1.(int))
+		os.Exit(int(m.Epoch))
 		return true}
 	return false}
 

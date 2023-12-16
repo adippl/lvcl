@@ -133,7 +133,7 @@ func (e *Exchange)initListenTCP(){
 
 func (e *Exchange)initListenUnix(){
 	var err error
-	var sockId uint
+	var sockId uint64
 	var s_usockID string
 	var ec *eclient
 	e.listenUnix, err = net.Listen("unix", config.UnixSocket)
@@ -146,7 +146,7 @@ func (e *Exchange)initListenUnix(){
 		conn,err := e.listenUnix.Accept()
 		if err != nil {
 			lg.err("ERR, net.Listener.Accept() ",err)}
-		sockId = uint(rand.Uint32())
+		sockId = rand.Uint64()
 		s_usockID = fmt.Sprintf("usock_%d", sockId)
 		lg.msg_debug(1, fmt.Sprintf(
 			"Received connection to Unix Socket, asigning sock id=%d", sockId))
@@ -600,7 +600,7 @@ func (e *Exchange)msg_handle_forward_logger_to_client_tap(m *message) bool {
 		return true}
 	return false}
 
-func (ec *eclient)sendUsockClientID(id uint){
+func (ec *eclient)sendUsockClientID(id uint64){
 		var t time.Time = time.Now()
 		m := message{
 			SrcHost:	config._MyHostname(),
@@ -610,7 +610,7 @@ func (ec *eclient)sendUsockClientID(id uint){
 			RpcFunc:	exchangeSendClientID,
 			Time:		t,
 			Argv:		[]string{ec.hostname},
-			Custom1:	id,
+			Epoch:	id,
 			}
 		ec.outgoing <- m}
 
@@ -809,7 +809,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		
 		if validateStateFlag(&m.Argv[1]) == false {
 			//message arrived with wrong 
-			reply.Custom1=11
+			reply.Epoch=11
 			reply.Argv = append(reply.Argv, "error wrong state requested")
 			lg.msgERR("error wrong state requested")
 			e.replyToUsock(&reply)
@@ -828,7 +828,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 			newState = resource_state_nuked
 		default:
 			//reply with error
-			reply.Custom1=12
+			reply.Epoch=12
 			reply.Argv = append(reply.Argv, "error wrong state requested 2")
 			lg.msgERR("error wrong state requested 2")
 			e.replyToUsock(&reply)
@@ -838,7 +838,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		res = config.GetCluster_resourcebyName_RW(&m.Argv[0])
 		if res == nil {
 			// resource doesn't exists
-			reply.Custom1=13
+			reply.Epoch=13
 			reply.Argv = append(reply.Argv, "couldn't find resource")
 			lg.msgERR("couldn't find resource")
 			e.replyToUsock(&reply)
@@ -853,7 +853,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		lg.msg_debug(2, fmt.Sprintf("resource %s changing state to %s",
 			res.Name, res.StateString()))
 		//positive reply
-		reply.Custom1 = 0
+		reply.Epoch = 0
 		reply.Argv = append(reply.Argv, "resource changed state")
 		e.replyToUsock(&reply)
 		return true}
@@ -871,8 +871,8 @@ func (e *Exchange)msg_handle_confNotifAboutEpoch(m *message) bool {
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdateAsk
 			m.Argv[0] = "requesting config from host with higher epoch"
-			bk_epo = uint64(m.Custom1.(float64))
-			m.Custom1 = config.GetEpoch()
+			bk_epo = m.Epoch
+			m.Epoch = config.GetEpoch()
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"found node with higher epoch %s (our %d theirs %d)",
@@ -892,17 +892,17 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdateAsk(m *message) bool {
 			m.SrcHost = config._MyHostname()
 			m.RpcFunc = confNotifAboutEpochUpdate
 			m.Argv[0] = "sending config with newer epoch"
-			m.Custom1 = config.GetEpoch()
+			m.Epoch = config.GetEpoch()
 			// mutex
 			config.rwmux.RLock()
-			m.Custom1 = config.Resources
+			m.Cres = config.Resources
 			config.rwmux.RUnlock()
 			// end of mutex
 			e.loc_ex <- *m
 			lg.msg_debug(2, fmt.Sprintf(
 				"sending config to node %s (epoch %d)",
 				m.DestHost,
-				m.Custom1))}
+				m.Epoch))}
 			return true}
 	return false}
 
@@ -914,7 +914,7 @@ func (e *Exchange)msg_handle_confNotifAboutEpochUpdate(m *message) bool {
 			
 		if config.isTheirEpochAhead(m.Epoch) {
 			config.rwmux.Lock()
-			config.Resources = m.Custom1.([]Cluster_resource)
+			config.Resources = m.Cres
 			config.Epoch = m.Epoch
 			config._saveAllResources()
 			config.rwmux.Unlock()
