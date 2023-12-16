@@ -22,6 +22,7 @@ import "gitlab.com/libvirt/libvirt-go-module"
 import "fmt"
 import "io/ioutil"
 import "time"
+import "os/exec"
 
 const(
 	lvdVmStateNil=iota
@@ -186,39 +187,6 @@ func (l *lvd)updateDomStates(){
 		fmt.Println("lvd object ptr == nil")
 		return }
 	
-//	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
-//	if err != nil {
-//		return}
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if err == nil {
-//			l.domStates[name] = lvdVmStateRunning }
-//		dom.Free()}
-	
-//	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_PAUSED)
-//	if err != nil {
-//		return}
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if err == nil {
-//			l.domStates[name] = lvdVmStatePaused}
-//		dom.Free() }
-
-//	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
-//	if err != nil {
-//		return}
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if(err == nil){
-//			l.domStates[name] = lvdVmStateOther
-//			//state,_,err := dom.GetState()
-//			_,_,err := dom.GetState()
-//			if(err != nil){
-//				l.domStates[name] = lvdVmStateOther
-//			}else{
-//				lg.err("updateDomStates", err)}}
-//		dom.Free()}
-	
 	doms, err := l.daemonConneciton.ListAllDomains(0)
 	if err != nil {
 		lg.err("DEBUG l.daemonConneciton.ListAllDomains(0)", err)
@@ -260,56 +228,6 @@ func (l *lvd)updateDomStates(){
 //			lg.err("updateDomStates last GetName",err)}
 		dom.Free()}}
 
-//func (l *lvd)UpdataAndPrintDomStates(){
-//	l.domStates = make(map[string]uint)
-//	if l == nil {
-//		fmt.Println("lvd object ptr == nil")
-//		return }
-//	doms, err := l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
-//	if err != nil {
-//	    lg.err("libvirt listAllDomains",err)
-//		return}
-//	
-//	fmt.Printf("%d running domains:\n", len(doms))
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if err == nil {
-//			l.domStates[name] = lvdVmStateRunning
-//			if config.DebugLibvirtShowDomStates {
-//				fmt.Printf("running  %s\n", name) }}
-//		dom.Free() }
-//	
-//	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_PAUSED)
-//	if err != nil {
-//	    lg.err("libvirt listAllDomains",err)
-//		return}
-//	
-//	fmt.Printf("%d paused domains:\n", len(doms))
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if err == nil {
-//			l.domStates[name] = lvdVmStatePaused
-//			fmt.Printf("paused  %s\n", name) }
-//		dom.Free() }
-//
-//	doms, err = l.daemonConneciton.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_OTHER)
-//	if err != nil {
-//	    lg.err("libvirt listAllDomains",err)
-//		return}
-//	
-//	fmt.Printf("%d other domains:\n", len(doms))
-//	for _, dom := range doms {
-//		name, err := dom.GetName()
-//		if(err == nil){
-//			l.domStates[name] = lvdVmStateOther
-//			state,_,err := dom.GetState()
-//			if(err != nil){
-//				fmt.Printf("state:%+v  %s\n",state , name ) 
-//			}else{
-//				lg.err("updateDomStates", err)
-//				fmt.Printf("state: %v %v\n",state , name ) }} 
-//		dom.Free() }}
-
 func (l *lvd)lvd_cluster_resource_template() *Cluster_resource {
 	cr := Cluster_resource{
 		ResourceController_name: "libvirt",
@@ -331,7 +249,7 @@ func (l lvd)Get_running_resources() *[]Cluster_resource {
 	l.updateDomStates()
 	
 	for name,v := range l.domStates {
-		dom := config.GetCluster_resourcebyName_RW(&name)
+		dom := config.GetCluster_resourcebyName(&name)
 		if dom == nil {
 			continue}
 		//if dom.State = resource_state_stopped {
@@ -442,21 +360,42 @@ func (l *lvd)GetDomainPtr(domain_name string) *libvirt.Domain {
 
 func (l lvd)Stop_resource(name string) bool {
 	var ret bool = false
-	//doms, err = l.daemonConneciton.ListAllDomains(0)
-	vm := config.GetCluster_resourcebyName(&name)
-	if(vm==nil){
-		return(false)}
-	dom := l.GetDomainPtr(vm.Name)
-	if(dom==nil){
-		return(false)}
-	err := dom.Shutdown()
-	if(err!=nil){
-		lg.err("lvd.stop_resource domain failed to stop",err)
-		return(false)
-	}else{
-		ret=true}
-	dom.Free()
+	lg.msg_debug(5, fmt.Sprintf("lvd.Stop_resource() starts to stop %s resources", name))
+	//dom := l.GetDomainPtr(name)
+	//if(dom==nil){
+	//	lg.msg(fmt.Sprintf("lvd.Stop_resource() GetDomainPtr returned %p", dom))
+	//	dom.Free()
+	//	return(false)}
+	//state := lvd_state_to_lvcl_state(dom)
+	//if state == resource_state_stopped {
+	//	lg.msg(fmt.Sprintf("lvd.Stop_resource() undefines %s", name))
+	//	if e := dom.Undefine() ; e != nil {
+	//		lg.msgERR(fmt.Sprintf("lvd.stop_resource domain failed to undefine %s", name))
+	//		ret=false
+	//	}else{
+	//		ret=true}}
+	//if state == resource_state_running {
+	//	lg.msg(fmt.Sprintf("lvd.Stop_resource() shutdown %s", name))
+	//	if e := dom.Shutdown() ; e != nil {
+	//		lg.err(fmt.Sprintf("lvd.stop_resource domain failed to stop %s", name), e)
+	//		ret=false
+	//	}else{
+	//		ret=true}}
+	//lg.msg(fmt.Sprintf("lvd.Stop_resource() GetDomainPtr returned %d", _stateString( state )))
+	exec.Command("virsh", "shutdown", name).Run()
+	exec.Command("virsh", "undefine", name).Run()
+	//dom.Free()
 	return(ret)}
+
+func lvd_state_to_lvcl_state(dom *libvirt.Domain) int {
+	state,_,_ := dom.GetState()
+	switch state {
+		case libvirt.DOMAIN_RUNNING:
+			return resource_state_running
+		case libvirt.DOMAIN_SHUTOFF:
+			return resource_state_stopped
+		default:
+			return resource_state_other}}
 
 func (l lvd)Nuke_resource(name string) bool {
 	var ret bool = false
@@ -469,7 +408,7 @@ func (l lvd)Nuke_resource(name string) bool {
 		return(false)}
 	err := dom.Destroy()
 	if(err!=nil){
-		lg.err("lvd.stop_resource domain failed to stop",err)
+		lg.err(fmt.Sprintf("lvd.stop_resource domain failed to stop %s", vm.Name) ,err)
 		return(false)
 	}else{
 		ret=true}

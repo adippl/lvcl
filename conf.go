@@ -132,7 +132,7 @@ func confLoad(){
 	
 	
 	loadAllVMfiles()
-	config._fix_resource_ISs()
+	config._fix_resource_IDs()
 	config._fix_node_ISs()
 	config._saveAllResources()
 	
@@ -254,15 +254,6 @@ func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 		if t.Name == *argName{
 			c.rwmux.RUnlock()
 			return &t}}
-	config.rwmux.RUnlock()
-	return nil}
-
-func (c *Conf)GetCluster_resourcebyName_RW(argName *string)(v *Cluster_resource){
-	c.rwmux.RLock()
-	for v,t:= range c.Resources{
-		if t.Name == *argName{
-			c.rwmux.RUnlock()
-			return &c.Resources[v]}}
 	config.rwmux.RUnlock()
 	return nil}
 
@@ -390,7 +381,8 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-1",
 				Id: 1001,
-				DesState: resource_state_running,
+				State: resource_state_running,
+				State_name: "off",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -428,7 +420,8 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-2",
 				Id: 1002,
-				DesState: resource_state_running,
+				State: resource_state_running,
+				State_name: "off",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -466,7 +459,8 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-3",
 				Id: 1003,
-				DesState: resource_state_running,
+				State: resource_state_running,
+				State_name: "off",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -504,7 +498,8 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-4",
 				Id: 1004,
-				DesState: resource_state_running,
+				State: resource_state_running,
+				State_name: "off",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -542,7 +537,8 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-5",
 				Id: 1005,
-				DesState: resource_state_running,
+				State: resource_state_running,
+				State_name: "on",
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -580,7 +576,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_libvirt,
 				Name: "gh-test-6",
 				Id: 1006,
-				DesState: resource_state_running,
+				State: resource_state_stopped,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -616,9 +612,9 @@ func writeExampleConfig(){
 			Cluster_resource{
 				ResourceController_name: "dummy",
 				ResourceController_id: resource_controller_id_dummy,
-				Name: "dummy-gh-test-6",
+				Name: "dummy-gh-test-7",
 				Id: 1006,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -656,7 +652,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "basicResource 2 HIGH mem",
 				Id: 11,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -684,7 +680,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 3 Too High mem",
 				Id: 12,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -712,7 +708,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 4 too high cpu",
 				Id: 13,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -740,7 +736,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 5 high cpu",
 				Id: 14,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -768,7 +764,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 6 high cpu",
 				Id: 15,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -796,7 +792,7 @@ func writeExampleConfig(){
 				ResourceController_id: resource_controller_id_dummy,
 				Name: "dummy resource 7 high mem",
 				Id: 16,
-				DesState: resource_state_running,
+				State: resource_state_running,
 				Util: []Cluster_utilization{
 					Cluster_utilization{
 						Name:	"vCPUs",
@@ -864,352 +860,6 @@ func writeExampleConfig(){
 		}
 	ioutil.WriteFile("./cluster.json",confser,0644)}
 
-//func OLDwriteExampleConfig(){
-//	fmt.Println("Creatimg example config for lvcl")
-//	testConfig := Conf{ UUID: "testuuid",
-//		DomainDefinitionDir: "domains/",
-//		Nodes: []Node{
-//			Node{
-//				Hostname: "r210II-1",
-//				NodeAddress: "10.0.6.14:6798",
-//				LibvirtAddress: "10.0.6.14",
-//				NodeState: NodePreparing,
-//				Weight: 1003,
-//				HwStats: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	80,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwCPUs",
-//						//Id:		utilization_hw_cores,
-//						Value:	8,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	18432,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwMEM",
-//						//Id:		utilization_hw_mem,
-//						Value:	18432,
-//						},
-//					},
-//				},
-//			Node{
-//				Hostname: "r210II-2",
-//				NodeAddress: "10.0.6.15:6798",
-//				LibvirtAddress: "10.0.6.15",
-//				NodeState: NodePreparing,
-//				Weight: 1002,
-//				HwStats: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	80,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwCPUs",
-//						//Id:		utilization_hw_cores,
-//						Value:	8,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	10240,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwMEM",
-//						//Id:		utilization_hw_mem,
-//						Value:	10240,
-//						},
-//					},
-//				},
-//			Node{
-//				Hostname: "r210II-3",
-//				NodeAddress: "10.0.6.16:6798",
-//				LibvirtAddress: "10.0.6.16",
-//				NodeState: NodePreparing,
-//				Weight: 1001,
-//				HwStats: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	80,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwCPUs",
-//						//Id:		utilization_hw_cores,
-//						Value:	8,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	6144,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwMEM",
-//						//Id:		utilization_hw_mem,
-//						Value:	6144,
-//						},
-//					},
-//				}},
-//		ResourceControllers: map[string]bool{
-//			"libvirt": true},
-//		Resources: []Cluster_resource{
-//			Cluster_resource{
-//				ResourceController_name: "libvirt",
-//				ResourceController_id: resource_controller_id_libvirt,
-//				Name: "basicResource 1",
-//				Id: 10,
-//				State: resource_state_running,
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	1,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwCPUs",
-//						//Id:		utilization_hw_cores,
-//						Value:	1,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	1024,
-//						},
-//					Cluster_utilization{
-//						Name:	"hwMEM",
-//						//Id:		utilization_hw_mem,
-//						Value:	512,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//				},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : true,
-//				},
-//			},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "basicResource 2 HIGH mem",
-//				Id: 11,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	1,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	1024,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//				},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : true,
-//				},
-//			},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "dummy resource 3 Too High mem",
-//				Id: 12,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	1,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	99999,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//					},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : false,
-//					},
-//				},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "dummy resource 4 too high cpu",
-//				Id: 13,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	100,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	1024,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//					},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : false,
-//					},
-//				},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "dummy resource 5 high cpu",
-//				Id: 14,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	3,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	512,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//					},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : false,
-//					},
-//				},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "dummy resource 6 high cpu",
-//				Id: 15,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	3,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	512,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//					},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : false,
-//					},
-//				},
-//			Cluster_resource{
-//				ResourceController_name: "dummy",
-//				ResourceController_id: resource_controller_id_dummy,
-//				Name: "dummy resource 7 high mem",
-//				Id: 16,
-//				State_name: "on",
-//				Util: []Cluster_utilization{
-//					Cluster_utilization{
-//						Name:	"vCPUs",
-//						//Id:		utilization_vpcus,
-//						Value:	2,
-//						},
-//					Cluster_utilization{
-//						Name:	"vMEM",
-//						//Id:		utilization_vmem,
-//						Value:	10240,
-//						},
-//					},
-//				Strs: map[string]string{
-//					"DomainXML": "tests struct embedded in main cluster.conf",
-//					},
-//				Ints: map[string]int{
-//					"MigrationTimeout" : 180,
-//					},
-//				Bools: map[string]bool{
-//					"MigrateLive" : false,
-//					},
-//				},
-//		},
-//		BalanceMode: Cpus,
-//		ResStickiness:50,
-//		GlobMigrationTimeout:120,
-//		GlobLiveMigrationBlock:false,
-//		Maintenance: true,
-//		VCpuMax: 8,
-//		HwCpuMax: 8,
-//		VMemMax: 8192,
-//		HwMemMax: 8192,
-//		ClusterBalancerDelay: 2,
-//		Quorum: 2,
-//		EnabledResourceControllers: map[uint]bool{
-//			resource_controller_id_libvirt: true,
-//			resource_controller_id_dummy:  true,
-//			},
-//		HeartbeatInterval: 1000,
-//		ClusterTick: 2000,
-//		ConfHashCheck: true,
-//		HealthDeltaUpdateDelay: 250,
-//		//NodeHealthCheckInterval: 1000,
-//		ReconnectLoopDelay: 2500,
-//		HeartbeatTimeFormat: "2006-01-02 15:04:05",
-//		TCPport: "6798",
-//		UnixSocket: "./lvcl.sock",
-//		DefaultEventTimeoutTimeSec: 15,
-//		LogLocal: "loc.log",
-//		LogCombined: "cmb.log",
-//		DaemonLogging:	true,
-//		DebugLevel: 5,
-//		DebugNetwork: false,
-//		DebugLogger: false,
-//		DebugNoRemoteLogging: false,
-//		DebugRawLogging: false,
-//		DebugHeartbeat: false,
-//		DebugLibvirtShowDomStates: true,
-//		debugRunOnAnyHost: true,
-//		}
-//	
-//	confser, err := json.MarshalIndent(testConfig,"","	")
-//	if err != nil {
-//		fmt.Println("Can't serislize", testConfig)
-//		}
-//	ioutil.WriteFile("./cluster.json",confser,0644)}
-
 
 func (c *Conf)ClusterTick_sleep(){
 	time.Sleep( time.Duration(c.ClusterTick) * time.Millisecond )}
@@ -1260,7 +910,7 @@ func (c *Conf)SetField_bool(field string, value bool){
 	c.rwmux.Unlock()}
 
 
-func (c *Conf)SetNewResourceState(res *[]Cluster_resource){
+func (c *Conf)SetNewResources(res *[]Cluster_resource){
 	c.rwmux.Lock()
 	c.Resources = *res
 	c.rwmux.Unlock()}
@@ -1304,13 +954,20 @@ func (r *Cluster_resource)_fix_IDs() {
 		default:
 			fmt.Printf("ERROR Couldn't fix ID on resoutce %s %+v\n",
 				r.Name, r)}
-	switch r.State_name {
-		case "on":
-			r.State = resource_state_running
-		case "off":
-			r.State = resource_state_stopped
-		default:
-			r.State = resource_state_other }
+	if len(r.State_name) != 0 {
+		switch r.State_name {
+			case "on":
+				r.State = resource_state_running
+			case "off":
+				r.State = resource_state_stopped
+			default:
+				r.State = resource_state_other }}
+	switch r.State {
+		case resource_state_running:
+			r.State_name = "on"
+		case resource_state_stopped:
+			r.State_name = "off"
+	}
 	for k,_:=range r.Util {
 		r.Util[k]._fix_util_IDs()}
 	}
@@ -1340,7 +997,7 @@ func (r *Cluster_utilization)_fix_util_IDs() {
 				r.Name, r)}}
 
 
-func (c *Conf)_fix_resource_ISs(){
+func (c *Conf)_fix_resource_IDs(){
 	for k,_:=range c.Resources {
 		c.Resources[k]._fix_IDs()}}
 

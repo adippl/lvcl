@@ -835,7 +835,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 			return true}
 		
 		
-		res = config.GetCluster_resourcebyName_RW(&m.Argv[0])
+		res = config.GetCluster_resourcebyName(&m.Argv[0])
 		if res == nil {
 			// resource doesn't exists
 			reply.Epoch=13
@@ -851,7 +851,7 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		//end of mutex
 		config.IncEpoch() //TODO this function uses the mutex again
 		lg.msg_debug(2, fmt.Sprintf("resource %s changing state to %s",
-			res.Name, res.StateString()))
+			res.Name, res.GetStateString()))
 		//positive reply
 		reply.Epoch = 0
 		reply.Argv = append(reply.Argv, "resource changed state")

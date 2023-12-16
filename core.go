@@ -56,7 +56,7 @@ func daemonSetup(){
 	}
 
 func mainLoop(){
-	for i:=0; i<30; i++ {
+	for i:=0; i<60; i++ {
 		fmt.Println(i)
 		lg.msg(fmt.Sprintf("%d",i))
 		e.printHeartbeatStats()

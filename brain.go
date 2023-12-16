@@ -417,7 +417,7 @@ func (b *Brain)writeNodeHealth() string {
 	config.rwmux.RLock()
 	for _,v := range config.Resources {
 		sb.WriteString(fmt.Sprintf("Id %d\tdesState %s\tName %s\n", 
-			v.Id, v.DesStateString(), v.Name))}
+			v.Id, v.GetStateString(), v.Name))}
 	config.rwmux.RUnlock()
 
 	sb.WriteString("===================\n")
@@ -594,11 +594,7 @@ func (b *Brain)handle_events(){
 				go lg.msg_debug(5, fmt.Sprintf("Brain.handle_events() adds %s \t\t%+v", event.EvName, event))
 				new_ev_list = append( new_ev_list, event )
 			}else{
-				go lg.msg(fmt.Sprintf("ERROR cluster event %d %s timed out",
-					event.ID,
-					event.EvName ))
-				go lg.msg_debug(1, fmt.Sprintf(
-					"cleanup_timed_out_events cleans up event %d %s because of timeout",
+				go lg.msgERR(fmt.Sprintf("ERROR Brain.handle_events() cluster event %d %s timed out",
 					event.ID,
 					event.EvName ))}}
 		b.clusterEvents = new_ev_list
@@ -615,46 +611,51 @@ func (b *Brain)getResCtlFromId(i int) ResourceController {
 			return nil}}
 
 func (b *Brain)apply_placement_create_events(){
-	var des_res *Cluster_resource = nil
-	var cur_res *Cluster_resource = nil
+	//var des_res *Cluster_resource = nil
+	//var cur_res *Cluster_resource = nil
 
 	lg.msg_debug(5, fmt.Sprintf(
 		"apply_placement_create_events() starting"))
 	
 	b.rwmux_dp.RLock()
 	b.rwmux_curPlacement.RLock()
-	for k,_:= range b.desired_resourcePlacement {
-		des_res = &b.desired_resourcePlacement[k]
+	for k,des_res:= range b.desired_resourcePlacement {
+		//des_res = &b.desired_resourcePlacement[k]
 		for node,_ := range b.current_resourcePlacement{
-			for kk,_:= range b.current_resourcePlacement[node] { 
-			cur_res = &b.current_resourcePlacement[node][kk]
-				
-				//if des_res.Name == "gh-test-2" && cur_res.Name == "gh-test-2"  {
-				//	lg.msg_debug(5, fmt.Sprintf( "%s %d %d %s | %s %d %d %s ||||| %+v %+v",
-				//		des_res.Name,
-				//		des_res.Id,
-				//		des_res.State,
-				//		cur_res.Name,
-				//		cur_res.Placement,
-				//		cur_res.Id,
-				//		cur_res.State,
-				//		cur_res.Placement,
-				//		des_res,
-				//		cur_res,
-				//		))}
+			//for kk,cur_res:= range b.current_resourcePlacement[node] { 
+			for _,cur_res:= range b.current_resourcePlacement[node] { 
+			//cur_res = &b.current_resourcePlacement[node][kk]
 					
 				if des_res.Id == cur_res.Id && des_res.Name == cur_res.Name {
 					// found resource that it's already in current_resourcePlacement
 					
 					// skip if cluster already has event related to this resource
-					if b.getEventByRes( des_res ) != nil {
+					if b.getEventByRes( &des_res ) != nil {
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s exists another event already handling this event", des_res.Name))
 						goto resource_detected_and_configured}
 						
 					
 					// skip if state is and placement are fine
-					if des_res.State == cur_res.State && des_res.Placement == cur_res.Placement {
-						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node", des_res.Name))
+					if des_res.State == cur_res.State &&
+						des_res.Placement == cur_res.Placement &&
+						des_res.State == resource_state_running &&
+						cur_res.State != resource_state_stopped {
+						//lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node des_res.State %s, cur_res.State %s %+v", des_res.Name, _stateString(des_res.State), _stateString(cur_res.State), *des_res))
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s %s already running on correct node des_res.State %s, cur_res.State %s, placement %s %s %d %d, running %d, stopped %d,  des_res.State == resource_state_running %b cur_res.State != resource_state_stopped %b %b",
+							b.desired_resourcePlacement[k].Name,
+							cur_res.Name,
+							b.desired_resourcePlacement[k].GetStateString(),
+							cur_res.GetStateString(),
+							des_res.Placement,
+							cur_res.Placement,
+							des_res.State,
+							cur_res.State,
+							resource_state_running,
+							resource_state_stopped,
+							des_res.State == resource_state_running,
+							cur_res.State != resource_state_stopped,
+							des_res.State == resource_state_running && cur_res.State != resource_state_stopped,
+							))
 						goto resource_detected_and_configured}
 					
 					// skip if state is not supported
@@ -666,28 +667,28 @@ func (b *Brain)apply_placement_create_events(){
 						
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s has not supported state '%s', not touching",
 							des_res.Name,
-							cur_res._stateString()))
+							cur_res.GetStateString()))
 						goto resource_detected_and_configured}
 					
 					
-					// stop resource if it's running but supposed to be down
-					if des_res.State != cur_res.State &&
-						des_res.State == resource_state_stopped && 
-						cur_res.State == resource_state_running {
-						
-						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s stopping resource", des_res.Name))
-						b.create_event_stop_resource( des_res )
-						goto resource_detected_and_configured}
+					//// stop resource if it's running but supposed to be down
+					//if des_res.State != cur_res.State &&
+					//	des_res.State == resource_state_stopped && 
+					//	cur_res.State == resource_state_running {
+					//	
+					//	lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s stopping resource", des_res.Name))
+					//	b.create_event_stop_resource( &des_res )
+					//	goto resource_detected_and_configured}
 					
 					// stop resource if resource requires migration but it's controller doesn't support migration
 					if des_res.State != cur_res.State &&
 						des_res.State == resource_state_running && 
 						cur_res.State == resource_state_running &&
 						des_res.Placement != cur_res.Placement &&
-						b.get_ctrl_live_migration_enabled(des_res) == false {
+						b.get_ctrl_live_migration_enabled( &des_res ) == false {
 						
-						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node", des_res.Name))
-						b.create_event_stop_resource( des_res )
+							lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s runs on wrong node and migration is not available, stopping resource", des_res.Name))
+						b.create_event_stop_resource( &des_res )
 						goto resource_detected_and_configured}
 					
 					// migrate resource if 
@@ -695,7 +696,7 @@ func (b *Brain)apply_placement_create_events(){
 						des_res.State == resource_state_running && 
 						cur_res.State == resource_state_running &&
 						des_res.Placement != cur_res.Placement &&
-						b.get_ctrl_live_migration_enabled(des_res) == true {
+						b.get_ctrl_live_migration_enabled( &des_res ) == true {
 						
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s live migration not enabled ", des_res.Name))
 						goto resource_detected_and_configured}
@@ -703,7 +704,7 @@ func (b *Brain)apply_placement_create_events(){
 			}
 		}
 		lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() couldn't find %s running on the cluster. Starting resource ", des_res.Name))
-		b.create_event_start_resource( des_res )
+		b.create_event_start_resource( &des_res )
 		resource_detected_and_configured:
 	}
 	b.rwmux_curPlacement.RUnlock()
@@ -751,7 +752,7 @@ func (b *Brain)writeBrainStatus() *string {
 	b.rwmux_dp.RLock()
 	for _,v:=range b.desired_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
-			v.CtlString(), v.DesStateString(), v.Placement, v.Name ))}
+			v.CtlString(), v.GetStateString(), v.Placement, v.Name ))}
 	b.rwmux_dp.RUnlock()
 	sb.WriteString("========================================\n")
 	
@@ -762,7 +763,7 @@ func (b *Brain)writeBrainStatus() *string {
 		for _,v2:=range v {
 			sb.WriteString(fmt.Sprintf(
 				"\tctl %-10s\tstate %-10s\tnode %s\tname %s\n",
-				v2.CtlString(), v2.StateString(), v2.Placement, v2.Name ))}}
+				v2.CtlString(), v2.GetStateString(), v2.Placement, v2.Name ))}}
 	b.rwmux_curPlacement.RUnlock()
 	sb.WriteString("========================================\n")
 		
@@ -770,7 +771,7 @@ func (b *Brain)writeBrainStatus() *string {
 	b.rwmux_locP.RLock()
 	for _,v:=range b.local_resourcePlacement {
 		sb.WriteString(fmt.Sprintf("ctl %-10s\tstate %-10s\tnode %s\tname %s\n",
-			v.CtlString(), v.StateString(), v.Placement, v.Name ))}
+			v.CtlString(), v.GetStateString(), v.Placement, v.Name ))}
 	b.rwmux_locP.RUnlock()
 	sb.WriteString("========================================\n")
 	sb.WriteString(*b.writeSum_expectedResUtil())
@@ -986,14 +987,11 @@ func (b *Brain)basic_placeResources(){
 	var lastNode int = 0
 	var has_changed bool = false
 	var fmap *[]string = nil
-	var resource *Cluster_resource = nil
 	var nodeHealth map[string]int = b.getNodeHealthCopy()
 	var n_o_health_nodes int = 0 
 	config.rwmux.RLock()
 	b.rwmux_dp.Lock()
-	for k,_:=range config.Resources {
-		resource = nil
-		resource = &config.Resources[k]
+	for _,resource :=range config.Resources {
 		fmap = nil
 		fmap = b.checkResourceInFailureMap(&resource.Name)
 		n_o_health_nodes = b.getNumberOfHealthyNodes(&nodeHealth, fmap) 
@@ -1003,11 +1001,11 @@ func (b *Brain)basic_placeResources(){
 		if fmap != nil && len(*fmap) >= n_o_health_nodes {
 			// resource failed on all nodes
 			// stop if placed somewhere
-			resource.DesState = resource_state_stopped
+			resource.State = resource_state_stopped
 			//lg.msg_debug(5, fmt.Sprintf(
 			//	"ASDFASDF %+v %+v", fmap, resource.Name))
-			lg.msg_debug(5, fmt.Sprintf("resource '%s' failed on all nodes, stopping", resource.Name, resource.DesStateString()))
-			b.stop_if_placed(resource)
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' failed on all nodes, stopping", resource.Name, resource.GetStateString()))
+			b.stop_if_placed( &resource )
 			//skip this resource
 			continue}
 		
@@ -1021,22 +1019,22 @@ func (b *Brain)basic_placeResources(){
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' controller %d is not healthy, not placing", resource.Name, resource.ResourceController_id))
 			continue}
 		
-		if resource.DesState != resource_state_running {
-			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
-			continue}
-		if resource.DesState == resource_state_stopped {
+		if resource.State == resource_state_stopped {
 			// check if resouce was placed previously
-			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.DesStateString()))
-			b.stop_if_placed(resource)
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled, not placing", resource.Name, resource.GetStateString()))
+			b.stop_if_placed( &resource )
 			continue}
-		if b.check_if_resource_has_placement(resource) {
+		if resource.State != resource_state_running {
+			lg.msg_debug(5, fmt.Sprintf("resource '%s' %s not enabled DEBUG, not placing", resource.Name, resource.GetStateString()))
+			continue}
+		if b.check_if_resource_has_placement( &resource ) {
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' not placing resource has placement", resource.Name))
 			continue}
-		if b.check_if_resource_is_running_on_cluster(resource) {
+		if b.check_if_resource_is_running_on_cluster( &resource ) {
 			lg.msg_debug(5, fmt.Sprintf("resource '%s' not placing resource already running", resource.Name))
 			continue}
 			
-		if b._place_single_resource(&lastNode, resource, fmap, &nodeHealth){
+		if b._place_single_resource(&lastNode, &resource, fmap, &nodeHealth){
 			has_changed = true
 			//lg.msg_debug(2, fmt.Sprintf(
 			//	"resource '%s' placed on node %s",
@@ -1069,6 +1067,17 @@ func remove(s []Cluster_resource, i int) []Cluster_resource {
 //resrouce has to had resource_state_stopped for this function to work
 //TODO return true if config changed
 func (b *Brain)stop_if_placed(c *Cluster_resource){
+	lg.msg_debug(5, fmt.Sprintf("Brain.stop_if_placed() runs for %s resource", c.Name)) 
+
+	b.rwmux_curPlacement.RLock()
+	for node,_ := range b.current_resourcePlacement {
+		for _,r := range b.current_resourcePlacement[ node ] {
+			if r.Id == c.Id && r.Name == c.Name {
+				c.Placement = node
+				b.create_event_stop_resource( c )}}}
+	b.rwmux_curPlacement.RUnlock()
+	
+
 	for k,_:=range b.desired_resourcePlacement {
 		if b.desired_resourcePlacement[k].Name == c.Name &&
 			b.desired_resourcePlacement[k].State != resource_state_stopped &&
@@ -1076,8 +1085,7 @@ func (b *Brain)stop_if_placed(c *Cluster_resource){
 			
 			lg.msg_debug(1, fmt.Sprintf(
 				"resource '%s' was removed from placement",c.Name))
-			b.desired_resourcePlacement = remove(b.desired_resourcePlacement,
-				k)
+			b.desired_resourcePlacement = remove(b.desired_resourcePlacement, k)
 			b.IncEpoch_NO_LOCK()
 			return}}}
 

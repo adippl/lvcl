@@ -108,7 +108,8 @@ func (b *Brain)send_events_to_nodes( e *event){
 		}
 	m.Custom1 = *e
 
-	lg.msg_debug(5, fmt.Sprintf("Brain.send_events_to_nodes() %T %+v %T %+v", *e, *e, m.Custom1, m.Custom1))
+	//lg.msg_debug(5, fmt.Sprintf("Brain.send_events_to_nodes() %T %+v %T %+v", *e, *e, m.Custom1, m.Custom1))
+	lg.msg_debug(5, fmt.Sprintf("Brain.send_events_to_nodes() %s", e.EvName))
 	b.brn_ex <- *m}
 
 
@@ -249,7 +250,7 @@ func (b *Brain)create_event_stop_resource(r *Cluster_resource) bool {
 	
 	if b.check_if_event_already_exist_and_active(e) {
 		lg.msg_debug(5, fmt.Sprintf(
-			"create_event_start_resource() found that event '%s' already exist on the cluster. Not adding",
+			"create_event_stop_resource() found that event '%s' already exist on the cluster. Not adding",
 			e.EvName))
 		return false}
 	b.append_clusterEvents(e)
