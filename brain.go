@@ -818,6 +818,7 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 		))}
 	return hwFits, usageFits, usagePerc}
 
+// THIS function may require mutex on nodeHealth if it's not a reall and deep copy
 func (n *Node)doesResourceFitsOnNode(
 	r *Cluster_resource,
 	fmap *[]string,
