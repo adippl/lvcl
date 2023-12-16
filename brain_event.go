@@ -48,9 +48,7 @@ func (e *event)checktimeout() bool {
 		e.TimeoutTime.String(),
 		time.Now().After(e.TimeoutTime),
 		))
-
 	return time.Now().After(e.TimeoutTime) }
-
 
 func (b *Brain)getEventById(id uint64) *event {
 	var e *event = nil
@@ -61,11 +59,21 @@ func (b *Brain)getEventById(id uint64) *event {
 	b.rwmux_events.RUnlock()
 	return e}
 
+
 func (b *Brain)getEventByEvName(EvName *string) *event {
 	var e *event = nil
 	b.rwmux_events.RLock()
 	for k,_:=range b.clusterEvents {
 		if b.clusterEvents[k].EvName == *EvName {
+			e = &b.clusterEvents[k]}}
+	b.rwmux_events.RUnlock()
+	return e}
+
+func (b *Brain)getEventByRes(r *Cluster_resource) *event {
+	var e *event = nil
+	b.rwmux_events.RLock()
+	for k,_:=range b.clusterEvents {
+		if b.clusterEvents[k].ResCtlID == r.ResourceController_id && b.clusterEvents[k].ResName == r.Name {
 			e = &b.clusterEvents[k]}}
 	b.rwmux_events.RUnlock()
 	return e}

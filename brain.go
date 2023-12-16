@@ -646,6 +646,12 @@ func (b *Brain)apply_placement_create_events(){
 				if des_res.Id == cur_res.Id && des_res.Name == cur_res.Name {
 					// found resource that it's already in current_resourcePlacement
 					
+					// skip if cluster already has event related to this resource
+					if b.getEventByRes( des_res ) != nil {
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s exists another event already handling this event", des_res.Name))
+						goto resource_detected_and_configured}
+						
+					
 					// skip if state is and placement are fine
 					if des_res.State == cur_res.State && des_res.Placement == cur_res.Placement {
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node", des_res.Name))
@@ -779,7 +785,7 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 	var hwFits bool = false
 	var usageFits bool = false
 	var hw uint64 = 0
-	var usage uint64 = 0
+	var nodeAvailableRes uint64 = 0
 	var usagePerc float32 = 0
 
 	for k,_:=range n.HwStats {
@@ -791,23 +797,25 @@ func (n *Node)doesUtilFitsOnNode(u *Cluster_utilization) (bool,bool,float32) {
 	if hwFits {
 		for k,_:=range n.Usage {
 			if	u.Id == n.Usage[k].Id {
-				if u.Value < ( hw - n.Usage[k].Value ) {
-					usageFits = true
-					usage = n.Usage[k].Value
-					break}}}}
+				if u.Value <= ( hw - n.Usage[k].Value ) {
+					usageFits = true}
+				nodeAvailableRes = ( hw - n.Usage[k].Value )
+				break}}}
 	if hw != 0 {
-		usagePerc = float32(usage/hw)
+		usagePerc = float32(nodeAvailableRes/hw)
 	}else{
 		usagePerc = -1.0}
-//	if ! (hwFits || usageFits) {
-//		fmt.Printf("res DOES NOT FIT ON THE NODE %b %b|%s|%s|%s|%d|%+v\n",
-//			hwFits,
-//			usageFits,
-//			n.Hostname,
-//			u.Name,
-//			u.NameString(),
-//			u.Value,
-//			u)}
+	if ! usageFits {
+		lg.msg_debug(5, fmt.Sprintf(
+			"Node.doesUtilFitsOnNode() res DOES NOT FIT ON THE NODE hwFits %b, usageFits %b, hostname: %s, util_name: %s (%s), value %s, nodeAvailableRes %d",
+			hwFits,
+			usageFits,
+			n.Hostname,
+			u.Name,
+			u.NameString(),
+			u.Value,
+			nodeAvailableRes,
+		))}
 	return hwFits, usageFits, usagePerc}
 
 func (n *Node)doesResourceFitsOnNode(
@@ -816,8 +824,11 @@ func (n *Node)doesResourceFitsOnNode(
 	nodeHealth *map[string]int,
 	) bool {
 	
+	lg.msg_debug(5, fmt.Sprintf("Node.doesResourceFitsOnNode() runs for resources %s and node %s", r.Name, n.Hostname))
+	
 	for k,_:=range r.Util {
 		if _,does_fit,_ := n.doesUtilFitsOnNode(&r.Util[k]); does_fit == false {
+			lg.msg_debug(5, fmt.Sprintf("Node.doesResourceFitsOnNode() resource couldn't fit on %s and node %s", r.Name, n.Hostname))
 			return false}}
 	//check if hostname is health map
 	if _, ok := (*nodeHealth)[n.Hostname]; ok {
@@ -841,7 +852,8 @@ func (n *Node)doesResourceFitsOnNode(
 	//should take longer
 	if fmap == nil {
 		lg.msg_debug(4, fmt.Sprintf(
-			"resource fits on node %s with health %d, '%s' \t %+v %+v",
+			"resource %s fits on node %s with health %d, '%s' \t %+v %+v",
+			r.Name,
 			n.Hostname,
 			(*nodeHealth)[n.Hostname],
 			r.Name,
@@ -850,10 +862,17 @@ func (n *Node)doesResourceFitsOnNode(
 		return true}
 	for k,_:=range *fmap {
 		if n.Hostname == (*fmap)[k] {
+			lg.msg_debug(4, fmt.Sprintf(
+				"Brain.doesResourceFitsOnNode() resource %s couldn't be placed because of failuremap %+v ",
+				r.Name,
+				fmap,
+				r))
+			
 			return false }}
 	
 	lg.msg_debug(4, fmt.Sprintf(
-		"resource fits on node %s with health %d, '%s' \t %+v",
+		"Brain.doesResourceFitsOnNode() resource %s fits on node %s with health %d, '%s' \t %+v",
+		r.Name,
 		n.Hostname,
 		(*nodeHealth)[n.Hostname],
 		r.Name,
@@ -940,9 +959,9 @@ func (b *Brain)_place_single_resource(
 		nodesChecked++
 		if nodesChecked >= nodeArrSize {
 			// all nodes checked, res coulsn't be placed
-//			lg.msg_debug(5, fmt.Sprintf(
-//				"_place_single_resource looped, (%d >= %d) = %b",
-//					nodesChecked, nodeArrSize, nodesChecked >= nodeArrSize))
+			lg.msg_debug(5, fmt.Sprintf(
+				"_place_single_resource looped, (%d >= %d) = %b",
+					nodesChecked, nodeArrSize, nodesChecked >= nodeArrSize))
 			return false}
 		if *lastNode >= nodeArrSize-1 {
 			//reset nodeArray index to 0, we want to loop over this array

@@ -411,7 +411,7 @@ func (l lvd)Get_utilization() *[]Cluster_utilization {
 func (l lvd)Start_resource(name string) bool {
 	vm := config.GetCluster_resourcebyName(&name)
 	if(vm==nil){
-		lg.err("lvd.Start_resource() config.GetVMbyName returned null pointer", nil)
+		lg.msgERR("lvd.Start_resource() config.GetVMbyName returned null pointer")
 		return false }
 	lg.msg_debug(1,
 		fmt.Sprintf("Node %s starts resource %s with %s controller",
