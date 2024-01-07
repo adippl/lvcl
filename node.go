@@ -56,7 +56,7 @@ type NodeStats struct{
 	memCached	uint64
 	}
 
-func (n *Node)GetNodeStateString() string {
+func (n Node)GetNodeStateString() string {
 	switch n.State {
 	case NodeStateNil:
 		return "NodeStateNil"
@@ -91,3 +91,25 @@ func (n *Node)fixNodeStateString(){
 
 func (p *Node)dump(){
 	fmt.Printf("\n dumping Node %+v \nEND\n", *p)}
+
+func (n Node)IsNodeReadyForResources() bool {
+	switch n.State {
+	case NodeOnline:
+		return true
+	default:
+		return false
+	}
+}
+
+func (n Node)CanSchedulerTouchResourceOnTheNode() bool {
+	switch n.State {
+	case NodeMaintenance:
+		return false
+	case NodeOffline:
+		return false
+	case NodeNotReady:
+		return false
+	default:
+		return true
+	}
+}

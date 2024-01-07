@@ -435,7 +435,7 @@ func (b *Brain)writeNodeHealth() string {
 	return sb.String()}
 
 func (b *Brain)PrintNodeHealth(){
-	lg.msg(b.writeNodeHealth())}
+	lg.msg(*b.writeBrainStatus())}
 
 func (b *Brain)reportControllerResourceState(ctl ResourceController) {
 	var cl_res *[]Cluster_resource
@@ -621,10 +621,25 @@ func (b *Brain)getResCtlFromId(i int) ResourceController {
 		default:
 			return nil}}
 
+//func _check_IsNodeReadyForResources(n *[]Node, *name) bool {
+//	for k,_ := range n {
+//		if n[k].Name == name {
+//			return n.[k].IsNodeReadyForResources()}} 
+//	return false}
+//
+//
+//func _check_CanSchedulerTouchResourceOnTheNode(n *[]Node, *name) bool {
+//	for k,_ := range n {
+//		if n[k].Name == name {
+//			return n.[k].CanSchedulerTouchResourceOnTheNode()}} 
+//	return false}
+
+
 func (b *Brain)apply_placement_create_events(){
 	//var des_res *Cluster_resource = nil
 	//var cur_res *Cluster_resource = nil
-
+	var nodes map[string]Node = config.GetNodes_map()
+	
 	lg.msg_debug(5, fmt.Sprintf(
 		"apply_placement_create_events() starting"))
 	
@@ -645,14 +660,21 @@ func (b *Brain)apply_placement_create_events(){
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s exists another event already handling this event", des_res.Name))
 						goto resource_detected_and_configured}
 						
+
+					// skip if resource is placed on node in maintenance or offline
+					if nodes[ cur_res.Placement ].CanSchedulerTouchResourceOnTheNode() {
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s is running on a node in maintenance or other mode which causes it to be inaccessible", des_res.Name))
+						goto resource_detected_and_configured}
+						
 					
 					// skip if state is and placement are fine
 					if des_res.State == cur_res.State &&
 						des_res.Placement == cur_res.Placement &&
 						des_res.State == resource_state_running &&
-						cur_res.State != resource_state_stopped {
+						cur_res.State != resource_state_stopped &&
+						nodes[ cur_res.Placement ].IsNodeReadyForResources()  {
 						//lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s already running on correct node des_res.State %s, cur_res.State %s %+v", des_res.Name, _stateString(des_res.State), _stateString(cur_res.State), *des_res))
-						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s %s already running on correct node des_res.State %s, cur_res.State %s, placement %s %s %d %d, running %d, stopped %d,  des_res.State == resource_state_running %b cur_res.State != resource_state_stopped %b %b",
+						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s %s already running on correct node des_res.State %s, cur_res.State %s, placement %s %s %d %d, running %d, stopped %d,  des_res.State == resource_state_running %b cur_res.State != resource_state_stopped %b %b nodes[ cur_res.Placement ].IsNodeReadyForResources() %b",
 							b.desired_resourcePlacement[k].Name,
 							cur_res.Name,
 							b.desired_resourcePlacement[k].GetStateString(),
@@ -666,6 +688,7 @@ func (b *Brain)apply_placement_create_events(){
 							des_res.State == resource_state_running,
 							cur_res.State != resource_state_stopped,
 							des_res.State == resource_state_running && cur_res.State != resource_state_stopped,
+							nodes[ cur_res.Placement ].IsNodeReadyForResources(),
 							))
 						goto resource_detected_and_configured}
 					
@@ -740,6 +763,61 @@ func (b *Brain)writeBrainStatus() *string {
 	var sb strings.Builder
 	var retString string
 	var resEnabled bool
+
+	//sb.WriteString(b.writeNodeHealth())
+	nodes := config.GetNodes_map()
+	b.rwmux.RLock()
+	sb.WriteString("\n=== Node Health ===\n")
+	if b.masterNode != nil {
+		sb.WriteString(fmt.Sprintf("Master node: %s\n", *b.masterNode))
+	}else{
+		sb.WriteString("No master node\n")}
+	sb.WriteString(fmt.Sprintf("Quorum: %d\n", b.quorum))
+	//read lock mutex for nodeHealth maps
+	b.rwmuxHealth.RLock()
+	for k,_ := range b.nodeHealth {
+		switch b.nodeHealth[k] {
+			case HealthGreen:
+				sb.WriteString(fmt.Sprintf(
+					"node: %-16s, state %-16s, last_msg: %dms, health: %s %+v\n",
+					k,
+					nodes[k].GetNodeStateString(),
+					b.nodeHealthLastPing[k],
+					"Green",
+					b.nodeHealthLast30Ticks[k]))
+			case HealthOrange:
+				sb.WriteString(fmt.Sprintf(
+					"node: %-16s, state %-16s, last_msg: %dms, health: %s %+v\n",
+					k,
+					nodes[k].GetNodeStateString(),
+					b.nodeHealthLastPing[k],
+					"Orange",
+					b.nodeHealthLast30Ticks[k]))
+			case HealthRed:
+				sb.WriteString(fmt.Sprintf(
+					"node: %-16s, state %-16s, last_msg: %dms, health: %s %+v\n",
+					k,
+					nodes[k].GetNodeStateString(),
+					b.nodeHealthLastPing[k],
+					"Red",
+					b.nodeHealthLast30Ticks[k]))}}
+	//unlock mutex for nodeHealth maps
+	b.rwmuxHealth.RUnlock()
+	b.rwmux.RUnlock()
+	
+	sb.WriteString("===================\n")
+	sb.WriteString("===================\n")
+	sb.WriteString("===================\n")
+	
+	sb.WriteString(fmt.Sprintf(
+		"===-- Cluster Resources (epoch %d) --===\n", config.GetEpoch()))
+	config.rwmux.RLock()
+	for _,v := range config.Resources {
+		sb.WriteString(fmt.Sprintf("Id %d\tdesState %s\tName %s\n", 
+			v.Id, v.GetStateString(), v.Name))}
+	config.rwmux.RUnlock()
+	
+	sb.WriteString("===================\n")
 	
 	sb.WriteString("\n====== Resource controller states ======\n")
 	resEnabled = config.IsCtrlEnabled( resource_controller_id_dummy)
@@ -758,6 +836,15 @@ func (b *Brain)writeBrainStatus() *string {
 			b.resCtl_lvd.Get_live_migration_support()));}
 	sb.WriteString("\n")
 	sb.WriteString("========================================\n")
+
+//	sb.WriteString("\n=============== Nodes ==================\n")
+//	nodes := config.GetNodes()
+//	health := getNodeHealthCopy
+//	for k,_ := range nodes {
+//		n := &(nodes[k])
+//		sb.WriteString(fmt.Sprintf(" %-16s :\tState %-16s\tHealth\n", nodes[k].Hostname, n.GetNodeStateString(), "lol" ))
+//	}
+//	sb.WriteString("========================================\n")
 	
 	sb.WriteString("\n====== desired resource placement ======\n")
 	sb.WriteString(fmt.Sprintf("brain Epoch (%d)\n", b.GetEpoch()))
@@ -1379,7 +1466,7 @@ func (b *Brain)msg_handle_clientAskAboutStatus(m *message) bool{
 		reply.DestMod = msgModClient
 		reply.RpcFunc = clientPrintTextStatus
 		reply.Argv = []string{
-			b.writeNodeHealth(),
+			*b.writeBrainStatus(),
 			}
 		b.brn_ex <- reply
 		return true}

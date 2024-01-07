@@ -1045,6 +1045,16 @@ func (c *Conf)GetNodes() []Node {
 	return nodeCopy
 	}
 
+func (c *Conf)GetNodes_map() map[string]Node {
+	var nodes map[string]Node = make(map[string]Node)
+	c.rwmux.RLock()
+	for k,_ := range config.Nodes {
+		nodes[ config.Nodes[k].Hostname ] = config.Nodes[k] }
+	c.rwmux.RUnlock()
+	return nodes
+	}
+
+
 func (c *Conf)setNodeState( name *string, state int ) {
 	c.rwmux.RLock()
 	for k,_:=range c.Nodes {
