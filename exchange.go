@@ -501,8 +501,14 @@ func (e *Exchange)KillExchange(){
 			break
 		}}}
 
-func (e *Exchange)GetHeartbeat()(map[string]*time.Time){
+func (e *Exchange)GetHeartbeat() map[string]*time.Time {
 	return e.heartbeatLastMsg}
+
+func (e *Exchange)GetHeartbeat_copy() map[string]*time.Time {
+	// TODO maybe secure with mutex
+	heartbeat_copy := e.heartbeatLastMsg
+	return heartbeat_copy
+	}
 
 func (m *message)verifyMessageConfigHash() bool {
 	if config.GetField_string("ConfFileHash") == m.ConfHash {
