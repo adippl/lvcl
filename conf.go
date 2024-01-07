@@ -1036,3 +1036,22 @@ func (c *Conf)IsCtrlEnabled(i int) (bool){
 	ret := c.EnabledResourceControllers[i]
 	c.rwmux.RUnlock()	
 	return ret}
+
+func (c *Conf)GetNodes() []Node {
+	c.rwmux.RLock()
+	nodeCopy := make([]Node, len(config.Nodes))
+	copy( nodeCopy, config.Nodes)
+	c.rwmux.RUnlock()
+	return nodeCopy
+	}
+
+func (c *Conf)NodeSetState( name *string, state int ) {
+	c.rwmux.RLock()
+	for k,_:=range c.Nodes {
+		if c.Nodes[k].Hostname == *name {
+			c.Nodes[k].State = state
+			c.Nodes[k].fixNodeStateString()
+		}
+	}
+	c.rwmux.RUnlock()
+}

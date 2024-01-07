@@ -33,9 +33,9 @@ type Node struct{
 	Hostname		string
 	NodeAddress		string
 	LibvirtAddress	string
-	State uint //{ NodeStateNil, NodeEvacuate }
+	State 			int //{ NodeStateNil, NodeEvacuate }
 	NodeStateString	string //{ NodeStateNil, NodeEvacuate }
-	Weight	uint
+	Weight			uint
 	
 	HwStats			[]Cluster_utilization
 	Usage			[]Cluster_utilization `json:"-"`
@@ -85,6 +85,9 @@ func (n *Node)fixNodeLoadedFromConfig(){
 	n.State = NodeStateNil
 	n.NodeStateString = "NodeStateNil"
 	return}
+
+func (n *Node)fixNodeStateString(){
+	n.NodeStateString = n.GetNodeStateString()}
 
 func (p *Node)dump(){
 	fmt.Printf("\n dumping Node %+v \nEND\n", *p)}
