@@ -269,7 +269,7 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		b.rwmuxHealth.Lock()
 		b.nodeHealth = make(map[string]int)
 		b.nodeHealth[config.MyHostname]=HealthGreen
-		for k,v := range e.GetHeartbeat() {
+		for k,v := range e.GetHeartbeat_copy() {
 			// get absolute value of time.
 			// in this simple implemetation time can be negative due to time 
 			// differences on host
