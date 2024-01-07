@@ -323,10 +323,15 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 			b.isMaster = false}
 		//unlock writing mutex 
 		b.rwmuxHealth.Unlock()
+		
+		//b.rwmuxHealth.RLock()
+		//
+		//nodeHealth:				make(map[string]int),
+		//
+		//b.rwmuxHealth.RUnlock()
+		
+		
 		config.ClusterHeartbeat_sleep()}}
-//		time.Sleep(
-//			time.Millisecond * time.Duration(
-//				config.NodeHealthCheckInterval))}}
 
 func (b *Brain)findHighWeightNode() *string {
 	var host *string
@@ -385,7 +390,7 @@ func (b *Brain)writeNodeHealth() string {
 		sb.WriteString("No master node\n")}
 	sb.WriteString(fmt.Sprintf("Quorum: %d\n", b.quorum))
 	//read lock mutex for nodeHealth maps
-	b.rwmux.RLock()
+	b.rwmuxHealth.RLock()
 	for k,v := range b.nodeHealth {
 		switch v {
 			case HealthGreen:
@@ -410,7 +415,7 @@ func (b *Brain)writeNodeHealth() string {
 					"Red",
 					b.nodeHealthLast30Ticks[k]))}}
 	//unlock mutex for nodeHealth maps
-	b.rwmux.RUnlock()
+	b.rwmuxHealth.RUnlock()
 	
 	sb.WriteString(fmt.Sprintf(
 		"===-- Cluster Resources (epoch %d) --===\n", config.GetEpoch()))
