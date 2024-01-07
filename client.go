@@ -160,7 +160,8 @@ func validateStateFlag(s *string) bool {
 func resourceMod(resName *string, resDesiredState *string) {
 	var callID string = strconv.Itoa(rand.Int())
 	var m message
-
+	
+	clogger(3, "resourceMod runs")
 	if validateStateFlag(resDesiredState) == false {
 		clogger(0, "-state received wrong argument")
 		os.Exit(3) 
@@ -168,8 +169,10 @@ func resourceMod(resName *string, resDesiredState *string) {
 	
 	waitForClientID()
 	m = *formatMsg()
+	//os.Exit(1)
 	m.DestHost = "__any__"
 	m.DestMod = msgModConfig
+	m.SrcMod = msgModClient
 	m.RpcFunc = clientAskResStateChange
 	m.Argv = []string{
 			*resName,
@@ -298,11 +301,14 @@ func client(){
 	go ec.listen()
 	
 	if statusFlag && ! loggerFlag && ! resModFlag {
-		go clusterStatus(statusInterval)}
-	if loggerFlag && ! statusFlag && ! resModFlag {
-		go attachToClusterLogger(clusterLogLevel)}
-	if resModFlag && ! statusFlag && ! loggerFlag  {
-		go resourceMod(&resName, &resDesiredState)}
+		go clusterStatus(statusInterval)
+	}else if loggerFlag && ! statusFlag && ! resModFlag {
+		go attachToClusterLogger(clusterLogLevel)
+	}else if resModFlag && ! statusFlag && ! loggerFlag  {
+		go resourceMod(&resName, &resDesiredState)
+	}else {
+		os.Exit(1)
+	}
 		
 	clientMessageHandler()
 	time.Sleep(time.Millisecond * time.Duration(1000))

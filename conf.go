@@ -257,6 +257,13 @@ func (c *Conf)GetCluster_resourcebyName(argName *string)(v *Cluster_resource){
 	config.rwmux.RUnlock()
 	return nil}
 
+func (c *Conf)GetCluster_resourcebyName_no_mutex(argName *string)(v *Cluster_resource){
+	for k,_ := range c.Resources{
+		if c.Resources[k].Name == *argName{
+			return &c.Resources[k]}}
+	return nil}
+
+
 func (c *Conf)setResourceState(	
 	name *string,
 	ID int,

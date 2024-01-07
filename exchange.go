@@ -795,11 +795,17 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 	var res *Cluster_resource = nil
 	var newState int
 	var reply message
+	var resName *string
+	var resState *string
 	
 	if	m.RpcFunc == clientAskResStateChange &&
 		m.SrcMod == msgModClient &&
 		m.DestMod == msgModConfig {
 		
+		resName = &m.Argv[0]
+		resState = &m.Argv[1]
+		
+		go lg.msg_debug(5, "msg_handle_msgModConfig runs clientAskResStateChange")
 		//prepare reply message
 		reply.SrcMod = msgModConfig
 		reply.DestMod = msgModClient
@@ -807,11 +813,11 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		reply.RpcFunc = clientAskResStateChangeReply
 		reply.Argv = m.Argv
 		
-		if validateStateFlag(&m.Argv[1]) == false {
+		if validateStateFlag( resState ) == false {
 			//message arrived with wrong 
 			reply.Epoch=11
-			reply.Argv = append(reply.Argv, "error wrong state requested")
-			lg.msgERR("error wrong state requested")
+			reply.Argv = append(reply.Argv, "msg_handle_msgModConfig() error wrong state requested")
+			lg.msgERR("msg_handle_msgModConfig() error wrong state requested")
 			e.replyToUsock(&reply)
 			return true}
 		
@@ -829,32 +835,33 @@ func (e *Exchange)msg_handle_msgModConfig(m *message) bool {
 		default:
 			//reply with error
 			reply.Epoch=12
-			reply.Argv = append(reply.Argv, "error wrong state requested 2")
-			lg.msgERR("error wrong state requested 2")
+			reply.Argv = append(reply.Argv, "msg_handle_msgModConfig() error wrong state requested 2")
+			lg.msgERR("msg_handle_msgModConfig() error wrong state requested 2")
 			e.replyToUsock(&reply)
 			return true}
 		
 		
-		res = config.GetCluster_resourcebyName(&m.Argv[0])
+		res = config.GetCluster_resourcebyName( resName )
 		if res == nil {
 			// resource doesn't exists
 			reply.Epoch=13
-			reply.Argv = append(reply.Argv, "couldn't find resource")
-			lg.msgERR("couldn't find resource")
+			reply.Argv = append(reply.Argv, "msg_handle_msgModConfig() couldn't find resource")
+			lg.msgERR("msg_handle_msgModConfig() couldn't find resource")
 			e.replyToUsock(&reply)
 			return true}
 		//mutex
 		config.rwmux.Lock()
+		res = config.GetCluster_resourcebyName_no_mutex( resName )
 		res.State = newState
 		res.SaveToFile()
 		config.rwmux.Unlock()
 		//end of mutex
 		config.IncEpoch() //TODO this function uses the mutex again
-		lg.msg_debug(2, fmt.Sprintf("resource %s changing state to %s",
+		lg.msg_debug(2, fmt.Sprintf("msg_handle_msgModConfig() resource %s changing state to %s",
 			res.Name, res.GetStateString()))
 		//positive reply
 		reply.Epoch = 0
-		reply.Argv = append(reply.Argv, "resource changed state")
+		reply.Argv = append(reply.Argv, "msg_handle_msgModConfig() resource changed state")
 		e.replyToUsock(&reply)
 		return true}
 	return false}

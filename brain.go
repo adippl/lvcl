@@ -696,7 +696,8 @@ func (b *Brain)apply_placement_create_events(){
 						des_res.State == resource_state_running && 
 						cur_res.State == resource_state_running &&
 						des_res.Placement != cur_res.Placement &&
-						b.get_ctrl_live_migration_enabled( &des_res ) == true {
+						b.get_ctrl_live_migration_enabled( &des_res ) == true &&
+						des_res.Bools["MigrateLive"] == true {
 						
 						lg.msg_debug(5, fmt.Sprintf("apply_placement_create_events() %s live migration not enabled ", des_res.Name))
 						goto resource_detected_and_configured}
