@@ -1045,10 +1045,21 @@ func (c *Conf)GetNodes() []Node {
 	return nodeCopy
 	}
 
-func (c *Conf)NodeSetState( name *string, state int ) {
+func (c *Conf)setNodeState( name *string, state int ) {
 	c.rwmux.RLock()
 	for k,_:=range c.Nodes {
 		if c.Nodes[k].Hostname == *name {
+			c.Nodes[k].State = state
+			c.Nodes[k].fixNodeStateString()
+		}
+	}
+	c.rwmux.RUnlock()
+}
+
+func (c *Conf)setNodeState_if_not_special( name *string, state int ) {
+	c.rwmux.RLock()
+	for k,_:=range c.Nodes {
+		if c.Nodes[k].Hostname == *name && c.Nodes[k].State != NodeMaintenance && c.Nodes[k].State != NodeEvacuate {
 			c.Nodes[k].State = state
 			c.Nodes[k].fixNodeStateString()
 		}

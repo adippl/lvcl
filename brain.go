@@ -324,11 +324,17 @@ func (b *Brain)updateNodeHealth(){	//TODO, add node load to health calculation
 		//unlock writing mutex 
 		b.rwmuxHealth.Unlock()
 		
-		//b.rwmuxHealth.RLock()
-		//
-		//nodeHealth:				make(map[string]int),
-		//
-		//b.rwmuxHealth.RUnlock()
+		// update node state in main config
+		b.rwmuxHealth.RLock()
+		for k,v := range b.nodeHealth {
+			if v == HealthGreen {
+				config.setNodeState_if_not_special( &k , NodeOnline )}
+			if v == HealthOrange {
+				config.setNodeState_if_not_special( &k , NodeNotReady )}
+			if v == HealthRed {
+				config.setNodeState_if_not_special( &k , NodeOffline )}
+		}
+		b.rwmuxHealth.RUnlock()
 		
 		
 		config.ClusterHeartbeat_sleep()}}
