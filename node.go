@@ -21,17 +21,20 @@ package main
 import "fmt"
 
 const(
-	NodeOffline=iota
-	NodePreparing
-	NodeOnline
+	NodeStateNil=iota
 	NodeEvacuate
+	NodeMaintenance
+	NodeOffline
+	NodeOnline
+	NodeNotReady
 	)
 
 type Node struct{
 	Hostname		string
 	NodeAddress		string
 	LibvirtAddress	string
-	NodeState uint //{ NodeOffline, NodePreparing, NodeOnline, NodeEvacuate }
+	State uint //{ NodeStateNil, NodeEvacuate }
+	NodeStateString	string //{ NodeStateNil, NodeEvacuate }
 	Weight	uint
 	
 	HwStats			[]Cluster_utilization
@@ -53,6 +56,35 @@ type NodeStats struct{
 	memCached	uint64
 	}
 
+func (n *Node)GetNodeStateString() string {
+	switch n.State {
+	case NodeStateNil:
+		return "NodeStateNil"
+	case NodeEvacuate:
+		return "NodeEvacuate"
+	case NodeMaintenance:
+		return "NodeMaintenance"
+	case NodeOffline:
+		return "NodeOffline"
+	case NodeOnline:
+		return "NodeOnline"
+	case NodeNotReady:
+		return "NodeNotReady"
+	default:
+		return "Node.GetNodeStateString() ERROR"}}
+
+func (n *Node)fixNodeLoadedFromConfig(){
+	if n.State == NodeEvacuate || n.NodeStateString == "NodeEvacuate" {
+		n.State = NodeEvacuate
+		n.NodeStateString = "NodeEvacuate"
+		return}
+	if n.State == NodeMaintenance || n.NodeStateString == "NodeMaintenance" {
+		n.State = NodeMaintenance
+		n.NodeStateString = "NodeMaintenance"
+		return}
+	n.State = NodeStateNil
+	n.NodeStateString = "NodeStateNil"
+	return}
 
 func (p *Node)dump(){
 	fmt.Printf("\n dumping Node %+v \nEND\n", *p)}

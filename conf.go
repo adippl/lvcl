@@ -133,7 +133,8 @@ func confLoad(){
 	
 	loadAllVMfiles()
 	config._fix_resource_IDs()
-	config._fix_node_ISs()
+	config._fix_node_states()
+	config._fix_node_Resource_IDs()
 	config._saveAllResources()
 	
 	//config.dumpConfig()
@@ -150,7 +151,7 @@ func confLoad(){
 				Hostname: "x270",
 				NodeAddress: "127.0.0.1:6798",
 				LibvirtAddress: "127.0.0.1",
-				NodeState: NodePreparing,
+				NodeStateString: "",
 				Weight: 1004,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
@@ -175,7 +176,7 @@ func confLoad(){
 						},
 					},
 				})
-		config._fix_node_ISs()
+		config._fix_node_Resource_IDs()
 	}else{
 		config._debug_one_node_cluster = false
 		}
@@ -297,7 +298,7 @@ func writeExampleConfig(){
 				Hostname: "ghn-s920-3",
 				NodeAddress: "10.0.5.57:6798",
 				LibvirtAddress: "10.0.5.57",
-				NodeState: NodePreparing,
+				NodeStateString: "",
 				Weight: 1003,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
@@ -326,7 +327,7 @@ func writeExampleConfig(){
 				Hostname: "ghn-s920-4",
 				NodeAddress: "10.0.5.58:6798",
 				LibvirtAddress: "10.0.5.58",
-				NodeState: NodePreparing,
+				NodeStateString: "",
 				Weight: 1002,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
@@ -355,7 +356,7 @@ func writeExampleConfig(){
 				Hostname: "ghn-s920-5",
 				NodeAddress: "10.0.5.59:6798",
 				LibvirtAddress: "10.0.5.59",
-				NodeState: NodePreparing,
+				NodeStateString: "",
 				Weight: 1001,
 				HwStats: []Cluster_utilization{
 					Cluster_utilization{
@@ -1008,7 +1009,13 @@ func (c *Conf)_fix_resource_IDs(){
 	for k,_:=range c.Resources {
 		c.Resources[k]._fix_IDs()}}
 
-func (c *Conf)_fix_node_ISs(){
+
+func (c *Conf)_fix_node_states(){
+	for k,_:=range c.Nodes {
+		c.Nodes[k].fixNodeLoadedFromConfig()}}
+
+
+func (c *Conf)_fix_node_Resource_IDs(){
 	for k,_:=range c.Nodes {
 		for kk,_:=range c.Nodes[k].HwStats {
 			c.Nodes[k].HwStats[kk]._fix_util_IDs()}}}
